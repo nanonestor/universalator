@@ -6,6 +6,10 @@ labels: ''
 assignees: ''
 
 ---
+**Operating System version (i.e. Windows version, etc):**
+
+**Universalator version:**
+
 
 **Describe the bug**
 A clear and concise description of what the bug is.
@@ -15,6 +19,6 @@ A clear and concise description of what the bug is.
 If applicable, add screenshots to help explain your problem.
 
 
-**Operating System version (i.e. Windows version, etc):**
+
 
 
