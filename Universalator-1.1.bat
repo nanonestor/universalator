@@ -64,8 +64,6 @@ SET "blue="
 ::mode con: cols=160 lines=55
 ::powershell -command "&{$H=get-host;$W=$H.ui.rawui;$B=$W.buffersize;$B.width=160;$B.height=9999;$W.buffersize=$B;}
 
-
-
 :: WINDOWS VERSION CHECK
 :: Versions equal to or older than Windows 8 (internal version number 6.2) will stop the script with warning.
 for /f "tokens=4-7 delims=[.] " %%i in ('ver') do (if %%i==Version (
@@ -93,6 +91,64 @@ IF %major%==6 IF %minor% GEQ 3 (
 )
 :skipwin
 
+:: Checks to see if there are environmental variables trying to set global ram allocation values!  This is a real thing!
+:: Check for _JAVA_OPTIONS
+IF NOT DEFINED _JAVA_OPTIONS GOTO :skipjavopts
+IF DEFINED _JAVA_OPTIONS (
+  ECHO %_JAVA_OPTIONS% | FINDSTR /i "xmx xmn" 1>NUL
+)
+  IF %ERRORLEVEL%==0 (
+    ECHO.
+    ECHO  %yellow% WARNING - IT WAS DETECTED THAT YOU HAVE THE WINDOWS ENVIRONMENTAL VARIABLE %blue%
+    ECHO  %yellow% NAMED %blue% _JAVA_OPTIONS %yellow% SETTING GLOBAL RAM MEMORY VALUES SUCH AS -Xmx or -Xmn %blue%
+    ECHO.
+    ECHO  %yellow% PLEASE REMOVE THIS VALUE FROM THE VARIABLE SO THAT YOUR SERVER WILL LAUNCH CORRECTLY! %blue%
+    ECHO.
+    ECHO  IF YOU DON'T KNOW HOW - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
+    ECHO  https://github.com/nanonestor/universalator/wiki
+    ECHO.
+    PAUSE && EXIT [\B]
+  )
+:skipjavopts
+
+: Check for JDK_JAVA_OPTIONS
+IF NOT DEFINED JDK_JAVA_OPTIONS GOTO :skipjdkjavaoptions
+IF DEFINED JDK_JAVA_OPTIONS (
+  ECHO %JDK_JAVA_OPTIONS% | FINDSTR /i "xmx xmn" 1>NUL
+)
+  IF %ERRORLEVEL%==0 (
+    ECHO.
+    ECHO  %yellow% WARNING - IT WAS DETECTED THAT YOU HAVE THE WINDOWS ENVIRONMENTAL VARIABLE %blue%
+    ECHO  %yellow% NAMED %blue% JDK_JAVA_OPTIONS %yellow% SETTING GLOBAL RAM MEMORY VALUES SUCH AS -Xmx or -Xmn %blue%
+    ECHO.
+    ECHO  %yellow% PLEASE REMOVE THIS VALUE FROM THE VARIABLE SO THAT YOUR SERVER WILL LAUNCH CORRECTLY! %blue%
+    ECHO.
+    ECHO  IF YOU DON'T KNOW HOW - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
+    ECHO  https://github.com/nanonestor/universalator/wiki
+    ECHO.
+    PAUSE && EXIT [\B]
+  )
+:skipjdkjavaoptions
+
+:: Check for JAVA_TOOL_OPTIONS
+IF NOT DEFINED JAVA_TOOL_OPTIONS GOTO :skipjavatooloptions
+IF DEFINED JAVA_TOOL_OPTIONS (
+  ECHO %JAVA_TOOL_OPTIONS% | FINDSTR /i "xmx xmn" 1>NUL
+)
+  IF %ERRORLEVEL%==0 (
+    ECHO.
+    ECHO  %yellow% WARNING - IT WAS DETECTED THAT YOU HAVE THE WINDOWS ENVIRONMENTAL VARIABLE %blue%
+    ECHO  %yellow% NAMED %blue% JAVA_TOOL_OPTIONS %yellow% SETTING GLOBAL RAM MEMORY VALUES SUCH AS -Xmx or -Xmn %blue%
+    ECHO.
+    ECHO  %yellow% PLEASE REMOVE THIS VALUE FROM THE VARIABLE SO THAT YOUR SERVER WILL LAUNCH CORRECTLY! %blue%
+    ECHO.
+    ECHO  IF YOU DON'T KNOW HOW - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
+    ECHO  https://github.com/nanonestor/universalator/wiki
+    ECHO.
+    PAUSE && EXIT [\B]
+  )
+:skipjavatooloptions
+
 :: Checks to see if the end of this BAT file name ends in ) which is a special case that causes problems with command executions!
 SET THISNAME="%~n0"
 SET LASTCHAR="%THISNAME:~-2,1%"
@@ -112,10 +168,6 @@ IF %LASTCHAR%==")" (
 :: Needs to do separate ERRORLEVEL checks for warning message because WHERE checks will overwrite ERRORLEVEL from previous.
 SET PATH=%PATH%;"C:\Windows\Syswow64\"
 
-::WHERE FINDSTR >nul 2>&1
-::IF %ERRORLEVEL% NEQ 0 IF EXIST "C:\Windows\Syswow64\findstr.exe" SET PATH=%PATH%;"C:\Windows\Syswow64\"
-::IF %ERRORLEVEL% NEQ 0 IF EXIST "C:\Windows\System32\findstr.exe" SET PATH=%PATH%;"C:\Windows\System32\"
-
 WHERE FINDSTR >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
   ECHO.
@@ -125,10 +177,6 @@ IF %ERRORLEVEL% NEQ 0 (
   ECHO.
   PAUSE && EXIT [\B]
 )
-
-::WHERE CERTUTIL >nul 2>&1
-::IF %ERRORLEVEL% NEQ 0 IF EXIST "C:\Windows\Syswow64\certutil.exe" SET PATH=%PATH%;"C:\Windows\Syswow64\"
-::IF %ERRORLEVEL% NEQ 0 IF EXIST "C:\Windows\System32\certutil.exe" SET PATH=%PATH%;"C:\Windows\System32\"
 
 WHERE CERTUTIL >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
@@ -142,7 +190,6 @@ IF %ERRORLEVEL% NEQ 0 (
 
 :: Checks to see if Powershell is installed.  If not recognized as command or exists as file it will send a message to install.
 :: If exists as file then the path is simply not set and the ELSE sets it for this script run.
-PATH=%PATH%;"C:\Windows\System32\WindowsPowerShell\v1.0\
 
 WHERE powershell >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 IF NOT EXIST "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" (
@@ -153,143 +200,66 @@ IF %ERRORLEVEL% NEQ 0 IF NOT EXIST "C:\Windows\System32\WindowsPowerShell\v1.0\p
   ECHO Web search to find an installer for this product!
   PAUSE && EXIT [\B]
 
-) ELSE SET PATH=%PATH%;"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+) ELSE SET PATH=%PATH%;"C:\Windows\System32\WindowsPowerShell\v1.0\"
 
-:: Checks folder location this BAT is being run from.  Sends appropriate messages if needed.
-:: The first command to set LOC is to fix an edge case issue with folder paths ending in ).
+:: Checks folder location this BAT is being run from for 'onedrive'.  Sends appropriate messages if needed.
+:: The first command to set LOC is to fix an edge case issue with folder paths ending in ).  Yes this is worked on already above - including this anyways!
 SET LOC=%cd:)=]%
-ECHO %LOC% | FIND /i "onedrive" 1>NUL
+ECHO "%LOC%" | FIND /i "onedrive" 1>NUL
 IF %ERRORLEVEL%==0 (
     ECHO.
-    ECHO   %LOC%   
+    ECHO.
+    ECHO  %yellow% %LOC% %blue%
     ECHO.
     ECHO THE FOLDER THIS SCRIPT PROGRAM IS BEING RUN FROM - shown above - WAS DETECTED TO BE
-    ECHO   %yellow% INSIDE A ONE DRIVE FOLDER. %blue%
+    ECHO   %yellow% INSIDE A 'ONEDRIVE' FOLDER. %blue%
     ECHO.
-    ECHO   %yellow% ONE DRIVE IS A CLOUD STORAGE FOLDER. %blue% USE A FILE BROWSER TO RELOCATE THIS
-    ECHO    SERVER FOLDER TO A NEW LOCATION OUTSIDE OF THE ONE DRIVE FOLDER TREE.
+    ECHO   %yellow% ONEDRIVE IS A CLOUD STORAGE FOLDER. %blue% USE A FILE BROWSER TO RELOCATE THIS
+    ECHO    SERVER FOLDER TO A NEW LOCATION OUTSIDE OF THE ONEDRIVE FOLDER TREE.
     ECHO.
     PAUSE && EXIT [\B]
 )
 
-:: Checks if 7-zip is installed.  Gives user choices to install on their own or let BAT do it.
-SET ZIPCHOICE=NULL
-IF EXIST "C:\Program Files\7-Zip\7z.exe" GOTO :7zipfound
-:oops
-CLS
-IF /I !ZIPCHOICE!==MANUAL IF NOT EXIST "C:\Program Files\7-Zip\7z.exe" (
-  ECHO.
-  ECHO UH-OH. YOUR MANUAL 7-Zip INSTALLATION AT C:\Program Files WAS NOT DETECTED.
-  ECHO.
-  ECHO TRY AGAIN OR USE AUTO - GOOD LUCK!
-)
-IF /I !ZIPCHOICE!==AUTO IF NOT EXIST "C:\Program Files\7-Zip\7z.exe" (
-  ECHO.
-  ECHO.
-  ECHO   *** OOPS - SOMETHING WENT WRONG WITH THE AUTO INSTALL.  TRY AUTO AGAIN OR MAKE A DIFFERENT SELECTION ***
-  ECHO.
-  ECHO   ----------------------------------------------------------------------------------
-)
-  ECHO.
-  ECHO %yellow% Welcome to the Universalator - A modded Minecraft server installer / launcher. %blue%
-  ECHO.
-  ECHO   This program uses the %yellow% 7-zip ZIP file program %blue% for some it's modules - such as the client-only mod detector.
-  ECHO   ----------------------------------------------------------------------------------
-  ECHO  %yellow% It has been detected that it's not installed currently. %blue%
-  ECHO  %yellow% To continue - it must be installed.                     %blue%
-  ECHO.
-  ECHO   Option 1 - If you'd like to install it manually on your own go ahead and do so. -- You can leave this window open.
-  ECHO.
-  ECHO              7-Zip URL-  https://www.7-zip.org
-  ECHO              Get the Windows 64-bit-x64 .msi or .exe installer.
-  ECHO.
-  ECHO              It MUST be installed to - C:\Program Files\ -- this is usually default in the installer.
-  ECHO              Don't worry about other options besides the install location if you don't know what they're for -
-  ECHO                simply click next/Install to use default values.
-  ECHO.
-  ECHO    Option 2 - Let this program automatically download and install 7-Zip.
-  ECHO               You might be prompted by Windows to ask if it's okay.
-  ECHO.
-  ECHO   -----------------------------
-  ECHO   PLEASE ENTER YOUR CHOICE BELOW
-  ECHO   -----------------------------
-  ECHO    %yellow% MANUAL %blue% = You went and installed 7-Zip to C:\Program Files manually.  Check to see if it is present.
-  ECHO    %yellow% AUTO %blue% = Let this program download and install 7-Zip automatically.
-  ECHO              You might be prompted by Windows to ask if it's okay.
-  ECHO    %yellow% QUIT %blue% = Close this program -- really?  It's so fast though!  You don't know what you're missing.
-  ECHO.
-       SET /P "ZIPCHOICE=" 
-
-IF EXIST "C:\Program Files\7-Zip\7z.exe" GOTO :7zipfound
-IF /I !ZIPCHOICE! NEQ MANUAL IF /I !ZIPCHOICE! NEQ AUTO IF /I !ZIPCHOICE! NEQ QUIT GOTO :oops
-IF /I !ZIPCHOICE!==MANUAL IF NOT EXIST "C:\Program Files\7-Zip\7z.exe" GOTO :oops
-IF /I !ZIPCHOICE!==QUIT (
-  PAUSE && EXIT [\B]
+:: Checks folder location this BAT is being run from for 'documents', 'desktop', or 'downloads'.  Sends appropriate messages if needed.
+:: The first command to set LOC is to fix an edge case issue with folder paths ending in ).  Yes this is worked on already above - including this anyways!
+ECHO "%LOC%" | FINDSTR /i "documents desktop downloads" 1>NUL
+IF %ERRORLEVEL%==0 (
+    ECHO.
+    ECHO.
+    ECHO   %yellow% %LOC% %blue%
+    ECHO.
+    ECHO   THE FOLDER THIS SCRIPT PROGRAM IS BEING RUN FROM - shown above - WAS DETECTED TO BE
+    ECHO   %yellow% INSIDE A FOLDER OF 'DOCUMENTS', 'DESKTOP', OR 'DOWNLOADS'. %blue%
+    ECHO   SERVERS SHOULD NOT RUN IN THESE FOLDERS BECAUSE IT CAN CAUSE ISSUES WITH SYSTEM PERMISSIONS OR FUNCTIONS.
+    ECHO.
+    ECHO   USE A FILE BROWSER TO RELOCATE THIS
+    ECHO   SERVER FOLDER TO A NEW LOCATION OUTSIDE OF ANY OF THESE SYSTEM FOLDERS.
+    ECHO.
+    ECHO   EXAMPLES THAT WORK- C:\MYSERVER\    D:\MYSERVERS\MODDEDSERVERNAME\
+    ECHO.
+    PAUSE && EXIT [\B]
 )
 
-:hashfailretry
-IF /I !ZIPCHOICE!==AUTO (
-  REM ping -n 1 sourceforge.net >nul
-  REM IF %ERRORLEVEL% NEQ 0 (
-  REM   CLS
-  REM   ECHO.
-  REM   ECHO A PING TO sourceforge.net HAS FAILED
-  REM   ECHO    EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
-  REM   ECHO    THAT IS THE WEBSITE FOR 7-ZIP INSTALL FILE ARCHIVES.
-  REM   ECHO.
-  REM   ECHO    YOU MIGHT WANT TO TRY GOING TO https://www.7-zip.org/ AND DOWNLOADING / INSTALLING MANUALLY.
-  REM   ECHO    IF SO INSTALL THE 64-bit x64 VERSION FOR WINDOWS.
-  REM   ECHO      BE SURE THE INSTALL PATH IS - C:\PROGRAM FILES
-  REM   ECHO    OR TRY THIS LAUCHER AUTO INSTALL AGAIN LATER
-  REM   PAUSE && EXIT [\B]
-  REM )
-
-  IF NOT EXIST 7zz201-x64.msi (
-    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://sourceforge.net/projects/sevenzip/files/7-Zip/22.01/7z2201-x64.msi', '7zz201-x64.msi')" >nul
-
-  )
+:: Checks if standalone command line version of 7-zip is present.  If not downloads it.
+IF NOT EXIST "%cd%\java" (
+  MD java
+)
+SET ZIP7="%cd%\java\7za.exe"
+:try7zipagain
+IF NOT EXIST %ZIP7% (
+  CLS
   ECHO Downloading and installing 7-Zip...
-  TIMEOUT /T 5
-
-  SET idh=0
-  IF EXIST 7zz201-x64.msi (
-    FOR /f %%O IN ('certutil -hashfile 7zz201-x64.msi') do (
-      set "SHAMSI[!idh!]=%%O"
-      set /a idh += 1
-    )
-    SET 7ZMSICHECKSUM=!SHAMSI[1]!
-    SET 7ZIPCHECKSUM=3209574e09ec235b2613570e6d7d8d5058a64971
-
-    IF !7ZMSICHECKSUM!==!7ZIPCHECKSUM! (
-      msiexec.exe /i 7zz201-x64.msi INSTALLDIR="C:\Program Files\7-Zip" /qb
-      CLS
-      ECHO.
-      ECHO.
-      ECHO !yellow! ONCE YOU HAVE FINISHED ACCEPTING ANY WINDOWS OR INSTALLER PROMPTS PRESS ANY KEY TO CONTINUE !blue!
-      ECHO.
-      ECHO.
-      PAUSE
-      ) ELSE (
-        ECHO.
-        ECHO.
-        ECHO THE 7ZIP INSTALLER FILE SHA1 HASH DOES NOT MATCH WHAT IT IS SUPPOSED TO BE
-        ECHO USUALLY THIS MEANS A CORRUPTED DOWNLOAD
-        ECHO THE INCORRECT FILE HAS BEEN DELETED
-
-        ECHO PRESS ANY KEY TO TRY AGAIN
-        DEL 7zz201-x64.msi
-        PAUSE
-        GOTO :hashfailretry
-      )
-    )
-  IF NOT EXIST 7zz201-x64.msi GOTO :oops
+  MD hey
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe', 'java\7za.exe')" >nul
 )
-IF NOT EXIST "C:\Program Files\7-Zip\7z.exe" GOTO :oops
-
-:7zipfound
-:: Sets 7-zip PATH.  It's only local for this BAT run - not permanent.  This lets calling it as a function just be 7z
-SET PATH=%PATH%;"C:\Program Files\7-Zip.exe"
-CLS
+IF NOT EXIST %ZIP7% (
+  ECHO.
+  ECHO   DOWNLOADING THE 7-ZIP COMMAND LINE PROGRAM FILE HAS FAILED
+  ECHO   THIS FILE IS REQUIRED FOR THE UNIVERSALATOR SCRIPT FUNCTION
+  ECHO.
+  ECHO   PRESS ANY KEY TO RETRY DOWNLOAD
+  GOTO :try7zipagain
+)
 
 :: If settings-universalator.txt exists already then skip asking/setting one up.
 IF EXIST settings-universalator.txt GOTO :skipsettings
@@ -300,19 +270,19 @@ ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO.%blue%
-ECHO   TO BEGIN INSTALLING CORE SERVER FILES - FIRST ENTER VALUES WHEN PROMPTED ON FOLLOWING SCREENS.
+ECHO   SETTINGS - ENTER VALUES WHEN PROMPTED ON FOLLOWING SCREENS.
 ECHO      For example - Minecraft version / Modloader type / Java version
 ECHO.
-ECHO   -- After core files installation you may decide Y/N to scan mod files for the presence of client only mod files.
+ECHO.
+ECHO   -- After server files installation completes you can choose to scan for client-side mods.
 ECHO   -- Once steps are completed - server files will automatically launch.
 ECHO.
-ECHO   -- LEAVE SERVER WINDOW OPEN FOR SERVER TO REMAIN ACTIVE.
 ECHO.
 ECHO.
-ECHO           %yellow% settings-universalator.txt %blue%
-ECHO   -- Following first server files launch a settings-universalator.txt file will be
+ECHO   -- Following first server files launch a %yellow%settings-universalator.txt%blue% file will be
 ECHO        generated where settings are stored for future launches.
-ECHO   -- This settings-universalator.txt can be edited to change values OR deleted to re-enter values in program prompts.
+ECHO.
+ECHO        It may be edited to change settings.
 ECHO.
 ECHO.
 ECHO   %yellow% Read above - Do you understand? %blue%
@@ -546,7 +516,7 @@ IF !MINECRAFT!==1.18.2 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 40.2.0
+  ECHO    FORGE = 40.2.1
   ECHO    JAVA = 17  **JAVA CAN BE 17, 18, 19**
   ECHO            **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
   ECHO.
@@ -554,7 +524,7 @@ IF !MINECRAFT!==1.18.2 (
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=40.2.0
+  SET FORGE=40.2.1
   SET JAVAVERSION=17
   GOTO :goramentry
 )
@@ -565,7 +535,7 @@ IF !MINECRAFT!==1.19.2 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 43.2.3
+  ECHO    FORGE = 43.2.4
   ECHO    JAVA = 17  **JAVA CAN BE 17, 18, 19**
   ECHO            **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
   ECHO.
@@ -573,7 +543,7 @@ IF !MINECRAFT!==1.19.2 (
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=43.2.3
+  SET FORGE=43.2.4
   SET JAVAVERSION=17
   GOTO :goramentry
 )
@@ -676,14 +646,14 @@ IF NOT EXIST settings-universalator.txt IF /I !MODLOADER!==FABRIC (
   CLS
   ECHO.
   ECHO   %yellow% ENTER THE VERSION OF FABRIC --INSTALLER-- %blue%
-  ECHO    AS OF DECEMBER 2022 THE LATEST VERSION WAS 0.11.1
+  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS 0.11.1
   ECHO.
   ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER 0.11.1
   ECHO.
   SET /P FABRICINSTALLER=
   ECHO.
   ECHO   %yellow% ENTER THE VERSION OF FABRIC --LOADER-- %blue%
-  ECHO    AS OF DECEMBER 2022 THE LATEST VERSION WAS 0.14.12
+  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS 0.14.13
   ECHO.
   ECHO    GENERALLY IT IS A GOOD IDEA TO USE THE SAME VERSION THAT THE CLIENT MODPACK IS KNOWN TO LOAD WITH
   ECHO.
@@ -970,7 +940,7 @@ IF EXIST java.zip (
 
   IF NOT EXIST java.zip IF NOT EXIST %JAVAFOLDER% (
     ECHO.
-    ECHO   %yellow% Something went wrong downloading the Java files. %blue%
+    ECHO   !yellow! Something went wrong downloading the Java files. !blue!
     ECHO    Press any key to try again.
     PAUSE
     GOTO :javaretry
@@ -985,7 +955,7 @@ set filechecksum=%out1%
 :: Checks to see if the calculated checksum hash is the same as stored value above - unzips file if valid
 IF EXIST java.zip (
     IF /i %checksumeight%==%filechecksum% (
-    "C:\Program Files\7-Zip\7z.exe" x java.zip -ojava
+    "%cd%\java\7za.exe" x java.zip -ojava
     ) && DEL java.zip && ECHO Downloaded Java binary and stored hashfile match values - file is valid
 )
 IF EXIST java.zip IF %checksumeight% NEQ %filechecksum% (
@@ -1308,8 +1278,7 @@ IF %ASKMODSCHECK%==Y (
   SET modcount=0
   FOR /F "delims= usebackq" %%W IN (servermods.txt) DO (
     
-    "C:\Program Files\7-Zip\7z.exe" e -aoa "mods\%%W" "META-INF\mods.toml" >nul
-
+    "%cd%\java\7za.exe" e -aoa "mods\%%W" "META-INF\mods.toml" >nul
     SET /a modcount+=1
     ECHO SCANNING - !modcount!/!rawmodstotal! - %%W
     
@@ -1357,7 +1326,7 @@ IF %ASKMODSCHECK%==Y (
   SET modcount=0
   FOR /F "delims= usebackq" %%W IN (servermods.txt) DO (
 
-    "C:\Program Files\7-Zip\7z.exe" e -aoa "mods\%%W" "mcmod.info" >nul
+    "%cd%\java\7za.exe" e -aoa "mods\%%W" "mcmod.info" >nul
     
     SET /a modcount+=1
     ECHO SCANNING - !modcount!/!rawmodstotal! - %%W
@@ -1454,7 +1423,7 @@ IF %ASKMODSCHECK%==Y (
   ECHO.
   ECHO      - IF YOU THINK THE CURRENT MASTER LIST IS INNACURATE OR HAVE FOUND A MOD TO ADD -
   ECHO         PLEASE CONTACT THE LAUNCHER AUTHOR OR
-  ECHO         FILE AN ISSUE AT https://github.com/nanonestor/utilities/issues !
+  ECHO         FILE AN ISSUE AT https://github.com/nanonestor/universalator/issues !
   ECHO.
   :typo
   ECHO    ------------------------------------------------------
@@ -1479,8 +1448,8 @@ IF %ASKMODSCHECK%==Y (
     )
   )
   ECHO.
-  ECHO         CLIENT MODS MOVED! ...
-  ECHO       -PRESS ANY KEY TO CONTINUE-
+  ECHO      %yellow%   CLIENT MODS MOVED! ...     %blue%
+  ECHO      %yellow% -PRESS ANY KEY TO CONTINUE- %blue%
   ECHO.
   PAUSE
   
@@ -1765,8 +1734,8 @@ IF %ASKMODSCHECK%==Y (
   SET modcount=0
   FOR /F "usebackq delims=" %%N IN (servermods.txt) DO (
 
-    REM  Uses 7 zip to extract each mods.toml which is then scanned
-    "C:\Program Files\7-Zip\7z.exe" e -aoa "mods\%%N" "fabric.mod.json" >nul
+    REM  Uses 7 zip to extract each fabric.mod.json which is then scanned
+    "%cd%\java\7za.exe" e -aoa "mods\%%N" "fabric.mod.json" >nul
 
     SET /a modcount+=1
     ECHO SCANNING - !modcount!/!rawmodstotal! - %%N
