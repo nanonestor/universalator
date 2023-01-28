@@ -249,7 +249,6 @@ SET ZIP7="%cd%\java\7za.exe"
 IF NOT EXIST %ZIP7% (
   CLS
   ECHO Downloading and installing 7-Zip...
-  MD hey
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe', 'java\7za.exe')" >nul
 )
 IF NOT EXIST %ZIP7% (
