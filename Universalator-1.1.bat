@@ -55,10 +55,15 @@
 
 :: GENERAL PRE-RUN ITEMS
 setlocal enabledelayedexpansion
+:: Sets the backgound color of the command window
 color 1E
+:: Additional JVM arguments that will always be applied
 SET OTHERARGS=-Dlog4j2.formatMsgNoLookups=true
+:: These variables set to exist as blank in case windows is older than 10 and they aren't assigned otherwise
 SET "yellow="
 SET "blue="
+:: Sets the working directory to this folder directory in case something happens like user runs as admin
+CD "%~dp0" >nul 2>&1
 
 :: TEST LINES FOR WINDOW RESIZING - KIND OF SCREWEY NEEDS FURTHER CHECKS
 ::mode con: cols=160 lines=55
@@ -171,9 +176,11 @@ SET PATH=%PATH%;"C:\Windows\Syswow64\"
 WHERE FINDSTR >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
   ECHO.
-  ECHO Uh oh - CMD / Command prompt functions are not working correctly on your Windows installation.  
+  ECHO   Uh oh - CMD / Command prompt functions are not working correctly on your Windows installation.  
   ECHO.
-  ECHO Web search for fixing / repairing Windows Command prompt function.
+  ECHO   Web search for fixing / repairing Windows Command prompt function.
+  ECHO   FOR ADDITIONAL INFORMATION - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
+  ECHO   https://github.com/nanonestor/universalator/wiki
   ECHO.
   PAUSE && EXIT [\B]
 )
@@ -181,9 +188,11 @@ IF %ERRORLEVEL% NEQ 0 (
 WHERE CERTUTIL >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
   ECHO.
-  ECHO Uh oh - CMD / Command prompt functions are not working correctly on your Windows installation.  
+  ECHO   Uh oh - CMD / Command prompt functions are not working correctly on your Windows installation.  
   ECHO.
-  ECHO Web search for fixing / repairing Windows Command prompt function.
+  ECHO   Web search for fixing / repairing Windows Command prompt function.
+  ECHO   FOR ADDITIONAL INFORMATION - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
+  ECHO   https://github.com/nanonestor/universalator/wiki
   ECHO.
   PAUSE && EXIT [\B]
 )
@@ -194,10 +203,14 @@ IF %ERRORLEVEL% NEQ 0 (
 WHERE powershell >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 IF NOT EXIST "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" (
   ECHO.
-  ECHO Uh oh - POWERSHELL is not detected as installed to your system.
+  ECHO   Uh oh - POWERSHELL is not detected as installed to your system.
   ECHO.
-  ECHO 'Microsoft Powershell' is required for this program to function.
-  ECHO Web search to find an installer for this product!
+  ECHO   'Microsoft Powershell' is required for this program to function.
+  ECHO   Web search to find an installer for this product!
+  ECHO.
+  ECHO   FOR ADDITIONAL INFORMATION - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
+  ECHO   https://github.com/nanonestor/universalator/wiki
+  ECHO.
   PAUSE && EXIT [\B]
 
 ) ELSE SET PATH=%PATH%;"C:\Windows\System32\WindowsPowerShell\v1.0\"
@@ -249,6 +262,7 @@ SET ZIP7="%cd%\java\7za.exe"
 IF NOT EXIST %ZIP7% (
   CLS
   ECHO Downloading and installing 7-Zip...
+  MD hey
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe', 'java\7za.exe')" >nul
 )
 IF NOT EXIST %ZIP7% (
@@ -309,6 +323,33 @@ ECHO    example: 1.19.2
 ECHO.
 SET /P MINECRAFT=
 
+::Detects whether Minecraft version is older than, or equal/greater than 1.17 and stores in OLDORNEW variable
+::This is done again later after the settings-universalator.txt is present and this is section is skipped
+SET DOTORNOT=!MINECRAFT:~3,1!
+SET OLDORNEW=IDK
+
+IF %DOTORNOT%==. (
+    SET OLDORNEW=OLD
+)
+IF %DOTORNOT% NEQ . (
+  IF !MINECRAFT! GEQ 1.17 (
+  SET OLDORNEW=NEW
+  )
+)
+IF %DOTORNOT% NEQ . (
+  IF !MINECRAFT! LSS 1.17 (
+  SET OLDORNEW=OLD
+  )
+)
+
+IF %OLDORNEW%==IDK (
+  ECHO %yellow% INVALID MINECRAFT VERSION ENTERED IN VALUES %blue%
+  ECHO   PRESS ANY KEY TO TRY AGAIN
+  ECHO.
+  PAUSE
+  GOTO :startover
+)
+
 :reentermodloader
 :: User entry for Modloader version
 CLS
@@ -325,6 +366,40 @@ IF /I !MODLOADER! NEQ FORGE IF /I !MODLOADER! NEQ FABRIC (
 IF /I !MODLOADER!==FORGE SET MODLOADER=FORGE
 IF /I !MODLOADER!==FABRIC SET MODLOADER=FABRIC
 
+:: Detects if settings are trying to use some weird old Minecraft Forge version that isn't supported.
+:: This is done again later after the settings-universalator.txt is present and this is section is skipped.
+IF /I !MODLOADER!==FORGE IF %DOTORNOT%==. IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 (
+  ECHO.
+  ECHO  SORRY - YOUR ENTERED MINECRAFT VERSION - FORGE FOR MINECRAFT !MINECRAFT! - IS NOT SUPPORTED.
+  ECHO.
+  ECHO  FIND A MODPACK WITH A MORE POPULARLY USED VERSION.
+  ECHO  OR
+  ECHO  PRESS ANY KEY TO START OVER AND ENTER NEW VERSION NUMBERS
+  ECHO.
+  PAUSE
+  GOTO :startover
+)
+
+:: If Fabric modloader ask user to enter Fabric Installer and Fabric Loader
+IF NOT EXIST settings-universalator.txt IF /I !MODLOADER!==FABRIC (
+  CLS
+  ECHO.
+  ECHO    ENTER THE %yellow% VERSION %blue% OF %yellow% FABRIC --INSTALLER-- %blue%
+  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS 0.11.1
+  ECHO.
+  ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER 0.11.1
+  ECHO.
+  SET /P FABRICINSTALLER=
+  ECHO.
+  ECHO   ENTER THE %yellow% VERSION %blue% OF %yellow% FABRIC --LOADER-- %blue%
+  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS 0.14.13
+  ECHO.
+  ECHO    GENERALLY IT IS A GOOD IDEA TO USE THE SAME VERSION THAT THE CLIENT MODPACK IS KNOWN TO LOAD WITH
+  ECHO.
+  SET /P FABRICLOADER=
+  ECHO.
+  ECHO.
+)
 
 IF !MODLOADER!==FABRIC GOTO :goramentry
 :usedefaulttryagain
@@ -546,6 +621,26 @@ IF /I !USEDEFAULT!==Y (
   SET JAVAVERSION=17
   GOTO :goramentry
 )
+IF !MINECRAFT!==1.19.3 (
+  CLS
+  ECHO.
+  ECHO   %yellow% YOU HAVE ENTERED 1.19.3 WHICH IS A POPULAR VERSION %blue%
+  ECHO.
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO.
+  ECHO    FORGE = 44.1.8
+  ECHO    JAVA = 17  **JAVA CAN BE 17, 18, 19**
+  ECHO            **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
+  ECHO.
+  ECHO    ENTER "Y" OR "N"
+  SET /P "USEDEFAULT="
+)
+IF /I !USEDEFAULT!==Y (
+  SET FORGE=44.1.8
+  SET JAVAVERSION=17
+  GOTO :goramentry
+)
+
 IF /I !USEDEFAULT!==Y GOTO :finalcheck
 IF /I !USEDEFAULT!==N GOTO :enterforge
 IF /I !USEDEFAULT!==BLANK GOTO :enterforge
@@ -568,11 +663,12 @@ IF /I !USEDEFAULT!==N IF !MINECRAFT! NEQ 1.16.5 (
   ECHO.
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
   ECHO.
-  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 MUST BE 8
-  ECHO   -JAVA VERSION FOR 1.17/1.17.1 MUST BE 16
+  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 %yellow%MUST BE%blue% 8
+  ECHO   -JAVA VERSION FOR 1.17/1.17.1 %yellow%MUST BE%blue% 16
   ECHO   -JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer: - 17, 18, 19
   ECHO.
-  ECHO.  JAVA 18/19 MAY WORK OR MAY NOT DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
+  ECHO.  JAVA 18/19 %yellow%MAY%blue% WORK OR %yellow%MAY NOT%blue% DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
+  ECHO.  IF THE SERVER LAUNCH FAILS AND YOU HAVE ENTERED JAVA 18 OR 19 - EDIT settings-universalator.txt TO USE 17
   ECHO.
   SET /P JAVAVERSION=
 )
@@ -583,11 +679,12 @@ IF /I !USEDEFAULT!==BLANK IF !MINECRAFT! NEQ 1.16.5 (
   ECHO.
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
   ECHO.
-  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 MUST BE 8
-  ECHO   -JAVA VERSION FOR 1.17/1.17.1 MUST BE 16
+  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 %yellow%MUST BE%blue% 8
+  ECHO   -JAVA VERSION FOR 1.17/1.17.1 %yellow%MUST BE%blue% 16
   ECHO   -JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer: - 17, 18, 19
   ECHO.
-  ECHO.  JAVA 18/19 MAY WORK OR MAY NOT DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
+  ECHO.  JAVA 18/19 %yellow%MAY%blue% WORK OR %yellow%MAY NOT%blue% DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
+  ECHO.  IF THE SERVER LAUNCH FAILS AND YOU HAVE ENTERED JAVA 18 OR 19 - EDIT settings-universalator.txt TO USE 17
   ECHO.
   SET /P JAVAVERSION=
 )
@@ -605,17 +702,6 @@ IF !MINECRAFT!==1.16.5 (
 IF !MINECRAFT!==1.16.5 IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
 
 :goramentry
-IF NOT EXIST settings-universalator.txt (
-  CLS
-  ECHO.
-  ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES %blue%
-  ECHO.
-  ECHO    BE SURE IT IS NOT TOO MUCH FOR YOUR COMPUTER!
-  ECHO    TYPICAL VALUES FOR MODDED MINECRAFT SERVERS ARE BETWEEN 4 AND 10
-  ECHO.
-  ECHO.
-  SET /P MAXRAMGIGS=
-)
 
 :: IF Fabric ask for Java verison entry
 IF !MODLOADER!==FABRIC (
@@ -640,25 +726,16 @@ IF !MODLOADER!==FABRIC (
 :: Sends entry back to re-enter Java if a non supported version entered
 IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 IF !JAVAVERSION! NEQ 16 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :gojava
 
-:: If Fabric modloader ask user to enter Fabric Installer and Fabric Loader
-IF NOT EXIST settings-universalator.txt IF /I !MODLOADER!==FABRIC (
+IF NOT EXIST settings-universalator.txt (
   CLS
   ECHO.
-  ECHO   %yellow% ENTER THE VERSION OF FABRIC --INSTALLER-- %blue%
-  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS 0.11.1
+  ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES %blue%
   ECHO.
-  ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER 0.11.1
-  ECHO.
-  SET /P FABRICINSTALLER=
-  ECHO.
-  ECHO   %yellow% ENTER THE VERSION OF FABRIC --LOADER-- %blue%
-  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS 0.14.13
-  ECHO.
-  ECHO    GENERALLY IT IS A GOOD IDEA TO USE THE SAME VERSION THAT THE CLIENT MODPACK IS KNOWN TO LOAD WITH
-  ECHO.
-  SET /P FABRICLOADER=
+  ECHO    BE SURE IT IS NOT TOO MUCH FOR YOUR COMPUTER!
+  ECHO    TYPICAL VALUES FOR MODDED MINECRAFT SERVERS ARE BETWEEN 4 AND 10
   ECHO.
   ECHO.
+  SET /P MAXRAMGIGS=
 )
 
 :finalcheck
@@ -736,25 +813,6 @@ IF EXIST settings-universalator.txt (
 RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
 )
 SET MAXRAM=-Xmx!MAXRAMGIGS!G
-
-
-CLS
-ECHO.
-ECHO.
-ECHO   %yellow% BELOW ARE THE VALUES CURRENTLY BEING USED %blue%
-ECHO    ------------------------------------
-ECHO    MINECRAFT VERSION: !MINECRAFT!
-ECHO    MODLOADER TYPE:    !MODLOADER!
-IF /I !MODLOADER!==FORGE (
-ECHO    FORGE:             !FORGE!
-)
-IF /I !MODLOADER!==FABRIC (
-ECHO    FABRIC INSTALLER:  !FABRICINSTALLER!
-ECHO    FABRIC LOADER:     !FABRICLOADER!
-)
-ECHO    JAVA VERSION:      !JAVAVERSION!
-ECHO.
-ECHO.
 
 ::Detects whether Minecraft version is older than, or equal/greater than 1.17 and stores in OLDORNEW variable
 SET DOTORNOT=!MINECRAFT:~3,1!
@@ -973,7 +1031,79 @@ IF EXIST %JAVAFOLDER% (
   PAUSE && EXIT [\B]
 )
 
-:: If MODLOADER is FABRIC skips the Forge installation and launch section
+
+:: BEGIN CHECKING server.properties FILE FOR IP ENTRY AND OTHER
+:: IF NOT EXIST server.properties SET FLIGHT=allow-flight=true
+IF NOT EXIST server.properties (
+    ECHO allow-flight=true>server.properties
+    GOTO :skipserverproperties
+)
+:: Constructs a pseudo array list to store the server.properties file info
+SET idx=0
+IF EXIST server.properties (
+  FOR /F "usebackq delims=" %%J IN (server.properties) DO (
+    SET "serverprops[!idx!]=%%J"
+    SET /a idx+=1
+  )
+
+:: Sets a variable to the line number that contains server-ip= , also checks if the full line is only that or also contains additional info (different string value)
+FOR /L %%T IN (0,1,!idx!) DO (
+    IF "!serverprops[%%T]:~0,10!"=="server-ip=" SET IPLINE=%%T
+)
+)
+IF DEFINED IPLINE IF "!serverprops[%IPLINE%]!" NEQ "server-ip=" SET IS_IP_ENTERED=Y
+:: The following must be done outside the IF EXIST server.properties list because you can't tag loop back into an IF loop.
+:: If it was found that information was entered after server-ip= checks with user if it's ok to blank the value out or leave it alone.
+:confirmip
+IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
+    CLS
+    ECHO.
+    ECHO   %yellow% WARNING WARNING WARNING %blue%
+    ECHO.
+    ECHO   IT IS DETECTED THAT THE server.properties FILE HAS AN IP ADDRESS ENTERED AFTER server-ip=
+    ECHO.
+    ECHO   THIS ENTRY IS ONLY TO BE USED USED IF YOU ARE SETTING UP A CUSTOM DOMAIN
+    ECHO   IF YOU ARE NOT SETTING UP A CUSTOM DOMAIN THEN THE SERVER WILL NOT LET PLAYERS CONNECT CORRECTLY
+    ECHO.
+    ECHO   %yellow% WARNING WARNING WARNING %blue%
+    ECHO.
+    ECHO   CHOOSE TO CORRECT THIS ENTRY OR IGNORE
+    ECHO   ONLY CHOOSE IGNORE IF YOU ARE SETTING UP A CUSTOM DOMAIN
+    ECHO.
+    ECHO   ENTER YOUR CHOICE:
+    ECHO   'CORRECT' or 'IGNORE'
+    ECHO.
+    SET /P "CHOOSE_IP="
+)
+IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
+    IF /I !CHOOSE_IP! NEQ CORRECT IF /I !CHOOSE_IP! NEQ IGNORE GOTO :confirmip
+)
+:: If an IP address was entered and user choses to remove then print server.properties with it made blank, also always set allow-flight to be true
+IF DEFINED IPLINE IF /I !CHOOSE_IP!==CORRECT (
+    FOR /L %%T IN (0,1,!idx!) DO (
+        IF %%T NEQ %IPLINE% IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" ECHO !serverprops[%%T]!>>server.properties2
+        IF "!serverprops[%%T]!"=="allow-flight=false" ECHO allow-flight=true>>server.properties2
+        IF %%T==%IPLINE% ECHO server-ip=>>server.properties2
+    )
+    DEL server.properties
+    RENAME server.properties2 server.properties
+    :: Skips past the last section since the job is done for this case.
+    GOTO :skipserverproperties
+)
+:: At this point if IPLINE is defined and user chooses Y then scipt has skipped ahead, also skipped ahead if server.properties does not previously exist.
+:: This means that all that's left are cases where IPLINE is not defined or user has chosen IGNORE.
+:: Below reprints all lines except always setting allow-flight=true
+    FOR /L %%T IN (0,1,!idx!) DO (
+        IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" ECHO !serverprops[%%T]!>>server.properties2
+        IF "!serverprops[%%T]!"=="allow-flight=false" ECHO allow-flight=true>>server.properties2
+    )
+    DEL server.properties
+    RENAME server.properties2 server.properties
+
+:skipserverproperties
+:: END CHECKING server.properties FILE FOR IP ENTRY AND OTHER
+
+:: BEGIN SPLIT BETWEEN FABRIC AND FORGE SETUP AND LAUNCH - If MODLOADER is FABRIC skips the Forge installation and launch section
 IF /I !MODLOADER!==FABRIC GOTO :fabricmain
 
 :: BEGIN FORGE SPECIFIC SETUP AND LAUNCH
@@ -1180,6 +1310,8 @@ IF EXIST eula.txt (
   ECHO eula.txt file found! ..
   ECHO.
 )
+
+
 
 :: Sets a variable to the current directory to use later.  In some niche cases it seems to work better than cd.
 SET HERE="%cd%"
@@ -1483,19 +1615,44 @@ IF EXIST serveridlist.txt DEL serveridlist.txt
 IF EXIST servermods.txt DEL servermods.txt
 IF EXIST temp2.txt DEL temp2.txt
 
+:: Gets the computer's public IP address
+FOR /F %%B IN ('powershell -Command "Invoke-RestMethod api.ipify.org"') DO SET PUBLICIP=%%B
+FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
+IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
+IF DEFINED PUBLICIP IF DEFINED PORT SET IP=%PUBLICIP%:%PORT%
 
-:: Finally load Forge!
+:: FINALLY LAUNCH FORGE SERVER!
 
 CLS
 ECHO.
-ECHO   %yellow% STARTING FORGE SERVER... %blue%
+ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
+ECHO.
+ECHO   %YELLOW% CURRENT SERVER SETTINGS:%blue%
+ECHO.
+ECHO   MINECRAFT - !MINECRAFT!
+ECHO   FORGE - !FORGE!
+ECHO   JAVA - !JAVAVERSION!
 ECHO.
 ECHO.
-ECHO       %yellow% TO CHANGE ANY LAUNCHER SETTINGS EDIT settings-universalator.txt %blue%
-ECHO          -OR- DELETE FILE TO RESET SETTINGS
+ECHO ============================================
+ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO.
+ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %IP% %blue%
+ECHO   --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO   --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
+ECHO.
+ECHO   INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
+ECHO   --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO   --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
+ECHO.
+ECHO ============================================
+ECHO.
+ECHO.
+ECHO.
+ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
+ECHO.
+PAUSE
 
-::START getIPnetstat.bat
 :: Starts forge depending on what java version is set.  Only correct combinations will launch - others will crash.
 
 :: Special case forge.jar filenames for older OLD versions
@@ -1958,28 +2115,48 @@ powershell -Command "$content = Get-Content -Path '%HERE%\settings-universalator
 :skipcheck
 IF EXIST whichsided.txt DEL whichsided.txt
 
-
-
-
-
 REM END FABRIC client only mods scanning
 
 :actuallylaunchfabric
+
+:: Gets the computer's public IP address
+FOR /F %%B IN ('powershell -Command "Invoke-RestMethod api.ipify.org"') DO SET PUBLICIP=%%B
+FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
+IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
+IF DEFINED PUBLICIP IF DEFINED PORT SET IP=%PUBLICIP%:%PORT%
+
+:: FINALLY LAUNCH FORGE SERVER!
+
 CLS
 ECHO.
-ECHO ----------------------------------------
-ECHO %yellow% LAUNCHING FABRIC SERVER WITH %blue%
-ECHO  MINECRAFT - !MINECRAFT!
-ECHO  FABRIC LOADER - !FABRICLOADER!
-ECHO  JAVA VERSION - %JAVAVERSION%
-ECHO ----------------------------------------
+ECHO   %yellow% READY TO LAUNCH FABRIC SERVER! %blue%
 ECHO.
-%JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar nogui
-
-
-
+ECHO   %YELLOW% CURRENT SERVER SETTINGS:%blue%
+ECHO.
+ECHO   MINECRAFT - !MINECRAFT!
+ECHO   FABRIC LAUNCHER - !FABRICLAUNCHER!
+ECHO   JAVA - !JAVAVERSION!
+ECHO.
+ECHO.
+ECHO ============================================
+ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
+ECHO.
+ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %IP% %blue%
+ECHO   --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO   --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
+ECHO.
+ECHO   INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
+ECHO   --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO   --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
+ECHO.
+ECHO ============================================
+ECHO.
+ECHO.
+ECHO.
+ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
+ECHO.
 PAUSE
 
+%JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar nogui
 
-
-
+PAUSE
