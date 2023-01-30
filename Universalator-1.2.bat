@@ -168,25 +168,20 @@ IF %LASTCHAR%==")" (
   PAUSE && EXIT [\B]
 )
 
-:: Checks to see if CMD is working by checking out if FINDSTR and CERTUTIL are valid commands
-:: IF command not found then attempts to temp fix PATH to CMD just for this script run.
-:: Needs to do separate ERRORLEVEL checks for warning message because WHERE checks will overwrite ERRORLEVEL from previous.
+:: The below SET PATH only applies to this command window launch and isn't permanent to the system's PATH.
 SET PATH=%PATH%;"C:\Windows\Syswow64\"
 
+:: Checks to see if CMD is working by checking WHERE for some commands
 WHERE FINDSTR >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 (
-  ECHO.
-  ECHO   Uh oh - CMD / Command prompt functions are not working correctly on your Windows installation.  
-  ECHO.
-  ECHO   Web search for fixing / repairing Windows Command prompt function.
-  ECHO   FOR ADDITIONAL INFORMATION - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
-  ECHO   https://github.com/nanonestor/universalator/wiki
-  ECHO.
-  PAUSE && EXIT [\B]
-)
-
+IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 WHERE CERTUTIL >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 (
+IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
+WHERE NETSTAT >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
+WHERE PING >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
+
+IF DEFINED CMDBROKEN (
   ECHO.
   ECHO   Uh oh - CMD / Command prompt functions are not working correctly on your Windows installation.  
   ECHO.
@@ -215,34 +210,18 @@ IF %ERRORLEVEL% NEQ 0 IF NOT EXIST "C:\Windows\System32\WindowsPowerShell\v1.0\p
 
 ) ELSE SET PATH=%PATH%;"C:\Windows\System32\WindowsPowerShell\v1.0\"
 
-:: Checks folder location this BAT is being run from for 'onedrive'.  Sends appropriate messages if needed.
-:: The first command to set LOC is to fix an edge case issue with folder paths ending in ).  Yes this is worked on already above - including this anyways!
+:: This is to fix an edge case issue with folder paths ending in ).  Yes this is worked on already above - including this anyways!
 SET LOC=%cd:)=]%
-ECHO "%LOC%" | FIND /i "onedrive" 1>NUL
-IF %ERRORLEVEL%==0 (
-    ECHO.
-    ECHO.
-    ECHO  %yellow% %LOC% %blue%
-    ECHO.
-    ECHO THE FOLDER THIS SCRIPT PROGRAM IS BEING RUN FROM - shown above - WAS DETECTED TO BE
-    ECHO   %yellow% INSIDE A 'ONEDRIVE' FOLDER. %blue%
-    ECHO.
-    ECHO   %yellow% ONEDRIVE IS A CLOUD STORAGE FOLDER. %blue% USE A FILE BROWSER TO RELOCATE THIS
-    ECHO    SERVER FOLDER TO A NEW LOCATION OUTSIDE OF THE ONEDRIVE FOLDER TREE.
-    ECHO.
-    PAUSE && EXIT [\B]
-)
 
-:: Checks folder location this BAT is being run from for 'documents', 'desktop', or 'downloads'.  Sends appropriate messages if needed.
-:: The first command to set LOC is to fix an edge case issue with folder paths ending in ).  Yes this is worked on already above - including this anyways!
-ECHO "%LOC%" | FINDSTR /i "documents desktop downloads" 1>NUL
+:: Checks folder location this BAT is being run from for various system folders.  Sends appropriate messages if needed.
+ECHO "%LOC%" | FINDSTR /i "onedrive documents desktop downloads" 1>NUL
 IF %ERRORLEVEL%==0 (
     ECHO.
     ECHO.
     ECHO   %yellow% %LOC% %blue%
     ECHO.
     ECHO   THE FOLDER THIS SCRIPT PROGRAM IS BEING RUN FROM - shown above - WAS DETECTED TO BE
-    ECHO   %yellow% INSIDE A FOLDER OF 'DOCUMENTS', 'DESKTOP', OR 'DOWNLOADS'. %blue%
+    ECHO   %yellow% INSIDE A FOLDER OF 'ONEDRIVE', 'DOCUMENTS', 'DESKTOP', OR 'DOWNLOADS'. %blue%
     ECHO   SERVERS SHOULD NOT RUN IN THESE FOLDERS BECAUSE IT CAN CAUSE ISSUES WITH SYSTEM PERMISSIONS OR FUNCTIONS.
     ECHO.
     ECHO   USE A FILE BROWSER TO RELOCATE THIS
@@ -252,6 +231,9 @@ IF %ERRORLEVEL%==0 (
     ECHO.
     PAUSE && EXIT [\B]
 )
+
+:: The following line is purely done to guarantee the current ERRORLEVEL is reset
+ver >nul
 
 :: Checks if standalone command line version of 7-zip is present.  If not downloads it.
 IF NOT EXIST "%cd%\java" (
@@ -1081,8 +1063,9 @@ IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
 :: If an IP address was entered and user choses to remove then print server.properties with it made blank, also always set allow-flight to be true
 IF DEFINED IPLINE IF /I !CHOOSE_IP!==CORRECT (
     FOR /L %%T IN (0,1,!idx!) DO (
-        IF %%T NEQ %IPLINE% IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" ECHO !serverprops[%%T]!>>server.properties2
+        IF %%T NEQ %IPLINE% IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" IF "!serverprops[%%T]!" NEQ "online-mode=false" ECHO !serverprops[%%T]!>>server.properties2
         IF "!serverprops[%%T]!"=="allow-flight=false" ECHO allow-flight=true>>server.properties2
+        IF "!serverprops[%%T]!"=="online-mode=false" ECHO online-mode=true>>server.properties2
         IF %%T==%IPLINE% ECHO server-ip=>>server.properties2
     )
     DEL server.properties
@@ -1094,14 +1077,59 @@ IF DEFINED IPLINE IF /I !CHOOSE_IP!==CORRECT (
 :: This means that all that's left are cases where IPLINE is not defined or user has chosen IGNORE.
 :: Below reprints all lines except always setting allow-flight=true
     FOR /L %%T IN (0,1,!idx!) DO (
-        IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" ECHO !serverprops[%%T]!>>server.properties2
+        IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" IF "!serverprops[%%T]!" NEQ "online-mode=false" ECHO !serverprops[%%T]!>>server.properties2
         IF "!serverprops[%%T]!"=="allow-flight=false" ECHO allow-flight=true>>server.properties2
+        IF "!serverprops[%%T]!"=="online-mode=false" ECHO online-mode=true>>server.properties2
     )
     DEL server.properties
     RENAME server.properties2 server.properties
 
 :skipserverproperties
 :: END CHECKING server.properties FILE FOR IP ENTRY AND OTHER
+
+:: BEGIN CHECKING IF CURRENT PORT SET IN server.properties IS ALREADY IN USE
+:: Assume server.properties exists
+FOR /F %%A IN ('findstr server-port server.properties') DO SET PROPSPORT=%%A
+IF DEFINED PROPSPORT IF "%PROPSPORT%" NEQ "" SET PORTSET=%PROPSPORT:~12%
+IF DEFINED PORTSET (
+  netstat -o -n -a | findstr %PORTSET%
+)
+IF %ERRORLEVEL%==1 SET PORTINUSE=N
+IF %ERRORLEVEL%==0 SET PORTINUSE=Y
+
+IF DEFINED PORTINUSE IF %PORTINUSE%==Y (
+  CLS
+  ECHO. && ECHO.
+  ECHO   %yellow% WARNING WARNING WARNING %blue%
+  ECHO.
+  ECHO   CURRENT %yellow% PORT SET = %PORTSET% %blue%
+  ECHO.
+  ECHO   IT IS DETECTED THAT THE PORT CURRENTLY SET IN
+  ECHO   THE SETTINGS FILE server.properties %yellow% IS ALREADY IN USE %blue%
+  ECHO.
+  ECHO   THERE MAY BE ANOTHER SERVER OR PROGRAM USING THIS PORT, POSSIBLY IN THE BACKGROUND.
+  ECHO.
+  ECHO   --SET A DIFFERENT PORT, OR CLOSE KNOWN SERVERS/PROGRAMS USING THIS PORT.
+  ECHO   --IF YOU THINK PORT IS BEING KEPT OPEN BY A BACKGROUND PROGRAM TRY RESTARTING COMPUTER.
+  ECHO.
+  ECHO   %yellow% WARNING WARNING WARNING %blue%
+  ECHO.
+  ECHO. && ECHO. && ECHO. && ECHO. && ECHO.
+  ECHO   TRY TO CLOSE PORT AND THEN RUN UNIVERSALATOR BAT AGAIN
+  ECHO.
+  ECHO.
+  PAUSE && EXIT [\B]
+)
+:: Below line is purely done to guarantee that the current ERRORLEVEL is reset to 0
+ver > nul
+:: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
+
+:: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
+FOR /F %%B IN ('powershell -Command "Invoke-RestMethod api.ipify.org"') DO SET PUBLICIP=%%B
+FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
+IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
+IF NOT DEFINED PORT SET PORT=25565
+:: END SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
 
 :: BEGIN SPLIT BETWEEN FABRIC AND FORGE SETUP AND LAUNCH - If MODLOADER is FABRIC skips the Forge installation and launch section
 IF /I !MODLOADER!==FABRIC GOTO :fabricmain
@@ -1615,38 +1643,33 @@ IF EXIST serveridlist.txt DEL serveridlist.txt
 IF EXIST servermods.txt DEL servermods.txt
 IF EXIST temp2.txt DEL temp2.txt
 
-:: Gets the computer's public IP address
-FOR /F %%B IN ('powershell -Command "Invoke-RestMethod api.ipify.org"') DO SET PUBLICIP=%%B
-FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
-IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
-IF DEFINED PUBLICIP IF DEFINED PORT SET IP=%PUBLICIP%:%PORT%
-
 :: FINALLY LAUNCH FORGE SERVER!
 
 CLS
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ECHO            %yellow%   Universalator - Server launcher script    %blue%
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO.
 ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
 ECHO.
-ECHO   %YELLOW% CURRENT SERVER SETTINGS:%blue%
-ECHO.
-ECHO   MINECRAFT - !MINECRAFT!
-ECHO   FORGE - !FORGE!
-ECHO   JAVA - !JAVAVERSION!
+ECHO        CURRENT SERVER SETTINGS:
+ECHO        MINECRAFT - !MINECRAFT!
+ECHO        FORGE - !FORGE!
+ECHO        JAVA - !JAVAVERSION!
 ECHO.
 ECHO.
 ECHO ============================================
 ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO.
-ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %IP% %blue%
-ECHO   --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO   --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
+ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %PUBLICIP%:%PORT% %blue%
+ECHO        --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO        --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
 ECHO.
 ECHO   INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
-ECHO   --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO   --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
+ECHO        --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO        --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
 ECHO.
 ECHO ============================================
-ECHO.
 ECHO.
 ECHO.
 ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
@@ -2119,38 +2142,33 @@ REM END FABRIC client only mods scanning
 
 :actuallylaunchfabric
 
-:: Gets the computer's public IP address
-FOR /F %%B IN ('powershell -Command "Invoke-RestMethod api.ipify.org"') DO SET PUBLICIP=%%B
-FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
-IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
-IF DEFINED PUBLICIP IF DEFINED PORT SET IP=%PUBLICIP%:%PORT%
-
 :: FINALLY LAUNCH FORGE SERVER!
 
 CLS
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ECHO            %yellow%   Universalator - Server launcher script    %blue%
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO.
 ECHO   %yellow% READY TO LAUNCH FABRIC SERVER! %blue%
 ECHO.
-ECHO   %YELLOW% CURRENT SERVER SETTINGS:%blue%
-ECHO.
-ECHO   MINECRAFT - !MINECRAFT!
-ECHO   FABRIC LAUNCHER - !FABRICLAUNCHER!
-ECHO   JAVA - !JAVAVERSION!
+ECHO        CURRENT SERVER SETTINGS:
+ECHO        MINECRAFT - !MINECRAFT!
+ECHO        FABRIC LOADER - !FABRICLOADER!
+ECHO        JAVA - !JAVAVERSION!
 ECHO.
 ECHO.
 ECHO ============================================
 ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO.
-ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %IP% %blue%
-ECHO   --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO   --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
+ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %PUBLICIP%:%PORT% %blue%
+ECHO        --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO        --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
 ECHO.
 ECHO   INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
-ECHO   --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO   --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
+ECHO        --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO        --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
 ECHO.
 ECHO ============================================
-ECHO.
 ECHO.
 ECHO.
 ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
