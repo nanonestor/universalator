@@ -183,12 +183,20 @@ IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 
 IF DEFINED CMDBROKEN (
   ECHO.
-  ECHO   Uh oh - CMD / Command prompt functions are not working correctly on your Windows installation.  
+  ECHO        %yellow% WARNING - PROBLEM DETECTED %blue%
+  ECHO        %yellow% CMD / COMMAND PROMPT FUNCTIONS ARE NOT WORKING CORRECTLY ON YOUR WINDOWS INSTALLATION. %blue%
   ECHO.
-  ECHO   Web search for fixing / repairing Windows Command prompt function.
-  ECHO   FOR ADDITIONAL INFORMATION - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
-  ECHO   https://github.com/nanonestor/universalator/wiki
+  ECHO             FOR REPAIR SOLUTIONS
+  ECHO             SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
   ECHO.
+  ECHO             https://github.com/nanonestor/universalator/wiki
+  ECHO.
+  ECHO             or
+  ECHO             Web search for fixing / repairing Windows Command prompt function.
+  ECHO.
+  ECHO        %yellow% WARNING - PROBLEM DETECTED %blue%
+  ECHO        %yellow% CMD / COMMAND PROMPT FUNCTIONS ARE NOT WORKING CORRECTLY ON YOUR WINDOWS INSTALLATION. %blue%
+  ECHO. & ECHO. & ECHO. & ECHO.
   PAUSE && EXIT [\B]
 )
 
@@ -716,7 +724,10 @@ IF NOT EXIST settings-universalator.txt (
   ECHO    BE SURE IT IS NOT TOO MUCH FOR YOUR COMPUTER!
   ECHO    TYPICAL VALUES FOR MODDED MINECRAFT SERVERS ARE BETWEEN 4 AND 10
   ECHO.
+  ECHO    ONLY ENTER THE NUMBER - MUST NOT INCLUDE ANY LETTERS.
   ECHO.
+  ECHO    Example - 6
+  ECHO. & ECHO.
   SET /P MAXRAMGIGS=
 )
 
@@ -1724,6 +1735,7 @@ ECHO            %yellow%   Universalator - Server launcher script    %blue%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO.
 ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
+ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
 ECHO.
 ECHO        CURRENT SERVER SETTINGS:
 ECHO        MINECRAFT - !MINECRAFT!
@@ -1734,16 +1746,15 @@ ECHO.
 ECHO ============================================
 ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO.
-ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %PUBLICIP%:%PORT% %blue%
-ECHO        --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO        --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
+ECHO       %yellow% PUBLIC IPv4 %blue% AND PORT ADDRESS - %yellow% %PUBLICIP%:%PORT% %blue%
+ECHO            --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
 ECHO.
-ECHO   INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
-ECHO        --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO        --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
+ECHO       INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
+ECHO            --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO            --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER INSTEAD OF ENTERING AN IP ADDRESS
 ECHO.
 ECHO ============================================
-ECHO.
 ECHO.
 ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
 ECHO.
