@@ -2,7 +2,7 @@
 
 A modded Minecraft Server installation & launching script file.  
 
-<ins>**[To view the official Wiki click here](https://github.com/nanonestor/universalator/wiki)**</ins>  
+<ins>**[To view the official Wiki and convenient download links click here.](https://github.com/nanonestor/universalator/wiki)**</ins>  
 
 
 To view code - navigate the 'branches' drop box above.  Click on files to view their code.
