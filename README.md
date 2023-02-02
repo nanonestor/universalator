@@ -1,6 +1,6 @@
 # The Universalator
 
-A modded Minecraft Server installation & launching script file.  
+A modded Minecraft Server installation & launching script file!   
 
 <ins>**[To view the official Wiki and convenient download links - click here.](https://github.com/nanonestor/universalator/wiki)**</ins>  
 
