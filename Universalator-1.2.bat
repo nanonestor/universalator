@@ -183,12 +183,20 @@ IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 
 IF DEFINED CMDBROKEN (
   ECHO.
-  ECHO   Uh oh - CMD / Command prompt functions are not working correctly on your Windows installation.  
+  ECHO        %yellow% WARNING - PROBLEM DETECTED %blue%
+  ECHO        %yellow% CMD / COMMAND PROMPT FUNCTIONS ARE NOT WORKING CORRECTLY ON YOUR WINDOWS INSTALLATION. %blue%
   ECHO.
-  ECHO   Web search for fixing / repairing Windows Command prompt function.
-  ECHO   FOR ADDITIONAL INFORMATION - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
-  ECHO   https://github.com/nanonestor/universalator/wiki
+  ECHO             FOR REPAIR SOLUTIONS
+  ECHO             SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
   ECHO.
+  ECHO             https://github.com/nanonestor/universalator/wiki
+  ECHO.
+  ECHO             or
+  ECHO             Web search for fixing / repairing Windows Command prompt function.
+  ECHO.
+  ECHO        %yellow% WARNING - PROBLEM DETECTED %blue%
+  ECHO        %yellow% CMD / COMMAND PROMPT FUNCTIONS ARE NOT WORKING CORRECTLY ON YOUR WINDOWS INSTALLATION. %blue%
+  ECHO. & ECHO. & ECHO. & ECHO.
   PAUSE && EXIT [\B]
 )
 
@@ -716,7 +724,10 @@ IF NOT EXIST settings-universalator.txt (
   ECHO    BE SURE IT IS NOT TOO MUCH FOR YOUR COMPUTER!
   ECHO    TYPICAL VALUES FOR MODDED MINECRAFT SERVERS ARE BETWEEN 4 AND 10
   ECHO.
+  ECHO    ONLY ENTER THE NUMBER - MUST NOT INCLUDE ANY LETTERS.
   ECHO.
+  ECHO    Example - 6
+  ECHO. & ECHO.
   SET /P MAXRAMGIGS=
 )
 
@@ -1093,35 +1104,107 @@ FOR /F %%A IN ('findstr server-port server.properties') DO SET PROPSPORT=%%A
 IF DEFINED PROPSPORT IF "%PROPSPORT%" NEQ "" SET PORTSET=%PROPSPORT:~12%
 IF NOT DEFINED PROPSPORT SET PORTSET=25565
 
+ver > nul
 NETSTAT -o -n -a | FINDSTR %PORTSET%
+:: If port was not found already after checking netstat entries then assume it's being used and run warning/process kill screen
+IF %ERRORLEVEL%==1 GOTO :skipportclear
 
-IF %ERRORLEVEL%==1 SET PORTINUSE=N
-IF %ERRORLEVEL%==0 SET PORTINUSE=Y
+IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.txt DEL pid3.txt
 
-IF DEFINED PORTINUSE IF %PORTINUSE%==Y (
+
+for /F "delims=" %%A IN ('netstat -aon') DO (
+    ECHO %%A>>pid.txt
+)
+
+set idx=0
+FOR /F "delims=" %%A IN ('findstr %PORTSET% pid.txt') DO (
+    SET BEE[!idx!]=%%A
+    set /a idx+=1
+)
+IF NOT DEFINED BEE[0] GOTO :skipportclear
+
+
+FOR /F "tokens=5 delims= " %%B IN ("!BEE[0]!") DO (
+    SET PIDNUM=%%B
+)
+
+FOR /F "delims=" %%C IN ('TASKLIST /fi "pid eq !PIDNUM!"') DO (
+    ECHO %%C>>pid3.txt
+)
+SET idx=0
+FOR /F "delims=" %%D IN ('findstr !PIDNUM! pid3.txt') DO (
+    SET BOO[!idx!]=%%D
+    set /a idx+=1
+)
+FOR /F "tokens=1,3,4 delims= " %%E IN ("!BOO[0]!") DO (
+    SET IMAGENAME=%%E
+    SET SESSIONNAME=%%F
+    SET SESSIONNUM=%%G
+)
+
+
+IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.txt DEL pid3.txt
+
+:portwarning
   CLS
   ECHO. && ECHO.
-  ECHO   %yellow% WARNING WARNING WARNING %blue%
+  ECHO   %yellow% WARNING - PORT ALREADY IN USE - WARNING %blue%
   ECHO.
   ECHO   CURRENT %yellow% PORT SET = %PORTSET% %blue%
   ECHO.
-  ECHO   IT IS DETECTED THAT THE PORT CURRENTLY SET IN
-  ECHO   THE SETTINGS FILE server.properties %yellow% IS ALREADY IN USE %blue%
+  ECHO   IT IS DETECTED THAT THE PORT CURRENTLY SET (SHOWN ABOVE)
+  ECHO   IN THE SETTINGS FILE server.properties %yellow% IS ALREADY IN USE %blue%
   ECHO.
-  ECHO   THERE MAY BE ANOTHER SERVER OR PROGRAM USING THIS PORT, POSSIBLY IN THE BACKGROUND.
+  ECHO   THE FOLLOWING IS THE PROCESS RUNNING THAT APPEARS TO BE USING THE PORT
+  ECHO   MINECRAFT SERVERS WILL USUALLY CONTAIN THE NAMES java.exe AND Console
   ECHO.
+  ECHO   IMAGE NAME - %IMAGENAME%
+  ECHO   SESSION NAME - %SESSIONNAME%
+  ECHO   PID NUMBER - %PIDNUM%
+  ECHO.
+  ECHO   %yellow% WARNING - PORT ALREADY IN USE - WARNING %blue%
+  ECHO.
+  ECHO   Type 'KILL' to try and let the script close the program using the port already.
+  ECHO   Type 'Q' to close the script program if you'd like to try and solve the issue on your own.
+  ECHO.
+  ECHO   Enter your response:
+  SET /P "KILLIT="
+  IF /I !KILLIT! NEQ KILL IF /I !KILLIT! NEQ Q GOTO :portwarning
+  IF /I !KILLIT!==Q (
+    PAUSE && EXIT [\B]
+  )
+  IF /I !KILLIT!==KILL (
+    CLS
+    ECHO.
+    ECHO   ATTEMPTING TO KILL TASK PLEASE WAIT...
+    ECHO.
+    TASKKILL /F /PID %PIDNUM%
+    ping -n 10 127.0.0.1 > nul
+  )
+ver > nul
+NETSTAT -o -n -a | FINDSTR %PORTSET%
+IF %ERRORLEVEL%==0 (
+  CLS
+  ECHO.
+  ECHO   OOPS - THE ATTEMPT TO KILL THE TASK PROCESS USING THE PORT SEEMS TO HAVE FAILED
+  ECHO.
+  ECHO   FURTHER OPTIONS:
   ECHO   --SET A DIFFERENT PORT, OR CLOSE KNOWN SERVERS/PROGRAMS USING THIS PORT.
   ECHO   --IF YOU THINK PORT IS BEING KEPT OPEN BY A BACKGROUND PROGRAM TRY RESTARTING COMPUTER.
-  ECHO.
-  ECHO   %yellow% WARNING WARNING WARNING %blue%
-  ECHO.
-  ECHO. && ECHO. && ECHO. && ECHO. && ECHO.
-  ECHO   TRY TO CLOSE PORT AND THEN RUN UNIVERSALATOR BAT AGAIN
-  ECHO.
-  ECHO.
+  ECHO   --TRY RUNNING THE UNIVERSALATOR SCRIPT AGAIN.
+  ECHO. && ECHO.  && ECHO. 
   PAUSE && EXIT [\B]
 )
+IF %ERRORLEVEL%==1 (
+  ECHO.
+  ECHO   SUCCESS!
+  ECHO   IT SEEMS LIKE KILLING THE PROGRAM WAS SUCCESSFUL IN CLEARING THE PORT!
+  ECHO.
+  ping -n 5 127.0.0.1 > nul
+)
+
 :: Below line is purely done to guarantee that the current ERRORLEVEL is reset to 0
+:skipportclear
 ver > nul
 :: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
 
@@ -1652,6 +1735,7 @@ ECHO            %yellow%   Universalator - Server launcher script    %blue%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO.
 ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
+ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
 ECHO.
 ECHO        CURRENT SERVER SETTINGS:
 ECHO        MINECRAFT - !MINECRAFT!
@@ -1662,16 +1746,15 @@ ECHO.
 ECHO ============================================
 ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO.
-ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %PUBLICIP%:%PORT% %blue%
-ECHO        --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO        --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
+ECHO       %yellow% PUBLIC IPv4 %blue% AND PORT ADDRESS - %yellow% %PUBLICIP%:%PORT% %blue%
+ECHO            --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
 ECHO.
-ECHO   INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
-ECHO        --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO        --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
+ECHO       INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
+ECHO            --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO            --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER INSTEAD OF ENTERING AN IP ADDRESS
 ECHO.
 ECHO ============================================
-ECHO.
 ECHO.
 ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
 ECHO.
