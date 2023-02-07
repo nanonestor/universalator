@@ -1,5 +1,24 @@
 @ECHO OFF
 
+REM    The Universalator - Modded Minecraft Server Installation / Launching Program.
+REM    Copyright (C) <2023>  <Kerry Sherwin>
+REM
+REM    This program is free software: you can redistribute it and/or modify
+REM    it under the terms of the GNU General Public License as published by
+REM    the Free Software Foundation, either version 3 of the License, or
+REM    (at your option) any later version.
+REM
+REM    This program is distributed in the hope that it will be useful,
+REM    but WITHOUT ANY WARRANTY; without even the implied warranty of
+REM    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+REM    GNU General Public License for more details.
+REM
+REM    You should have received a copy of the GNU General Public License
+REM    along with this program.  If not, see https://www.gnu.org/licenses/.
+
+
+
+
 :: README BELOW -- NOTES -- README -- NOTES
 :: ----------------------------------------------
 :: INSTRUCTIONS FOR UNIVERSALATOR - MODDED MINECRAFT SERVER INSTALLER / LAUNCHER
@@ -51,9 +70,9 @@
 
 
 
+ECHO. && ECHO. && ECHO   Loading ... ... ...
 
-
-:: GENERAL PRE-RUN ITEMS
+:: BEGIN GENERAL PRE-RUN ITEMS
 setlocal enabledelayedexpansion
 :: Sets the backgound color of the command window
 color 1E
@@ -64,6 +83,8 @@ SET "yellow="
 SET "blue="
 :: Sets the working directory to this folder directory in case something happens like user runs as admin
 CD "%~dp0" >nul 2>&1
+:: Sets a HERE variable equal to the current directory string.
+SET "HERE=%cd%"
 
 :: TEST LINES FOR WINDOW RESIZING - KIND OF SCREWEY NEEDS FURTHER CHECKS
 ::mode con: cols=160 lines=55
@@ -83,6 +104,8 @@ for /f "tokens=4-7 delims=[.] " %%i in ('ver') do (if %%i==Version (
 IF %major% GEQ 10 (
   SET yellow=[34;103m
   SET blue=[93;44m
+  SET green=[93;42m
+  SET red=[93;101m
   GOTO :skipwin
 )
 IF %major%==6 IF %minor% GEQ 3 (
@@ -244,16 +267,16 @@ IF %ERRORLEVEL%==0 (
 ver >nul
 
 :: Checks if standalone command line version of 7-zip is present.  If not downloads it.
-IF NOT EXIST "%cd%\java" (
-  MD java
+IF NOT EXIST "%HERE%\univ-utils\7-zip" (
+  MD univ-utils\7-zip
 )
-SET ZIP7="%cd%\java\7za.exe"
+SET ZIP7="%HERE%\univ-utils\7-zip\7za.exe"
 :try7zipagain
 IF NOT EXIST %ZIP7% (
   CLS
   ECHO Downloading and installing 7-Zip...
-  MD hey
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe', 'java\7za.exe')" >nul
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe', 'univ-utils\7-zip\7za.exe')" >nul
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/utilities/main/7zipfiles/license.txt', 'univ-utils\7-zip\license.txt')" >nul
 )
 IF NOT EXIST %ZIP7% (
   ECHO.
@@ -261,56 +284,302 @@ IF NOT EXIST %ZIP7% (
   ECHO   THIS FILE IS REQUIRED FOR THE UNIVERSALATOR SCRIPT FUNCTION
   ECHO.
   ECHO   PRESS ANY KEY TO RETRY DOWNLOAD
+  PAUSE
+  ECHO     Attempting to download again...
   GOTO :try7zipagain
 )
+IF EXIST settings-universalator.txt (
+  RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
+  IF DEFINED MAXRAMGIGS SET MAXRAM=-Xmx!MAXRAMGIGS!G
+)
+SET OVERRIDE=N
+:: END GENERAL PRE-RUN ITEMS
 
-:: If settings-universalator.txt exists already then skip asking/setting one up.
-IF EXIST settings-universalator.txt GOTO :skipsettings
-:tryagain
+:: BEGIN CHECKING server.properties FILE FOR IP ENTRY AND OTHER
+:: IF NOT EXIST server.properties SET FLIGHT=allow-flight=true
+IF NOT EXIST server.properties (
+    ECHO allow-flight=true>server.properties
+    GOTO :skipserverproperties
+)
+:: Constructs a pseudo array list to store the server.properties file info
+SET idx=0
+IF EXIST server.properties (
+  FOR /F "usebackq delims=" %%J IN (server.properties) DO (
+    SET "serverprops[!idx!]=%%J"
+    SET /a idx+=1
+  )
+
+:: Sets a variable to the line number that contains server-ip= , also checks if the full line is only that or also contains additional info (different string value)
+FOR /L %%T IN (0,1,!idx!) DO (
+    IF "!serverprops[%%T]:~0,10!"=="server-ip=" SET IPLINE=%%T
+)
+)
+IF DEFINED IPLINE IF "!serverprops[%IPLINE%]!" NEQ "server-ip=" SET IS_IP_ENTERED=Y
+:: The following must be done outside the IF EXIST server.properties list because you can't tag loop back into an IF loop.
+:: If it was found that information was entered after server-ip= checks with user if it's ok to blank the value out or leave it alone.
+:confirmip
+IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
+    CLS
+    ECHO.
+    ECHO   %yellow% WARNING WARNING WARNING %blue%
+    ECHO.
+    ECHO   IT IS DETECTED THAT THE server.properties FILE HAS AN IP ADDRESS ENTERED AFTER server-ip=
+    ECHO.
+    ECHO   THIS ENTRY IS ONLY TO BE USED USED IF YOU ARE SETTING UP A CUSTOM DOMAIN
+    ECHO   IF YOU ARE NOT SETTING UP A CUSTOM DOMAIN THEN THE SERVER WILL NOT LET PLAYERS CONNECT CORRECTLY
+    ECHO.
+    ECHO   %yellow% WARNING WARNING WARNING %blue%
+    ECHO.
+    ECHO   CHOOSE TO CORRECT THIS ENTRY OR IGNORE
+    ECHO   ONLY CHOOSE IGNORE IF YOU ARE SETTING UP A CUSTOM DOMAIN
+    ECHO.
+    ECHO   ENTER YOUR CHOICE:
+    ECHO   'CORRECT' or 'IGNORE'
+    ECHO.
+    SET /P "CHOOSE_IP="
+)
+IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
+    IF /I !CHOOSE_IP! NEQ CORRECT IF /I !CHOOSE_IP! NEQ IGNORE GOTO :confirmip
+)
+:: If an IP address was entered and user choses to remove then print server.properties with it made blank, also always set allow-flight to be true
+IF DEFINED IPLINE IF /I !CHOOSE_IP!==CORRECT (
+    FOR /L %%T IN (0,1,!idx!) DO (
+        IF %%T NEQ %IPLINE% IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" IF "!serverprops[%%T]!" NEQ "online-mode=false" ECHO !serverprops[%%T]!>>server.properties2
+        IF "!serverprops[%%T]!"=="allow-flight=false" ECHO allow-flight=true>>server.properties2
+        IF "!serverprops[%%T]!"=="online-mode=false" ECHO online-mode=true>>server.properties2
+        IF %%T==%IPLINE% ECHO server-ip=>>server.properties2
+    )
+    DEL server.properties
+    RENAME server.properties2 server.properties
+    :: Skips past the last section since the job is done for this case.
+    GOTO :skipserverproperties
+)
+:: At this point if IPLINE is defined and user chooses Y then scipt has skipped ahead, also skipped ahead if server.properties does not previously exist.
+:: This means that all that's left are cases where IPLINE is not defined or user has chosen IGNORE.
+:: Below reprints all lines except always setting allow-flight=true
+    FOR /L %%T IN (0,1,!idx!) DO (
+        IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" IF "!serverprops[%%T]!" NEQ "online-mode=false" ECHO !serverprops[%%T]!>>server.properties2
+        IF "!serverprops[%%T]!"=="allow-flight=false" ECHO allow-flight=true>>server.properties2
+        IF "!serverprops[%%T]!"=="online-mode=false" ECHO online-mode=true>>server.properties2
+    )
+    DEL server.properties
+    RENAME server.properties2 server.properties
+
+:skipserverproperties
+:: END CHECKING server.properties FILE FOR IP ENTRY AND OTHER
+
+:portcheckup
+:: BEGIN CHECKING IF CURRENT PORT SET IN server.properties IS ALREADY IN USE
+:: Assume server.properties exists
+FOR /F %%A IN ('findstr server-port server.properties') DO SET PROPSPORT=%%A
+IF DEFINED PROPSPORT IF "%PROPSPORT%" NEQ "" SET PORTSET=%PROPSPORT:~12%
+IF NOT DEFINED PROPSPORT SET PORTSET=25565
+
+ver > nul
+NETSTAT -o -n -a | FINDSTR %PORTSET%
+:: If port was not found already after checking netstat entries then assume it's being used and run warning/process kill screen
+IF %ERRORLEVEL%==1 GOTO :skipportclear
+
+IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.txt DEL pid3.txt
+
+
+for /F "delims=" %%A IN ('netstat -aon') DO (
+    ECHO %%A>>pid.txt
+)
+
+set idx=0
+FOR /F "delims=" %%A IN ('findstr %PORTSET% pid.txt') DO (
+    SET BEE[!idx!]=%%A
+    set /a idx+=1
+)
+IF NOT DEFINED BEE[0] GOTO :skipportclear
+
+
+FOR /F "tokens=5 delims= " %%B IN ("!BEE[0]!") DO (
+    SET PIDNUM=%%B
+)
+
+FOR /F "delims=" %%C IN ('TASKLIST /fi "pid eq !PIDNUM!"') DO (
+    ECHO %%C>>pid3.txt
+)
+SET idx=0
+FOR /F "delims=" %%D IN ('findstr !PIDNUM! pid3.txt') DO (
+    SET BOO[!idx!]=%%D
+    set /a idx+=1
+)
+FOR /F "tokens=1,3,4 delims= " %%E IN ("!BOO[0]!") DO (
+    SET IMAGENAME=%%E
+    SET SESSIONNAME=%%F
+    SET SESSIONNUM=%%G
+)
+
+
+IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.txt DEL pid3.txt
+
+:portwarning
+  CLS
+  ECHO. && ECHO.
+  ECHO   %yellow% WARNING - PORT ALREADY IN USE - WARNING %blue%
+  ECHO.
+  ECHO   CURRENT %yellow% PORT SET = %PORTSET% %blue%
+  ECHO.
+  ECHO   IT IS DETECTED THAT THE PORT CURRENTLY SET (SHOWN ABOVE)
+  ECHO   IN THE SETTINGS FILE server.properties %yellow% IS ALREADY IN USE %blue%
+  ECHO.
+  ECHO   THE FOLLOWING IS THE PROCESS RUNNING THAT APPEARS TO BE USING THE PORT
+  ECHO   MINECRAFT SERVERS WILL USUALLY CONTAIN THE NAMES java.exe AND Console
+  ECHO.
+  ECHO   IMAGE NAME - %IMAGENAME%
+  ECHO   SESSION NAME - %SESSIONNAME%
+  ECHO   PID NUMBER - %PIDNUM%
+  ECHO.
+  ECHO   %yellow% WARNING - PORT ALREADY IN USE - WARNING %blue%
+  ECHO.
+  ECHO   Type 'KILL' to try and let the script close the program using the port already.
+  ECHO   Type 'Q' to close the script program if you'd like to try and solve the issue on your own.
+  ECHO.
+  ECHO   Enter your response:
+  SET /P "KILLIT="
+  IF /I !KILLIT! NEQ KILL IF /I !KILLIT! NEQ Q GOTO :portwarning
+  IF /I !KILLIT!==Q (
+    PAUSE && EXIT [\B]
+  )
+  IF /I !KILLIT!==KILL (
+    CLS
+    ECHO.
+    ECHO   ATTEMPTING TO KILL TASK PLEASE WAIT...
+    ECHO.
+    TASKKILL /F /PID %PIDNUM%
+    ping -n 10 127.0.0.1 > nul
+  )
+ver > nul
+NETSTAT -o -n -a | FINDSTR %PORTSET%
+IF %ERRORLEVEL%==0 (
+  CLS
+  ECHO.
+  ECHO   OOPS - THE ATTEMPT TO KILL THE TASK PROCESS USING THE PORT SEEMS TO HAVE FAILED
+  ECHO.
+  ECHO   FURTHER OPTIONS:
+  ECHO   --SET A DIFFERENT PORT, OR CLOSE KNOWN SERVERS/PROGRAMS USING THIS PORT.
+  ECHO   --IF YOU THINK PORT IS BEING KEPT OPEN BY A BACKGROUND PROGRAM TRY RESTARTING COMPUTER.
+  ECHO   --TRY RUNNING THE UNIVERSALATOR SCRIPT AGAIN.
+  ECHO. && ECHO.  && ECHO. 
+  PAUSE && EXIT [\B]
+)
+IF %ERRORLEVEL%==1 (
+  ECHO.
+  ECHO   SUCCESS!
+  ECHO   IT SEEMS LIKE KILLING THE PROGRAM WAS SUCCESSFUL IN CLEARING THE PORT!
+  ECHO.
+  ping -n 5 127.0.0.1 > nul
+)
+
+:: Below line is purely done to guarantee that the current ERRORLEVEL is reset to 0
+:skipportclear
+ver > nul
+:: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
+
+:: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
+FOR /F %%B IN ('powershell -Command "Invoke-RestMethod api.ipify.org"') DO SET PUBLICIP=%%B
+FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
+IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
+IF NOT DEFINED PORT SET PORT=25565
+:: END SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
+
+:: If file present (upnp port forwarding = loaded') check to see if port forwarding is activated or not using it.
+
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
+  SET ISUPNPACTIVE=N
+  FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
+    SET CHECKUPNPSTATUS=%%E
+    IF "!CHECKUPNPSTATUS!" NEQ "!CHECKUPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
+  )
+)
+:: Sets ASKMODSCHECK to use as default if no settings file exists yet.
+SET ASKMODSCHECK=Y
+
+:: BEGIN MAIN MENU
+
+
+:mainmenu
+
+
+IF EXIST settings-universalator.txt (
+  RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
+  IF DEFINED MAXRAMGIGS IF !MAXRAMGIGS! NEQ "" SET MAXRAM=-Xmx!MAXRAMGIGS!G
+)
+
 CLS
 ECHO.%yellow%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
-ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-ECHO.%blue%
-ECHO   SETTINGS - ENTER VALUES WHEN PROMPTED ON FOLLOWING SCREENS.
-ECHO      For example - Minecraft version / Modloader type / Java version
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
+ECHO.
+ECHO   %yellow% CURRENT SETTINGS %blue%
 ECHO.
 ECHO.
-ECHO   -- After server files installation completes you can choose to scan for client-side mods.
-ECHO   -- Once steps are completed - server files will automatically launch.
+IF DEFINED MINECRAFT ECHO   %yellow% MINECRAFT VERSION %blue% !MINECRAFT!
+IF NOT DEFINED MINECRAFT ECHO   %yellow% MINECRAFT VERSION %blue% NEEDS SETTING
+IF DEFINED  MODLOADER ECHO   %yellow% MODLOADER %blue%         !MODLOADER!
+IF NOT DEFINED MODLOADER ECHO   %yellow% MODLOADER %blue%         NEEDS SETTING
+IF DEFINED MODLOADER IF DEFINED FORGE IF /I !MODLOADER!==FORGE ECHO   %yellow% FORGE VERSION %blue%     !FORGE!
+IF DEFINED MODLOADER IF DEFINED FABRICLOADER IF /I !MODLOADER!==FABRIC ECHO   %yellow% FABRIC LOADER %blue%     !FABRICLOADER!
+IF DEFINED MODLOADER IF DEFINED FABRICINSTALLER IF /I !MODLOADER!==FABRIC ECHO   %yellow% FABRIC INSTALLER %blue%  !FABRICINSTALLER!
+IF DEFINED JAVAVERSION ECHO   %yellow% JAVA VERSION %blue%      !JAVAVERSION!
+IF NOT DEFINED JAVAVERSION ECHO   %yellow% JAVA VERSION %blue%      NEEDS SETTING
+IF NOT DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  NEEDS SETTING
+ECHO. && ECHO.
+IF DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  !MAXRAMGIGS!
 ECHO.
 ECHO.
+IF DEFINED PORT ECHO   %yellow% CURRENT PORT SET %blue%           !PORT!
+IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue% NOT LOADED
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue%  %green% LOADED %blue%
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue%       %red% NOT ACTIVATED %blue%
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue%              %green% ACTIVE %blue%
+IF EXIST settings-universalator.txt ECHO                                                           %green% L %blue% = LAUNCH SERVER
+ECHO                                                           %green% S %blue% = SETTINGS ENTRY
 ECHO.
-ECHO   -- Following first server files launch a %yellow%settings-universalator.txt%blue% file will be
-ECHO        generated where settings are stored for future launches.
-ECHO.
-ECHO        It may be edited to change settings.
-ECHO.
-ECHO.
-ECHO   %yellow% Read above - Do you understand? %blue%
-ECHO.
-ECHO        "Y" = CONTINUE TO SETTINGS ENTRY
-ECHO        "N" = EXIT SCRIPT PROGRAM
-ECHO.
-ECHO   %yellow% ENTER YOUR ANSWER BELOW - "Y" or "N" %blue%
-set /P "LOOKSGOOD=" 
-
-IF /I !LOOKSGOOD!==N (
-  PAUSE && EXIT [\B]
+ECHO                                                           %green% UPNP %blue% = UPNP PORT FORWARDING MENU
+IF DEFINED MODLOADER ECHO                                                           %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT MODS && ECHO.
+IF EXIST settings-universalator.txt ECHO   %green% ENTER YOUR ANSWER BELOW - L,  S,  UPNP, SCAN, J-(JAVA), R-(RAM), or Q-(quit) %blue%
+IF NOT DEFINED MODLOADER ECHO. && ECHO   %green% ENTER YOUR ANSWER BELOW - S-(settings),  UPNP-(menu), or  Q-(quit) %blue%
+set /P "MAINMENU="
+IF DEFINED MODLOADER IF DEFINED MINECRAFT (
+  IF /I !MAINMENU! NEQ L IF /I !MAINMENU! NEQ S IF /I !MAINMENU! NEQ R IF /I !MAINMENU! NEQ J IF /I !MAINMENU! NEQ UPNP IF /I !MAINMENU! NEQ Q IF /I !MAINMENU! NEQ SCAN IF /I !MAINMENU! NEQ OVERRIDE IF /I !MAINMENU! NEQ MCREATOR GOTO :mainmenu
 )
-IF /I !LOOKSGOOD! NEQ Y IF /I !LOOKSGOOD! NEQ N GOTO :tryagain
+IF NOT DEFINED MODLOADER (
+  IF /I !MAINMENU! NEQ S IF /I !MAINMENU! NEQ UPNP IF /I !MAINMENU! NEQ Q IF /I !MAINMENU! NEQ OVERRIDE IF /I !MAINMENU! NEQ MCREATOR GOTO :mainmenu
+)
+IF /I !MAINMENU!==Q (
+  EXIT [\B]
+)
+IF /I !MAINMENU!==J GOTO :gojava
+IF /I !MAINMENU!==UPNP GOTO :upnpmenu
+IF /I !MAINMENU!==R GOTO :justsetram
+IF /I !MAINMENU!==S GOTO :startover
+IF /I !MAINMENU!==L IF EXIST settings-universalator.txt IF DEFINED MINECRAFT IF DEFINED MODLOADER IF DEFINED JAVAVERSION GOTO :actuallylaunch
+IF /I !MAINMENU!==SCAN IF EXIST "%HERE%\mods" GOTO :scanmods
+IF /I !MAINMENU!==SCAN IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
+IF /I !MAINMENU!==OVERRIDE GOTO :override
+IF /I !MAINMENU!==MCREATOR IF EXIST "%HERE%\mods" GOTO :mcreator
+IF /I !MAINMENU!==MCREATOR IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
+
+:: END MAIN MENU
+
 
 :startover
 :: User entry for Minecraft version
 CLS
-ECHO.
+ECHO. && ECHO.
 ECHO   %yellow% ENTER THE MINECRAFT VERSION %blue%
 ECHO.
 ECHO    example: 1.7.10
 ECHO    example: 1.16.5
 ECHO    example: 1.19.2
 ECHO.
+ECHO   %yellow% ENTER THE MINECRAFT VERSION %blue%
+ECHO. && ECHO.
 SET /P MINECRAFT=
 
 ::Detects whether Minecraft version is older than, or equal/greater than 1.17 and stores in OLDORNEW variable
@@ -343,18 +612,19 @@ IF %OLDORNEW%==IDK (
 :reentermodloader
 :: User entry for Modloader version
 CLS
-ECHO.
+ECHO. && ECHO.
 ECHO   %yellow% ENTER THE MODLOADER TYPE %blue%
 ECHO.
-ECHO    Valid entries - FORGE or FABRIC
+ECHO    Valid entries - %green% FORGE %blue% or %green% FABRIC %blue%
 ECHO.
-SET /P MODLOADER=
+ECHO   %yellow% ENTER THE MODLOADER TYPE %blue%
+ECHO. && ECHO.
+SET /P "MODLOADER="
+IF /I !MODLOADER!==FORGE SET MODLOADER=FORGE
+IF /I !MODLOADER!==FABRIC SET MODLOADER=FABRIC
 IF /I !MODLOADER! NEQ FORGE IF /I !MODLOADER! NEQ FABRIC (
   GOTO :reentermodloader
 )
-:: Corrects uppercase/lowercase if not already so to all uppercase
-IF /I !MODLOADER!==FORGE SET MODLOADER=FORGE
-IF /I !MODLOADER!==FABRIC SET MODLOADER=FABRIC
 
 :: Detects if settings are trying to use some weird old Minecraft Forge version that isn't supported.
 :: This is done again later after the settings-universalator.txt is present and this is section is skipped.
@@ -371,39 +641,51 @@ IF /I !MODLOADER!==FORGE IF %DOTORNOT%==. IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT
 )
 
 :: If Fabric modloader ask user to enter Fabric Installer and Fabric Loader
-IF NOT EXIST settings-universalator.txt IF /I !MODLOADER!==FABRIC (
+IF /I !MODLOADER!==FABRIC (
   CLS
   ECHO.
-  ECHO    ENTER THE %yellow% VERSION %blue% OF %yellow% FABRIC --INSTALLER-- %blue%
-  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS 0.11.1
+  ECHO    %yellow% ENTER THE VERSION OF FABRIC --INSTALLER-- %blue%
   ECHO.
-  ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER 0.11.1
+  ECHO    THIS IS THE VERSION OF THE FILE WHICH INSTALLS FABRIC MODLOADER FILES
+  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS %green% 0.11.1 %blue%
+  ECHO.
+  ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER %green% 0.11.1 %blue%
+  ECHO.
+  ECHO    %yellow% ENTER THE VERSION OF FABRIC --INSTALLER-- %blue%
   ECHO.
   SET /P FABRICINSTALLER=
+  CLS
   ECHO.
-  ECHO   ENTER THE %yellow% VERSION %blue% OF %yellow% FABRIC --LOADER-- %blue%
-  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS 0.14.13
+  ECHO   %yellow% ENTER THE VERSION OF FABRIC --LOADER-- %blue%
+  ECHO.
+  ECHO    THIS IS THE FABRIC MODLOADER VERSION
+  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS %green% 0.14.13 %blue%
   ECHO.
   ECHO    GENERALLY IT IS A GOOD IDEA TO USE THE SAME VERSION THAT THE CLIENT MODPACK IS KNOWN TO LOAD WITH
+  ECHO.
+  ECHO   %yellow% ENTER THE VERSION OF FABRIC --LOADER-- %blue%
   ECHO.
   SET /P FABRICLOADER=
   ECHO.
   ECHO.
 )
 
-IF !MODLOADER!==FABRIC GOTO :goramentry
+IF /I !MODLOADER!==FABRIC GOTO :gojava
 :usedefaulttryagain
 :: If modloader is Forge present user with option to select recommended versions of Forge and Java.
 SET USEDEFAULT=BLANK
 IF !MINECRAFT!==1.6.4 (
   CLS
-  ECHO.
+  ECHO. && ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.6.4 WHICH IS A POPULAR VERSION %blue%
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
   ECHO.
   ECHO    FORGE = 9.11.1.1345
   ECHO    JAVA = 8  **JAVA MUST BE 8**
+  ECHO.
+  ECHO   %yellow% YOU HAVE ENTERED 1.6.4 WHICH IS A POPULAR VERSION %blue%
+  ECHO.
   ECHO    ENTER "Y" OR "N"
   ECHO.
   SET /P "USEDEFAULT="
@@ -575,16 +857,20 @@ IF /I !USEDEFAULT!==Y (
 )
 IF !MINECRAFT!==1.18.2 (
   CLS
-  ECHO.
+  ECHO. && ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.18.2 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 40.2.1
-  ECHO    JAVA = 17  **JAVA CAN BE 17, 18, 19**
-  ECHO            **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
+  ECHO    FORGE = %green% 40.2.1 %blue%
+  ECHO    JAVA = %green% 17 %blue%  **JAVA CAN BE 17, 18, 19**
+  ECHO                 **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
   ECHO.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.18.2 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
@@ -630,14 +916,12 @@ IF /I !USEDEFAULT!==Y (
   SET JAVAVERSION=17
   GOTO :goramentry
 )
-
-IF /I !USEDEFAULT!==Y GOTO :finalcheck
-IF /I !USEDEFAULT!==N GOTO :enterforge
-IF /I !USEDEFAULT!==BLANK GOTO :enterforge
-GOTO :usedefaulttryagain
+IF /I !USEDEFAULT! NEQ Y IF /I !USEDEFAULT! NEQ N GOTO :usedefaulttryagain
+IF /I !USEDEFAULT!==Y GOTO :justsetram
 
 :enterforge
   CLS
+  ECHO. && ECHO. 
   ECHO  %yellow% ENTER FORGE VERSION %blue%
   ECHO      example: 14.23.5.2860
   ECHO      example: 40.1.84
@@ -646,52 +930,76 @@ GOTO :usedefaulttryagain
 
 
 :gojava
-IF /I !USEDEFAULT!==N IF !MINECRAFT! NEQ 1.16.5 (
-  CLS
-  ECHO.
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO.
-  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
-  ECHO.
-  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 %yellow%MUST BE%blue% 8
-  ECHO   -JAVA VERSION FOR 1.17/1.17.1 %yellow%MUST BE%blue% 16
-  ECHO   -JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer: - 17, 18, 19
-  ECHO.
-  ECHO.  JAVA 18/19 %yellow%MAY%blue% WORK OR %yellow%MAY NOT%blue% DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
-  ECHO.  IF THE SERVER LAUNCH FAILS AND YOU HAVE ENTERED JAVA 18 OR 19 - EDIT settings-universalator.txt TO USE 17
-  ECHO.
-  SET /P JAVAVERSION=
-)
-IF /I !USEDEFAULT!==BLANK IF !MINECRAFT! NEQ 1.16.5 (
-  CLS
-  ECHO.
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO.
-  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
-  ECHO.
-  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 %yellow%MUST BE%blue% 8
-  ECHO   -JAVA VERSION FOR 1.17/1.17.1 %yellow%MUST BE%blue% 16
-  ECHO   -JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer: - 17, 18, 19
-  ECHO.
-  ECHO.  JAVA 18/19 %yellow%MAY%blue% WORK OR %yellow%MAY NOT%blue% DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
-  ECHO.  IF THE SERVER LAUNCH FAILS AND YOU HAVE ENTERED JAVA 18 OR 19 - EDIT settings-universalator.txt TO USE 17
-  ECHO.
-  SET /P JAVAVERSION=
-)
-IF !MINECRAFT!==1.16.5 (
-  CLS
-  ECHO.
-  ECHO  %yellow% ENTER JAVA VERSION %blue%
-  ECHO.
-  ECHO   THE ONLY VERSIONS AVAILABLE THAT WORK WITH MINECRAFT / FORGE 1.16.5 ARE 8 AND 11
-  ECHO.
-  ECHO   USING JAVA 11 MAY OR MAY NOT WORK DEPENDING ON MODS BEING LOADED
-  ECHO.
-  SET /P JAVAVERSION=
-)
-IF !MINECRAFT!==1.16.5 IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
 
-:goramentry
+:: TBD - clean this up to not be entered so many times in the script for checks
+:: Detects whether Minecraft version is older than, or equal/greater than 1.17 and stores in OLDORNEW variable
+SET DOTORNOT=!MINECRAFT:~3,1!
+SET OLDORNEW=IDK
+IF %DOTORNOT%==. SET OLDORNEW=OLD
+IF %DOTORNOT% NEQ . IF !MINECRAFT! GEQ 1.17 SET OLDORNEW=NEW
+IF %DOTORNOT% NEQ . IF !MINECRAFT! LSS 1.17 SET OLDORNEW=OLD
+IF /I !OLDORNEW!==NEW SET /a NEWMAJOR=!MINECRAFT:~2,2!
+IF !NEWMAJOR! NEQ 17 SET ISITSEVENTEEN=N
+IF !NEWMAJOR! EQU 17 SET ISITSEVENTEEN=Y
+
+
+
+IF /I !MODLOADER!==FORGE IF /I !OLDORNEW!==NEW (
+  CLS
+  ECHO.
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO.
+  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
+  ECHO.
+  IF /I !ISITSEVENTEEN!==Y (
+  ECHO   -JAVA VERSION FOR 1.17/1.17.1 %green% MUST BE %blue% 16
+  ECHO. && ECHO. && ECHO.
+  ) ELSE (
+  ECHO   JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer: - %green% 17, 18, 19 %blue%
+  ECHO.
+  ECHO.  --JAVA 18/19 %green% MAY %blue% WORK OR %red% MAY NOT %blue% DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
+  ECHO.  --IF THE SERVER LAUNCH FAILS AND YOU HAVE ENTERED JAVA 18 OR 19 - TRY USING 17 INSTEAD
+  )
+  ECHO.
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO. && ECHO.
+  SET /P JAVAVERSION=
+  IF /I !ISITSEVENTEEN!==N IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :gojava
+  IF /I !ISITSEVENTEEN!==Y IF !JAVAVERSION! NEQ 16 GOTO :gojava
+)
+
+IF /I !MODLOADER!==FORGE  IF /I !OLDORNEW!==OLD IF !MINECRAFT!==1.16.5 (
+  CLS
+  ECHO.
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO.
+  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
+  ECHO.
+  ECHO   THE ONLY VERSIONS AVAILABLE THAT WORK WITH MINECRAFT / FORGE 1.16.5 ARE %green% 8 AND 11 %blue%
+  ECHO.
+  ECHO   USING JAVA 11 %green% MAY %blue% OR %red% MAY NOT %blue% WORK DEPENDING ON MODS BEING LOADED
+  ECHO.
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO.
+  SET /P JAVAVERSION=
+  IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
+)
+
+IF /I !MODLOADER!==FORGE IF /I !OLDORNEW!==OLD IF !MINECRAFT! NEQ 1.16.5 (
+  CLS
+  ECHO.
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO.
+  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
+  ECHO.
+  ECHO.
+  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 %green% MUST BE %blue% 8
+  ECHO.
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO.
+  SET /P JAVAVERSION=
+  IF !JAVAVERSION! NEQ 8 GOTO :gojava
+)
 
 :: IF Fabric ask for Java verison entry
 IF !MODLOADER!==FABRIC (
@@ -710,63 +1018,63 @@ IF !MODLOADER!==FABRIC (
   ECHO.  JAVA 18/19 MAY WORK OR MAY NOT DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
   ECHO   IF YOU TRY JAVA NEWER THAN 17 AND CRASHES HAPPEN -- EDIT SETTINGS TO TRY 17
   ECHO.
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO.
   SET /P JAVAVERSION=
+  IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 IF !JAVAVERSION! NEQ 16 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :gojava
 )
 
-:: Sends entry back to re-enter Java if a non supported version entered
-IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 IF !JAVAVERSION! NEQ 16 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :gojava
+IF /I !MAINMENU!==J GOTO :actuallylaunch
 
-IF NOT EXIST settings-universalator.txt (
+:: BEGIN RAM / MEMORY SETTING
+:goramentry
+:justsetram
+:: Uses the systeminfo command to get the total and available/free ram/memory on the computer.
+FOR /F "delims=" %%D IN ('systeminfo') DO (
+    SET INFO=%%D
+    IF "!INFO!" NEQ "!INFO:Total Physical Memory=tot!" SET RAWTOTALRAM=!INFO:~27,4!
+    IF "!INFO!" NEQ "!INFO:Available Physical Memory=free!" SET RAWFREERAM=!INFO:~27,4!
+)
+:: Pulls apart the value obtained above to store the first two spaces and fourth space (after comma) - as integers.
+SET /a TOTALRAM=!RAWTOTALRAM:~0,2!
+SET /a FREERAM=!RAWFREERAM:~0,2!
+SET /a DECIMALTOTAL=!RAWTOTALRAM:~3,1!
+SET /a DECIMALFREE=!RAWFREERAM:~3,1!
+:: Rounds up the totalram/freeram integer values if the number after the decimal is greater or equal to 5.
+IF !DECIMALTOTAL! GEQ 5 SET /a TOTALRAM += 1
+IF !DECIMALFREE! GEQ 5 SET /a FREERAM += 1
+
+
   CLS
   ECHO.
-  ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES %blue%
+  ECHO %yellow%    Computer Total Total Memory/RAM     %blue% = %yellow% !TOTALRAM! Gigabytes (GB) %blue%
+  ECHO %yellow%    Current Available (Free) Memory/RAM %blue% = %yellow% !FREERAM! Gigabytes (GB) %blue%
+  ECHO     *Numbers are rounded from actual values
+  ECHO. && ECHO.
+  ECHO. && ECHO. && ECHO. && ECHO.
+  ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) %blue%
   ECHO.
-  ECHO    BE SURE IT IS NOT TOO MUCH FOR YOUR COMPUTER!
+  ECHO    BE SURE TO USE A VALUE THAT LEAVES AT LEAST SEVERAL GB AVAILABLE IF ALL USED
+  ECHO    (Refer to the total and available RAM found above)
+  ECHO.
   ECHO    TYPICAL VALUES FOR MODDED MINECRAFT SERVERS ARE BETWEEN 4 AND 10
   ECHO.
-  ECHO    ONLY ENTER THE NUMBER - MUST NOT INCLUDE ANY LETTERS.
+  ECHO    ONLY ENTER THE NUMBER - %red% MUST NOT %blue% INCLUDE ANY LETTERS.
+  ECHO    %green% Example - 6 %blue%
   ECHO.
-  ECHO    Example - 6
+  ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) %blue%
   ECHO. & ECHO.
   SET /P MAXRAMGIGS=
-)
+  SET MAXRAM=-Xmx!MAXRAMGIGS!G
 
-:finalcheck
-CLS
-ECHO.%yellow%
-ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-ECHO    Universalator - A modded Minecraft server installer / launcher    
-ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-ECHO.%blue%
-ECHO.
-ECHO   %yellow% THESE ARE THE ENTERED SETTINGS FOR THE INSTALLER / LAUNCHER %blue%
-ECHO.   -----------------------------------------------------------
-ECHO        MINECRAFT VERSION = !MINECRAFT!
-ECHO        MODLOADER TYPE ==== !MODLOADER!
-IF !MODLOADER!==FORGE (
-ECHO        FORGE VERSION ===== !FORGE!
-)
-IF !MODLOADER!==FABRIC (
-ECHO        FABRIC INSTALLER == !FABRICINSTALLER!
-ECHO        FABRIC LOADER ===== !FABRICLOADER!
-)
-ECHO        JAVA VERSION ====== !JAVAVERSION!
-ECHO.    
-ECHO        SERVER MAX RAM VALUE = !MAXRAMGIGS! gigabytes
-ECHO    -----------------------------------------------------------
-ECHO.
-ECHO.
-ECHO    %yellow% ENTER "Y" TO ACCEPT                      %blue%
-ECHO    %yellow% ENTER "N" TO GO BACK AND RE-ENTER VALUES %blue%
-ECHO.
-SET /P "LOOKSGOOD2="
+  :: END RAM / MEMORY SETTING
 
-IF /I !LOOKSGOOD2! NEQ N IF /I !LOOKSGOOD2! NEQ Y GOTO :finalcheck
-IF /I !LOOKSGOOD2!==N GOTO :startover
+:actuallylaunch
 
-
+IF /I !MAINMENU!==L SET ASKMODSCHECK=N
 :: Generates settings-universalator.txt file if settings-universalator.txt does not exist
-IF NOT EXIST settings-universalator.txt (
+IF EXIST settings-universalator.txt DEL settings-universalator.txt
+
     ECHO :: To reset this file - delete and run launcher again.>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
     ECHO :: Minecraft version below - example: MINECRAFT=1.18.2 >>settings-universalator.txt
@@ -793,40 +1101,34 @@ IF NOT EXIST settings-universalator.txt (
     ECHO :: Java additional startup args - DO NOT INCLUDE -Xmx THAT IS ABOVE ENTRY>>settings-universalator.txt
     ECHO SET ARGS=!ARGS!>>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
-    ECHO :: Mod client only check on next run - set =Y to reset question ask for next launch>>settings-universalator.txt
-    ECHO SET ASKMODSCHECK=Y>>settings-universalator.txt
-)
+    ECHO :: Whether or not the next settings menu entry done asks to scan for client only mods>>settings-universalator.txt
+    ECHO SET ASKMODSCHECK=!ASKMODSCHECK!>>settings-universalator.txt
 
-:: Point at which script picks up if settings-universalator.txt was detected and settings entry prompts are skipped.
-:skipsettings
+:: Returns to main menu if menu option was only to enter java or ram values
+IF /I !MAINMENU!==J GOTO :mainmenu
+IF /I !MAINMENU!==R GOTO :mainmenu
 
-:: Loads the settings-universalator.txt file as parameters and then sets the MAXRAM value based on MAXRAMGIGS. >>
-:: This is done because that way people can just enter a number without getting confused seeing -Xmx
-IF EXIST settings-universalator.txt (
-RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
-)
+::IF EXIST settings-universalator.txt (
+::RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
+::)
 SET MAXRAM=-Xmx!MAXRAMGIGS!G
 
+:scanmods
 ::Detects whether Minecraft version is older than, or equal/greater than 1.17 and stores in OLDORNEW variable
 SET DOTORNOT=!MINECRAFT:~3,1!
 SET OLDORNEW=IDK
+IF !DOTORNOT!==. SET OLDORNEW=OLD
+IF !DOTORNOT! NEQ . IF !MINECRAFT! GEQ 1.17 SET OLDORNEW=NEW
+IF !DOTORNOT! NEQ . IF !MINECRAFT! LSS 1.17 SET OLDORNEW=OLD
 
-IF %DOTORNOT%==. (
-    SET OLDORNEW=OLD
-)
+:: Sets HOWOLD depending on whether version is newer than, or equal/lessthan 1.12.2.
+:: This is used to determine which arrangement of files that mods of that era stored their modID names.  The current mods.toml used started with 1.13.
+SET HOWOLD=NOTVERY
+IF !OLDORNEW!==OLD IF !DOTORNOT!==. SET HOWOLD=SUPEROLD
+IF !OLDORNEW!==OLD IF !DOTORNOT! NEQ . IF !MINECRAFT! LSS 1.13 SET HOWOLD=SUPEROLD
 
- IF %DOTORNOT% NEQ . (
-    IF !MINECRAFT! GEQ 1.17 (
-    SET OLDORNEW=NEW
-    )
- )
- IF %DOTORNOT% NEQ . (
-    IF !MINECRAFT! LSS 1.17 (
-    SET OLDORNEW=OLD
-    )
- )
-
-IF %DOTORNOT%==. IF !MODLOADER!==FORGE IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 (
+:: If older than MC 1.10 then only passes by this if it is one of the major supported versions below - otherwise setting is rejected
+IF !DOTORNOT!==. IF !MODLOADER!==FORGE IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 (
   ECHO.
   ECHO  SORRY - YOUR ENTERED MINECRAFT VERSION - FORGE FOR MINECRAFT !MINECRAFT! - IS NOT SUPPORTED.
   ECHO.
@@ -835,74 +1137,66 @@ IF %DOTORNOT%==. IF !MODLOADER!==FORGE IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! N
   PAUSE && EXIT [\B]
 )
 
-IF %OLDORNEW%==IDK (
-    ECHO %yellow% INVALID MINECRAFT VERSION ENTERED IN VALUES %blue%
-    PAUSE && EXIT [\B]
+:: Returns to main menu if asking to scan mods is flagged as done previously once before
+:: Otherwise if Y goes to the mod scanning section for each modloader
+IF /I !MAINMENU!==S IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
+IF /I !MAINMENU!==S IF /I !ASKMODSCHECK!==N GOTO :mainmenu
+IF /I !MAINMENU!==S IF /I !ASKMODSCHECK!==Y (
+  SET ASKMODSCHECK=N
+  GOTO :actuallyscanmods
 )
-:: The above considers 1.16 versions to be old for the sake of forge launch method later on.  This was somewhat of a transition MC version both for forge launch method and java version needs.
-:: The below variable is the price to pay for that - later on both variables can be checked to determine which methods to do various things.
-SET IS116=NO
-  IF %MINECRAFT%==1.16 SET IS116=YES
-IF %MINECRAFT%==1.16.1 SET IS116=YES
-IF %MINECRAFT%==1.16.2 SET IS116=YES
-IF %MINECRAFT%==1.16.3 SET IS116=YES
-IF %MINECRAFT%==1.16.4 SET IS116=YES
-IF %MINECRAFT%==1.16.5 SET IS116=YES
-
-:: Sets HOWOLD depending on whether version is newer than, or equal/lessthan 1.12.2.
-:: This is used to determine which arrangement of files that mods of that era stored their modID names.  The current mods.toml used started with 1.13.
-SET HOWOLD=NOTVERY
-IF %OLDORNEW%==OLD IF %DOTORNOT%==. SET HOWOLD=SUPEROLD
-IF %OLDORNEW%==OLD IF %DOTORNOT% NEQ . IF !MINECRAFT! LSS 1.13 SET HOWOLD=SUPEROLD
-
+IF /I !MAINMENU!==SCAN (
+  SET ASKMODSCHECK=N
+  GOTO :actuallyscanmods
+)
 
 ::Stores values in variables depending on Java version entered
 SET JAVAGOOD="bad"
 
 IF !JAVAVERSION!==8 (
     SET JAVAFILENAME="jdk8u362-b09/OpenJDK8U-jre_x64_windows_hotspot_8u362b09.zip"
-    SET JAVAFOLDER="java\jdk8u362-b09-jre\."
+    SET JAVAFOLDER="univ-utils\java\jdk8u362-b09-jre\."
     SET checksumeight=3569dcac27e080e93722ace6ed7a1e2f16d44a61c61bae652c4050af58d12d8b
-    SET JAVAFILE="java\jdk8u362-b09-jre\bin\java.exe"
+    SET JAVAFILE="univ-utils\java\jdk8u362-b09-jre\bin\java.exe"
     SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==11 (
     SET JAVAFILENAME="jdk-11.0.18%%2B10/OpenJDK11U-jre_x64_windows_hotspot_11.0.18_10.zip"
-    SET JAVAFOLDER="java\jdk-11.0.18+10-jre\."
+    SET JAVAFOLDER="univ-utils\java\jdk-11.0.18+10-jre\."
     SET checksumeight=dea0fe7fd5fc52cf5e1d3db08846b6a26238cfcc36d5527d1da6e3cb059071b3
-    SET JAVAFILE="java\jdk-11.0.18+10-jre\bin\java.exe"
+    SET JAVAFILE="univ-utils\java\jdk-11.0.18+10-jre\bin\java.exe"
     SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==16 (
     SET JAVAFILENAME="jdk-16.0.2%%2B7/OpenJDK16U-jdk_x64_windows_hotspot_16.0.2_7.zip"
-    SET JAVAFOLDER="java\jdk-16.0.2+7\."
+    SET JAVAFOLDER="univ-utils\java\jdk-16.0.2+7\."
     SET checksumeight=40191ffbafd8a6f9559352d8de31e8d22a56822fb41bbcf45f34e3fd3afa5f9e
-    SET JAVAFILE="java\jdk-16.0.2+7\bin\java.exe"
+    SET JAVAFILE="univ-utils\java\jdk-16.0.2+7\bin\java.exe"
     SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==17 (
     SET JAVAFILENAME="jdk-17.0.6%%2B10/OpenJDK17U-jre_x64_windows_hotspot_17.0.6_10.zip"
-    SET JAVAFOLDER="java\jdk-17.0.6+10-jre\."
+    SET JAVAFOLDER="univ-utils\java\jdk-17.0.6+10-jre\."
     SET checksumeight=85ce690a348977e3739fde3fd729b36c61e86c33da6628bc7ceeba9974a3480b
-    SET JAVAFILE="java\jdk-17.0.6+10-jre\bin\java.exe"
+    SET JAVAFILE="univ-utils\java\jdk-17.0.6+10-jre\bin\java.exe"
     SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==18 (
     SET JAVAFILENAME="jdk-18.0.2.1%%2B1/OpenJDK18U-jre_x64_windows_hotspot_18.0.2.1_1.zip"
-    SET JAVAFOLDER="java\jdk-18.0.2.1+1-jre\."
+    SET JAVAFOLDER="univ-utils\java\jdk-18.0.2.1+1-jre\."
     SET checksumeight=ba7976e86e9a7e27542c7cf9d5081235e603a9be368b6cbd49673b417da544b1
-    SET JAVAFILE="java\jdk-18.0.2.1+1-jre\bin\java.exe"
+    SET JAVAFILE="univ-utils\java\jdk-18.0.2.1+1-jre\bin\java.exe"
     SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==19 (
     SET JAVAFILENAME="jdk-19.0.2%%2B7/OpenJDK19U-jre_x64_windows_hotspot_19.0.2_7.zip"
-    SET JAVAFOLDER="java\jdk-19.0.2+7-jre\."
+    SET JAVAFOLDER="univ-utils\java\jdk-19.0.2+7-jre\."
     SET checksumeight=daaaa092343e885b0814dd85caa74529b9dec2c1f28a711d5dbc066a9f7af265
-    SET JAVAFILE="java\jdk-19.0.2+7-jre\bin\java.exe"
+    SET JAVAFILE="univ-utils\java\jdk-19.0.2+7-jre\bin\java.exe"
     SET JAVAGOOD="good"
 )
 
-:: Checks to see if the Java version entered is available
+:: Checks to see if the Java version entered is available - this shouldn't even be possible using settings normally, but checking anyways
 IF %JAVAGOOD%=="bad" (
   ECHO.
   ECHO   %yellow% THE JAVA VERSION YOU ENTERED IN SETTINGS IS NOT AVAILABLE FOR THIS LAUNCHER %blue%
@@ -911,64 +1205,28 @@ IF %JAVAGOOD%=="bad" (
   PAUSE && EXIT [\B]
 )
 
-:: Checks to see if Minecraft version and Java version in settings are compatible
-IF %OLDORNEW%==OLD IF %JAVAGOOD%=="good" IF !MINECRAFT! NEQ 1.16.5 IF !JAVAVERSION! NEQ 8 (
-  ECHO.
-  ECHO    MINECRAFT 1.16.4 AND OLDER MUST USE JAVA 8 ONLY - FIX YOUR SETTINGS
-  PAUSE && EXIT [\B]
-)
-IF %OLDORNEW%==OLD IF %JAVAGOOD%=="good" IF !MINECRAFT!==1.16.5 IF !JAVAVERSION! NEQ 8 (
-  IF !JAVAVERSION! NEQ 11 (
-    ECHO.
-    ECHO    MINECRAFT 1.16.5 MUST USE JAVA 8 OR 11 - FIX YOUR SETTINGS
-    PAUSE && EXIT [\B]
-))
-IF %OLDORNEW%==NEW IF %MINECRAFT:~3,1%==7 IF %JAVAGOOD%=="good" IF !JAVAVERSION! NEQ 16 (
-  ECHO.
-  ECHO    MINECRAFT 1.17.x MUST USE JAVA 16 - FIX YOUR SETTINGS
-  PAUSE && EXIT [\B]
-)
-IF %OLDORNEW%==NEW IF !MINECRAFT! NEQ 1.17 IF %JAVAGOOD%=="good" IF !JAVAVERSION!==8 (
-  ECHO.
-  ECHO    MINECRAFT 1.18.x AND NEWER MUST USE JAVA 17+  - FIX YOUR SETTINGS
-  PAUSE && EXIT [\B]
-)
-IF %OLDORNEW%==NEW IF %MINECRAFT:~3,1% NEQ 7 IF %JAVAGOOD%=="good" IF !JAVAVERSION!==16 (
-  ECHO.
-  ECHO    MINECRAFT 1.18.x AND NEWER MUST USE JAVA 17+  - FIX YOUR SETTINGS
-  ECHO %MINECRAFT:~3,1%
-  PAUSE && EXIT [\B]
-)
-
+:: Checks to see if the mods folder even exists yet
 SET NEWRESPONSE=Y
-IF NOT EXIST "%cd%\mods" (
+IF NOT EXIST "%HERE%\mods" (
   :nommodsfolder
   CLS
+  ECHO. && ECHO. && ECHO. && ECHO.
+  ECHO   %yellow% NO 'mods' FOLDER OR NO MOD FILES INSIDE AN EXISTING 'mods' FOLDER WERE DETECTED IN THIS DIRECTORY YET %blue%
+  ECHO   %yellow% ARE YOU SURE YOU WANT TO CONTINUE? %blue%
+  ECHO. && ECHO.
+  ECHO    --- IF "Y" PROGRAM WILL INSTALL CORE SERVER FILES AND LAUNCH BUT THERE ARE NO MODS THAT WILL BE LOADED.
   ECHO.
+  ECHO    --- IF "N" PROGRAM WILL RETURN TO MAIN MENU
   ECHO.
-  ECHO.
-  ECHO.
-  ECHO.
-  ECHO   %yellow% NO MODS FOLDER WAS DETECTED IN THIS DIRECTORY YET - ARE YOU SURE YOU WANT TO CONTINUE? %blue%
-  ECHO.
-  ECHO    --- IF "Y" PROGRAM WILL INSTALL CORE SERVER FILES BUT NOT LAUNCH WHEN FINISHED.
-  ECHO        PLACE MODS FOLDER AND ANY OTHER NEEDED SERVER PACK FILES IN THIS SAME FOLDER AND THEN RUN BAT AGAIN.
-  ECHO.
-  ECHO    --- IF "N" PROGRAM WILL EXIT
-  ECHO        DO THIS IF YOU WISH TO FIRST PLACE MODS FOLDER AND ANY OTHER SERVER PACK FILES IN THIS FOLDER
-  ECHO             THEN RESTART THIS INSTALLER/LAUNCHER BAT.
   ECHO.
   ECHO   %yellow% TYPE YOUR RESPONSE AND PRESS ENTER: %blue%
   ECHO.
   set /P "NEWRESPONSE=" 
-
-  IF /I !NEWRESPONSE!==N (
-    ECHO CLOSING
-    PAUSE && EXIT
-  )
   IF /I !NEWRESPONSE! NEQ N IF /I !NEWRESPONSE! NEQ Y GOTO :nomodsfolder
+  IF /I !NEWRESPONSE!==N (
+    GOTO :mainmenu
+  )
 )
-
 
 :: Downloads java binary file
 :javaretry
@@ -1005,7 +1263,7 @@ set filechecksum=%out1%
 :: Checks to see if the calculated checksum hash is the same as stored value above - unzips file if valid
 IF EXIST java.zip (
     IF /i %checksumeight%==%filechecksum% (
-    "%cd%\java\7za.exe" x java.zip -ojava
+    "%HERE%\univ-utils\7-zip\7za.exe" x java.zip -ouniv-utils\java
     ) && DEL java.zip && ECHO Downloaded Java binary and stored hashfile match values - file is valid
 )
 IF EXIST java.zip IF %checksumeight% NEQ %filechecksum% (
@@ -1025,341 +1283,17 @@ IF EXIST %JAVAFOLDER% (
 )
 
 
-:: BEGIN CHECKING server.properties FILE FOR IP ENTRY AND OTHER
-:: IF NOT EXIST server.properties SET FLIGHT=allow-flight=true
-IF NOT EXIST server.properties (
-    ECHO allow-flight=true>server.properties
-    GOTO :skipserverproperties
-)
-:: Constructs a pseudo array list to store the server.properties file info
-SET idx=0
-IF EXIST server.properties (
-  FOR /F "usebackq delims=" %%J IN (server.properties) DO (
-    SET "serverprops[!idx!]=%%J"
-    SET /a idx+=1
-  )
-
-:: Sets a variable to the line number that contains server-ip= , also checks if the full line is only that or also contains additional info (different string value)
-FOR /L %%T IN (0,1,!idx!) DO (
-    IF "!serverprops[%%T]:~0,10!"=="server-ip=" SET IPLINE=%%T
-)
-)
-IF DEFINED IPLINE IF "!serverprops[%IPLINE%]!" NEQ "server-ip=" SET IS_IP_ENTERED=Y
-:: The following must be done outside the IF EXIST server.properties list because you can't tag loop back into an IF loop.
-:: If it was found that information was entered after server-ip= checks with user if it's ok to blank the value out or leave it alone.
-:confirmip
-IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
-    CLS
-    ECHO.
-    ECHO   %yellow% WARNING WARNING WARNING %blue%
-    ECHO.
-    ECHO   IT IS DETECTED THAT THE server.properties FILE HAS AN IP ADDRESS ENTERED AFTER server-ip=
-    ECHO.
-    ECHO   THIS ENTRY IS ONLY TO BE USED USED IF YOU ARE SETTING UP A CUSTOM DOMAIN
-    ECHO   IF YOU ARE NOT SETTING UP A CUSTOM DOMAIN THEN THE SERVER WILL NOT LET PLAYERS CONNECT CORRECTLY
-    ECHO.
-    ECHO   %yellow% WARNING WARNING WARNING %blue%
-    ECHO.
-    ECHO   CHOOSE TO CORRECT THIS ENTRY OR IGNORE
-    ECHO   ONLY CHOOSE IGNORE IF YOU ARE SETTING UP A CUSTOM DOMAIN
-    ECHO.
-    ECHO   ENTER YOUR CHOICE:
-    ECHO   'CORRECT' or 'IGNORE'
-    ECHO.
-    SET /P "CHOOSE_IP="
-)
-IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
-    IF /I !CHOOSE_IP! NEQ CORRECT IF /I !CHOOSE_IP! NEQ IGNORE GOTO :confirmip
-)
-:: If an IP address was entered and user choses to remove then print server.properties with it made blank, also always set allow-flight to be true
-IF DEFINED IPLINE IF /I !CHOOSE_IP!==CORRECT (
-    FOR /L %%T IN (0,1,!idx!) DO (
-        IF %%T NEQ %IPLINE% IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" IF "!serverprops[%%T]!" NEQ "online-mode=false" ECHO !serverprops[%%T]!>>server.properties2
-        IF "!serverprops[%%T]!"=="allow-flight=false" ECHO allow-flight=true>>server.properties2
-        IF "!serverprops[%%T]!"=="online-mode=false" ECHO online-mode=true>>server.properties2
-        IF %%T==%IPLINE% ECHO server-ip=>>server.properties2
-    )
-    DEL server.properties
-    RENAME server.properties2 server.properties
-    :: Skips past the last section since the job is done for this case.
-    GOTO :skipserverproperties
-)
-:: At this point if IPLINE is defined and user chooses Y then scipt has skipped ahead, also skipped ahead if server.properties does not previously exist.
-:: This means that all that's left are cases where IPLINE is not defined or user has chosen IGNORE.
-:: Below reprints all lines except always setting allow-flight=true
-    FOR /L %%T IN (0,1,!idx!) DO (
-        IF "!serverprops[%%T]!" NEQ "" IF "!serverprops[%%T]!" NEQ "allow-flight=false" IF "!serverprops[%%T]!" NEQ "online-mode=false" ECHO !serverprops[%%T]!>>server.properties2
-        IF "!serverprops[%%T]!"=="allow-flight=false" ECHO allow-flight=true>>server.properties2
-        IF "!serverprops[%%T]!"=="online-mode=false" ECHO online-mode=true>>server.properties2
-    )
-    DEL server.properties
-    RENAME server.properties2 server.properties
-
-:skipserverproperties
-:: END CHECKING server.properties FILE FOR IP ENTRY AND OTHER
-
-:: BEGIN CHECKING IF CURRENT PORT SET IN server.properties IS ALREADY IN USE
-:: Assume server.properties exists
-FOR /F %%A IN ('findstr server-port server.properties') DO SET PROPSPORT=%%A
-IF DEFINED PROPSPORT IF "%PROPSPORT%" NEQ "" SET PORTSET=%PROPSPORT:~12%
-IF NOT DEFINED PROPSPORT SET PORTSET=25565
-
-ver > nul
-NETSTAT -o -n -a | FINDSTR %PORTSET%
-:: If port was not found already after checking netstat entries then assume it's being used and run warning/process kill screen
-IF %ERRORLEVEL%==1 GOTO :skipportclear
-
-IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.txt DEL pid3.txt
-
-
-for /F "delims=" %%A IN ('netstat -aon') DO (
-    ECHO %%A>>pid.txt
-)
-
-set idx=0
-FOR /F "delims=" %%A IN ('findstr %PORTSET% pid.txt') DO (
-    SET BEE[!idx!]=%%A
-    set /a idx+=1
-)
-IF NOT DEFINED BEE[0] GOTO :skipportclear
-
-
-FOR /F "tokens=5 delims= " %%B IN ("!BEE[0]!") DO (
-    SET PIDNUM=%%B
-)
-
-FOR /F "delims=" %%C IN ('TASKLIST /fi "pid eq !PIDNUM!"') DO (
-    ECHO %%C>>pid3.txt
-)
-SET idx=0
-FOR /F "delims=" %%D IN ('findstr !PIDNUM! pid3.txt') DO (
-    SET BOO[!idx!]=%%D
-    set /a idx+=1
-)
-FOR /F "tokens=1,3,4 delims= " %%E IN ("!BOO[0]!") DO (
-    SET IMAGENAME=%%E
-    SET SESSIONNAME=%%F
-    SET SESSIONNUM=%%G
-)
-
-
-IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.txt DEL pid3.txt
-
-:portwarning
-  CLS
-  ECHO. && ECHO.
-  ECHO   %yellow% WARNING - PORT ALREADY IN USE - WARNING %blue%
-  ECHO.
-  ECHO   CURRENT %yellow% PORT SET = %PORTSET% %blue%
-  ECHO.
-  ECHO   IT IS DETECTED THAT THE PORT CURRENTLY SET (SHOWN ABOVE)
-  ECHO   IN THE SETTINGS FILE server.properties %yellow% IS ALREADY IN USE %blue%
-  ECHO.
-  ECHO   THE FOLLOWING IS THE PROCESS RUNNING THAT APPEARS TO BE USING THE PORT
-  ECHO   MINECRAFT SERVERS WILL USUALLY CONTAIN THE NAMES java.exe AND Console
-  ECHO.
-  ECHO   IMAGE NAME - %IMAGENAME%
-  ECHO   SESSION NAME - %SESSIONNAME%
-  ECHO   PID NUMBER - %PIDNUM%
-  ECHO.
-  ECHO   %yellow% WARNING - PORT ALREADY IN USE - WARNING %blue%
-  ECHO.
-  ECHO   Type 'KILL' to try and let the script close the program using the port already.
-  ECHO   Type 'Q' to close the script program if you'd like to try and solve the issue on your own.
-  ECHO.
-  ECHO   Enter your response:
-  SET /P "KILLIT="
-  IF /I !KILLIT! NEQ KILL IF /I !KILLIT! NEQ Q GOTO :portwarning
-  IF /I !KILLIT!==Q (
-    PAUSE && EXIT [\B]
-  )
-  IF /I !KILLIT!==KILL (
-    CLS
-    ECHO.
-    ECHO   ATTEMPTING TO KILL TASK PLEASE WAIT...
-    ECHO.
-    TASKKILL /F /PID %PIDNUM%
-    ping -n 10 127.0.0.1 > nul
-  )
-ver > nul
-NETSTAT -o -n -a | FINDSTR %PORTSET%
-IF %ERRORLEVEL%==0 (
-  CLS
-  ECHO.
-  ECHO   OOPS - THE ATTEMPT TO KILL THE TASK PROCESS USING THE PORT SEEMS TO HAVE FAILED
-  ECHO.
-  ECHO   FURTHER OPTIONS:
-  ECHO   --SET A DIFFERENT PORT, OR CLOSE KNOWN SERVERS/PROGRAMS USING THIS PORT.
-  ECHO   --IF YOU THINK PORT IS BEING KEPT OPEN BY A BACKGROUND PROGRAM TRY RESTARTING COMPUTER.
-  ECHO   --TRY RUNNING THE UNIVERSALATOR SCRIPT AGAIN.
-  ECHO. && ECHO.  && ECHO. 
-  PAUSE && EXIT [\B]
-)
-IF %ERRORLEVEL%==1 (
-  ECHO.
-  ECHO   SUCCESS!
-  ECHO   IT SEEMS LIKE KILLING THE PROGRAM WAS SUCCESSFUL IN CLEARING THE PORT!
-  ECHO.
-  ping -n 5 127.0.0.1 > nul
-)
-
-:: Below line is purely done to guarantee that the current ERRORLEVEL is reset to 0
-:skipportclear
-ver > nul
-:: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
-
-:: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-FOR /F %%B IN ('powershell -Command "Invoke-RestMethod api.ipify.org"') DO SET PUBLICIP=%%B
-FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
-IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
-IF NOT DEFINED PORT SET PORT=25565
-:: END SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-
 :: BEGIN SPLIT BETWEEN FABRIC AND FORGE SETUP AND LAUNCH - If MODLOADER is FABRIC skips the Forge installation and launch section
-IF /I !MODLOADER!==FABRIC GOTO :fabricmain
-
+IF /I !MODLOADER!==FABRIC GOTO :launchfabric
 :: BEGIN FORGE SPECIFIC SETUP AND LAUNCH
+:detectforge
 
-:: Downloads the Minecraft server JAR if version is = OLD and does not exist.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets it first.
-IF %OLDORNEW%==OLD IF NOT EXIST minecraft_server.!MINECRAFT!.jar (
-  powershell -Command "(New-Object Net.WebClient).DownloadFile(((Invoke-RestMethod -Method Get -Uri ((Invoke-RestMethod -Method Get -Uri "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json").versions | Where-Object -Property id -Value !MINECRAFT! -EQ).url).downloads.server.url), 'minecraft_server.!MINECRAFT!.jar')"
-)
-
-:pingforgeagain
-:: Pings the Forge files server to see it can be reached - decides to ping if forge file not present - accounts for extremely annoyng changes in filenames depending on OLD version names.
-IF %OLDORNEW%==OLD IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar IF NOT EXIST minecraftforge-universal-!MINECRAFT!-!FORGE!.jar IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-  ECHO Pinging Forge file server...
-  ECHO.
-  ping -n 4 maven.minecraftforge.net >nul
-  IF %ERRORLEVEL% NEQ 0 (
-    CLS
-    ECHO.
-    ECHO A PING TO THE FORGE FILE SERVER HAS FAILED
-    ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
-    ECHO PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN
-    PAUSE
-    GOTO :pingforgeagain
-  )
-)
-:: Pings the Forge files server for NEW types of Forge (1.17 and newer).  Decides to ping if specific folder is not detected as existing.
-IF %OLDORNEW%==NEW IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. (
-  ping -n 4 maven.minecraftforge.net >nul
-  IF %ERRORLEVEL% NEQ 0 (
-    CLS
-    ECHO.
-    ECHO A PING TO THE FORGE FILE SERVER HAS FAILED
-    ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
-    ECHO PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN
-    PAUSE
-    GOTO :pingforgeagain
-
-  )
-)
-
-:: Forge installer file download
-:: Detects if installed files or folders exist - if not then deletes existing JAR files and libraries folder to prevent mash-up of various versions installing on top of each other, and then downloads installer JAR
-IF %OLDORNEW%==NEW GOTO :skipolddownload
-
-:: 1.6.4
-IF !MINECRAFT!==1.6.4 IF NOT EXIST minecraftforge-universal-1.6.4-!FORGE!.jar (
-  DEL *.jar
-  IF EXIST "%cd%\libraries" RD /s /q "%cd%\libraries\"
-  ECHO.
-  ECHO Forge Server JAR-file not found.
-  ECHO Any existing JAR files and 'libaries' folder deleted.
-  ECHO Downloading installer...
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-
-)
-
-:: 1.7.10
-IF !MINECRAFT!==1.7.10 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-  DEL *.jar
-  IF EXIST "%cd%\libraries" RD /s /q "%cd%\libraries\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-
-)
-
-:: 1.8.9
-IF !MINECRAFT!==1.8.9 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-  DEL *.jar
-  IF EXIST "%cd%\libraries" RD /s /q "%cd%\libraries\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-
-)
-
-:: 1.9.4
-IF !MINECRAFT!==1.9.4 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-  DEL *.jar
-  IF EXIST "%cd%\libraries" RD /s /q "%cd%\libraries\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-
-)
-
-:: 1.10.2
-IF !MINECRAFT!==1.10.2 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
-  DEL *.jar
-  IF EXIST "%cd%\libraries" RD /s /q "%cd%\libraries\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-
-)
-
-:: OLD versions newer than 1.10.2
-IF %OLDORNEW%==OLD IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 IF !MINECRAFT! NEQ 1.10.2 (
-  DEL *.jar
-  IF EXIST "%cd%\libraries" RD /s /q "%cd%\libraries\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-)
-
-:skipolddownload
-:: For NEW (1.17 and newer) Forge detect if specific version folder is present - if not delete all JAR files and 'install' folder to guarantee no files of different versions conflicting on later install.  Then downloads installer file.
-IF %OLDORNEW%==NEW IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. (
-  IF EXIST forge-installer.jar DEL forge-installer.jar
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-
-)
-
-
-IF %ERRORLEVEL% NEQ 0 (
-  CLS
-  ECHO.
-  ECHO forge-installer.jar not found. Maybe the Forge servers are having trouble.
-  ECHO Please try again in a couple of minutes.
-  ECHO.
-  ECHO %yellow% THIS COULD ALSO MEAN YOU HAVE INCORRECT MINECRAFT OR FORGE VERSION NUMBERS ENTERED - CHECK THE VALUES ENTERED %blue%
-  ECHO         MINECRAFT - !MINECRAFT!
-  ECHO         FORGE ----- !FORGE!
-  ECHO.
-  ECHO Press any key to try to download forge installer file again.
-  PAUSE
-  GOTO :pingforgeagain
-)
-
-:: Installs forge, detects if successfully made the main JAR file, deletes extra new style files that this BAT replaces
-
-SET INSTALLEDFORGE==NOTYET
-IF EXIST forge-installer.jar (
-  ECHO Installer downloaded. Installing...
-  !JAVAFILE! -Djava.net.preferIPv4Stack=true -XX:+UseG1GC -jar forge-installer.jar --installServer
-  DEL forge-installer.jar && SET INSTALLEDFORGE=YES && ECHO Installation complete. forge-installer.jar deleted.
-)
-IF EXIST forge-!MINECRAFT!-!FORGE!.jar (
+IF EXIST libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/. (
   ECHO Detected Installed Forge !FORGE!. Moving on...
   GOTO :foundforge
 )
-IF EXIST libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/. (
+
+IF EXIST forge-!MINECRAFT!-!FORGE!.jar (
   ECHO Detected Installed Forge !FORGE!. Moving on...
   GOTO :foundforge
 )
@@ -1379,21 +1313,164 @@ IF EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
   GOTO :foundforge
 )
 
-        ECHO THE FORGE INSTALLATION FILE DID NOT DOWNLOAD OR INSTALL CORRECTLY - IT WAS NOT FOUND
-        ECHO - PLEASE RESET FILES AND TRY AGAIN -
-        PAUSE && EXIT [\B]
+:: Downloads the Minecraft server JAR if version is = OLD and does not exist.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets it first.
+IF !OLDORNEW!==OLD IF NOT EXIST minecraft_server.!MINECRAFT!.jar (
+  powershell -Command "(New-Object Net.WebClient).DownloadFile(((Invoke-RestMethod -Method Get -Uri ((Invoke-RestMethod -Method Get -Uri "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json").versions | Where-Object -Property id -Value !MINECRAFT! -EQ).url).downloads.server.url), 'minecraft_server.!MINECRAFT!.jar')"
+)
+
+:pingforgeagain
+:: Pings the Forge files server to see it can be reached - decides to ping if forge file not present - accounts for extremely annoyng changes in filenames depending on OLD version names.
+IF !OLDORNEW!==OLD IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar IF NOT EXIST minecraftforge-universal-!MINECRAFT!-!FORGE!.jar IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
+  ECHO Pinging Forge file server...
+  ECHO.
+  ping -n 4 maven.minecraftforge.net >nul
+  IF %ERRORLEVEL% NEQ 0 (
+    CLS
+    ECHO.
+    ECHO A PING TO THE FORGE FILE SERVER HAS FAILED
+    ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
+    ECHO PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN
+    PAUSE
+    GOTO :pingforgeagain
+  )
+)
+:: Pings the Forge files server for NEW types of Forge (1.17 and newer).  Decides to ping if specific folder is not detected as existing.
+IF !OLDORNEW!==NEW IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. (
+  ping -n 4 maven.minecraftforge.net >nul
+  IF %ERRORLEVEL% NEQ 0 (
+    CLS
+    ECHO.
+    ECHO A PING TO THE FORGE FILE SERVER HAS FAILED
+    ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
+    ECHO PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN
+    PAUSE
+    GOTO :pingforgeagain
+
+  )
+)
+
+:: Forge installer file download
+:: Detects if installed files or folders exist - if not then deletes existing JAR files and libraries folder to prevent mash-up of various versions installing on top of each other, and then downloads installer JAR
+IF !OLDORNEW!==NEW GOTO :skipolddownload
+
+:: 1.6.4
+IF !MINECRAFT!==1.6.4 IF NOT EXIST minecraftforge-universal-1.6.4-!FORGE!.jar (
+  DEL *.jar >nul 2>&1
+  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+  ECHO.
+  ECHO Forge Server JAR-file not found.
+  ECHO Any existing JAR files and 'libaries' folder deleted.
+  ECHO Downloading installer...
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
+
+)
+
+:: 1.7.10
+IF !MINECRAFT!==1.7.10 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
+  DEL *.jar >nul 2>&1
+  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+  ECHO.
+  ECHO Forge Server JAR-file not found. Downloading installer...
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
+
+)
+
+:: 1.8.9
+IF !MINECRAFT!==1.8.9 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
+  DEL *.jar >nul 2>&1
+  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+  ECHO.
+  ECHO Forge Server JAR-file not found. Downloading installer...
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
+
+)
+
+:: 1.9.4
+IF !MINECRAFT!==1.9.4 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
+  DEL *.jar >nul 2>&1
+  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+  ECHO.
+  ECHO Forge Server JAR-file not found. Downloading installer...
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
+
+)
+
+:: 1.10.2
+IF !MINECRAFT!==1.10.2 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
+  DEL *.jar >nul 2>&1
+  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+  ECHO.
+  ECHO Forge Server JAR-file not found. Downloading installer...
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
+
+)
+
+:: OLD versions newer than 1.10.2
+IF %OLDORNEW%==OLD IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 IF !MINECRAFT! NEQ 1.10.2 (
+  DEL *.jar >nul 2>&1
+  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+  ECHO.
+  ECHO Forge Server JAR-file not found. Downloading installer...
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
+  IF EXIST forge-installer.jar GOTO :useforgeinstaller
+)
+
+:skipolddownload
+:: For NEW (1.17 and newer) Forge detect if specific version folder is present - if not delete all JAR files and 'install' folder to guarantee no files of different versions conflicting on later install.  Then downloads installer file.
+IF !OLDORNEW!==NEW IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. (
+  DEL *.jar >nul 2>&1
+  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+  ECHO.
+  ECHO Forge Server JAR-file not found. Downloading installer...
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
+  IF EXIST forge-installer.jar GOTO :useforgeinstaller
+)
+
+CLS
+ECHO.
+ECHO forge-installer.jar not found. Maybe the Forge servers are having trouble.
+ECHO Please try again in a couple of minutes.
+ECHO.
+ECHO %yellow% THIS COULD ALSO MEAN YOU HAVE INCORRECT MINECRAFT OR FORGE VERSION NUMBERS ENTERED - CHECK THE VALUES ENTERED %blue%
+ECHO         MINECRAFT - !MINECRAFT!
+ECHO         FORGE ----- !FORGE!
+ECHO.
+ECHO Press any key to try to download forge installer file again.
+PAUSE
+GOTO :pingforgeagain
+
+:: Installs forge, detects if successfully made the main JAR file, deletes extra new style files that this BAT replaces
+:useforgeinstaller
+IF EXIST forge-installer.jar (
+  ECHO Installer downloaded. Installing...
+  !JAVAFILE! -Djava.net.preferIPv4Stack=true -XX:+UseG1GC -jar forge-installer.jar --installServer
+  DEL forge-installer.jar >nul 2>&1
+  DEL forge-installer.jar.log >nul 2>&1
+  ECHO Installation complete. forge-installer.jar deleted. && ECHO.
+  GOTO :detectforge
+)
+
+ECHO THE FORGE INSTALLATION FILE DID NOT DOWNLOAD OR INSTALL CORRECTLY - IT WAS NOT FOUND
+ECHO - PLEASE RESET FILES AND TRY AGAIN -
+PAUSE && EXIT [\B]
 
 :foundforge
 
-:: If a Forge installer file was found, used, and the Minecraft vesion is NEW - delete the files that Forge installs that this script replaces function for.
-IF %OLDORNEW%==NEW IF %INSTALLEDFORGE%==YES (
-  DEL run.bat && DEL run.sh && DEL user_jvm_args.txt
+:: Forge was found to exist at this point - delete the files which Forge installs that this script replaces the functions of.
+IF !OLDORNEW!==NEW (
+  DEL "%HERE%\run.*" >nul 2>&1
+  IF EXIST "%HERE%\user_jvm_args.txt" DEL "%HERE%\user_jvm_args.txt"
 )
 
 :eula
-
 ::If eula.txt doens't exist yet 
-
 SET RESPONSE=IDKYET
 IF NOT EXIST eula.txt (
   CLS
@@ -1423,62 +1500,64 @@ IF EXIST eula.txt (
   ECHO.
 )
 
+:: Moves any nuisance client mods that should never be placed on a server - for every launch of any version.
+IF EXIST "%HERE%\mods" (
+  MOVE "%HERE%\mods\?pti?ine*.jar" "%HERE%\CLIENTMODS\" >nul 2>&1
+  MOVE "%HERE%\mods\optifabric*.jar" "%HERE%\CLIENTMODS\" >nul 2>&1
+  MOVE "%HERE%\mods\?pti?orge*.jar" "%HERE%\CLIENTMODS\" >nul 2>&1
+  MOVE "%HERE%\mods\Essential??orge*.jar" "%HERE%\CLIENTMODS\" >nul 2>&1
+  MOVE "%HERE%\mods\Essential??abric*.jar" "%HERE%\CLIENTMODS\" >nul 2>&1
+  MOVE "%HERE%\mods\?ssential.jar" "%HERE%\CLIENTMODS\" >nul 2>&1
+)
 
+:: If launching L then skip to launching sections
+IF /I !MAINMENU!==L IF /I !MODLOADER!==FORGE GOTO :launchforge
+IF /I !MAINMENU!==L IF /I !MODLOADER!==FABRIC GOTO :fabricmain
 
-:: Sets a variable to the current directory to use later.  In some niche cases it seems to work better than cd.
-SET HERE="%cd%"
-
-IF %ASKMODSCHECK%==N GOTO :skipforgemodscheck
-
-:: Prompt user to decide to scan for client only mods or not.  Either path will eventually set AUTOMODSCHECK==NO
-
-
-:askcheck
 :: MODULE TO CHECK FOR CLIENT SIDE MODS
-IF %ASKMODSCHECK%==Y (
+:actuallyscanmods
+SET ASKMODSCHECK=N
+IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   CLS
   ECHO.
   ECHO.
-  ECHO   %yellow% WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? %blue%
+  ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% && ECHO.
+  ECHO      %green% WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? %blue%
+  ECHO      %green% FOUND CLIENT MODS CAN BE AUTOMATICALLY MOVED TO A DIFFERENT FOLDER FOR STORAGE. %blue%
   ECHO.
-  ECHO   ----------------------------------------------------------------------------------
-  ECHO.
-  ECHO     --MANY MODS ARE NOT CODED PROPERLY TO SELF DISABLE ON SERVERS AND MAY CRASH THEM
-  ECHO.
-  ECHO     --THIS LAUNCHER CAN SCAN THE MODS FOLDER AND SEE IF ANY ARE PRESENT WHICH
-  ECHO       ARE ON THE LAUNCHERS MASTER LIST OF CLIENT ONLY MODS.
-  ECHO.
-  ECHO.
-  ECHO.
+  ECHO       --MANY CLIENT MODS ARE NOT CODED TO SELF DISABLE ON SERVERS AND MAY CRASH THEM
+  ECHO. && ECHO. && ECHO.
+  ECHO       --THE UNIVERSALATOR SCRIPT CAN SCAN THE MODS FOLDER AND SEE IF ANY ARE PRESENT && ECHO.
+  ECHO         For an explanation of how the script scans files - visit the official wiki at:
+  ECHO         https://github.com/nanonestor/universalator/wiki
   ECHO.
   ECHO.
+  ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% && ECHO.
   ECHO.
-  ECHO             %yellow% Please choose "Y" or "N" %blue%
+  ECHO.
+  ECHO             %yellow% Please choose 'Y' or 'N' %blue%
   ECHO.
   SET /P DOSCAN=
-  IF /I !DOSCAN!==N (
-    GOTO :resetaskmodscheckforge
-  )
-  )
-  IF /I !DOSCAN! NEQ N IF /I !DOSCAN! NEQ Y (
-    GOTO :askcheck
-  )
+
+  IF /I !DOSCAN! NEQ N IF /I !DOSCAN! NEQ Y GOTO :askscan
+  IF /I !DOSCAN!==N GOTO :mainmenu
+  IF !MODLOADER!==FABRIC GOTO :scanfabric
+
+:: BEGIN CLIENT MOD SCANNING FORGE
 
   IF EXIST rawidlist.txt DEL rawidlist.txt
   IF EXIST serveridlist.txt DEL serveridlist.txt
-
   ECHO.
   ECHO Searching for client only mods . . .
-
   :: Goes to mods folder and gets file names lists.  FINDSTR prints only files with .jar found
 
   PUSHD mods
   dir /b /a-d > list1.txt
-  FINDSTR ".jar" list1.txt > list2.txt
+  FINDSTR .jar list1.txt > list2.txt
   SORT list2.txt > servermods.txt
   DEL list1.txt && DEL list2.txt
-  POPD
-  MOVE mods\servermods.txt servermods.txt >nul
+  
+  ::MOVE mods\servermods.txt servermods.txt >nul
 
   REM Gets the client only list from github file, checks if it's empty or not after download attempt, then sends
   REM to a new file masterclientids.txt with any blank lines removed.
@@ -1486,15 +1565,16 @@ IF %ASKMODSCHECK%==Y (
 
 
   REM Checks if the just downloaded file's first line is empty or not.  Better never save that webfile with the first line empty!
-  SET /P EMPTYCHECK=<rawclientids.txt
+  IF EXIST rawclientids.txt SET /P EMPTYCHECK=<rawclientids.txt
+  IF NOT EXIST rawclientids.txt SET EMPTYCHECK=""
   IF [!EMPTYCHECK!]==[] (
     CLS
     ECHO.
     ECHO.
-    ECHO SOMETHING WENT WRONG DOWNLOADING THE MASTER CLIENT-ONLY LIST FROM THE GITHUB HOSTED LIST
-    ECHO CHECK THAT YOU HAVE NO ANTIVIRUS PROGRAM OR WINDOWS DEFENDER BLOCKING THE DOWNLOAD FROM -
+    ECHO   SOMETHING WENT WRONG DOWNLOADING THE MASTER CLIENT-ONLY LIST FROM THE GITHUB HOSTED LIST
+    ECHO   CHECK THAT YOU HAVE NO ANTIVIRUS PROGRAM OR WINDOWS DEFENDER BLOCKING THE DOWNLOAD FROM -
     ECHO.
-    ECHO https://raw.githubusercontent.com/nanonestor/utilities/main/clientonlymods.txt
+    ECHO   https://raw.githubusercontent.com/nanonestor/utilities/main/clientonlymods.txt
     ECHO.
     PAUSE && EXIT [\B]
   )
@@ -1508,9 +1588,7 @@ IF %ASKMODSCHECK%==Y (
   SET SERVCOUNT=0
   IF EXIST mods.toml DEL mods.toml
   :: START SCANNING MODS
-
-  IF %HOWOLD%==SUPEROLD GOTO :scanmcmodinfo
-
+  IF !HOWOLD!==SUPEROLD GOTO :scanmcmodinfo
   REM Get total number of mods currently in mods folder
   SET rawmodstotal=0
   FOR /F "usebackq delims=" %%J IN (servermods.txt) DO (
@@ -1521,7 +1599,7 @@ IF %ASKMODSCHECK%==Y (
   SET modcount=0
   FOR /F "delims= usebackq" %%W IN (servermods.txt) DO (
     
-    "%cd%\java\7za.exe" e -aoa "mods\%%W" "META-INF\mods.toml" >nul
+    "%HERE%\univ-utils\7-zip\7za.exe" e -aoa "%HERE%\mods\%%W" "META-INF\mods.toml" >nul
     SET /a modcount+=1
     ECHO SCANNING - !modcount!/!rawmodstotal! - %%W
     
@@ -1554,7 +1632,7 @@ IF %ASKMODSCHECK%==Y (
       set /a SERVCOUNT+=1
   )
   REM Below skips to finishedscan label to bypass old style mod scan.
-  IF %HOWOLD%==NOTVERY GOTO :finishedscan
+  IF !HOWOLD!==NOTVERY GOTO :finishedscan
 
   REM END SCANNING NEW STYLE MODS.TOML - BEGIN SCANNING OLD STYLE MCMOD.INFO
   :scanmcmodinfo
@@ -1569,7 +1647,7 @@ IF %ASKMODSCHECK%==Y (
   SET modcount=0
   FOR /F "delims= usebackq" %%W IN (servermods.txt) DO (
 
-    "%cd%\java\7za.exe" e -aoa "mods\%%W" "mcmod.info" >nul
+    "%HERE%\univ-utils\7-zip\7za.exe" e -aoa "%HERE%\mods\%%W" "mcmod.info" >nul
     
     SET /a modcount+=1
     ECHO SCANNING - !modcount!/!rawmodstotal! - %%W
@@ -1606,8 +1684,14 @@ IF %ASKMODSCHECK%==Y (
   )
 
   :: END SCANNING OLD STYLE MCMOD.INFO
-  :finishedscan
+  
   :: FINISHED SCANNING MODS serveridlist.txt and FULLARRAY.id variable array generated
+  :finishedscan
+
+  IF EXIST foundclientids.txt (
+    SET /P EMPTYCHECK=<foundclientids.txt
+    IF [!EMPTYCHECK!]==[] GOTO :skipcompare
+  )
 
   :: Compares the two lists
   FINDSTR /xig:masterclientids.txt serveridlist.txt >foundclientids.txt
@@ -1630,9 +1714,20 @@ IF %ASKMODSCHECK%==Y (
     )
   )
 
-  IF [!FINALARRAY[0].name!]==[] (
-    GOTO :noclients
-  )
+:skipcompare
+:: Cleans up the utility txt files used for mod scanning if present.
+IF EXIST foundclientids.txt DEL foundclientids.txt
+IF EXIST masterclientids.txt DEL masterclientids.txt
+IF EXIST mods.toml DEL mods.toml
+IF EXIST rawidlist.txt DEL rawidlist.txt
+IF EXIST serveridlist.txt DEL serveridlist.txt
+IF EXIST servermods.txt DEL servermods.txt
+IF EXIST temp2.txt DEL temp2.txt
+POPD
+
+:: Skips ahead to the no clients found message if no client modIDs found in foundclientids.txt
+IF [!FINALARRAY[0].name!]==[] GOTO :noclients
+IF DEFINED EMPTYCHECK IF [!EMPTYCHECK!]==[] GOTO :noclients
 
   :: Prints report to user - echos all entries without the modID name = forge
   CLS
@@ -1640,7 +1735,7 @@ IF %ASKMODSCHECK%==Y (
   ECHO.
   ECHO   %yellow% THE FOLLOWING CLIENT ONLY MODS WERE FOUND %blue%
   ECHO.
-  IF %HOWOLD%==SUPEROLD (
+  IF !HOWOLD!==SUPEROLD (
   ECHO    *NOTE - IT IS DETECTED THAT YOUR MINECRAFT VERSION STORES ITS ID NUMBER IN THE OLD WAY*
   ECHO     SOME CLIENT ONLY MODS MAY NOT BE DETECTED BY THE SCAN - I.E. MODS THAT DO NOT USE A MCMOD.INFO FILE
   )
@@ -1657,11 +1752,10 @@ IF %ASKMODSCHECK%==Y (
   ECHO.
   ECHO.
   ECHO.
-  ECHO   %yellow% *** DO YOU WANT TO MOVE THESE CLIENT MODS TO A DIFFERENT FOLDER FOR SAFE KEEPING? *** %blue%
+  ECHO   %green% *** DO YOU WANT TO MOVE THESE CLIENT MODS TO A DIFFERENT FOLDER FOR SAFE KEEPING? *** %blue%
   ECHO.
-  ECHO         If "Y" they will NOT be deleted - they WILL be moved to a new folder in the server named CLIENTMODS
+  ECHO         If 'Y' they will NOT be deleted - they WILL be moved to a new folder in the server named %green% CLIENTMODS %blue%
   ECHO         SOME CLIENT MODS ARE NOT CODED TO SELF DISABLE AND WILL CRASH SERVERS IF LEFT IN THE MODS FOLDER
-  ECHO.
   ECHO.
   ECHO.
   ECHO      - IF YOU THINK THE CURRENT MASTER LIST IS INNACURATE OR HAVE FOUND A MOD TO ADD -
@@ -1671,12 +1765,12 @@ IF %ASKMODSCHECK%==Y (
   :typo
   ECHO    ------------------------------------------------------
   ECHO.
-  ECHO       %yellow% ENTER YOUR RESPONSE - "Y" OR "N" %blue%
+  ECHO       %yellow% ENTER YOUR RESPONSE - 'Y' OR 'N' %blue%
   ECHO.
   SET /P MOVEMODS=
-  IF /I !MOVEMODS!==N GOTO :resetaskmodscheckforge
+  IF /I !MOVEMODS!==N GOTO :mainmenu
   IF /I !MOVEMODS!==Y (
-    IF NOT EXIST "%cd%\CLIENTMODS" (
+    IF NOT EXIST "%HERE%\CLIENTMODS" (
       MD CLIENTMODS
       )
       ) ELSE GOTO :typo
@@ -1686,17 +1780,20 @@ IF %ASKMODSCHECK%==Y (
   ECHO.
   FOR /L %%L IN (0,1,%TOTCLIENTCOUNT%) DO (
     IF "!FINALARRAY[%%L].name!" NEQ "" (
-    MOVE "%cd%\mods\!FINALARRAY[%%L].name!" "%cd%\CLIENTMODS\!FINALARRAY[%%L].name!" >nul
-    ECHO   MOVED - "!FINALARRAY[%%L].name!" - to - "%cd%\CLIENTMODS"
+    MOVE "%HERE%\mods\!FINALARRAY[%%L].name!" "%HERE%\CLIENTMODS\!FINALARRAY[%%L].name!" >nul
+    ECHO   MOVED - "!FINALARRAY[%%L].name!" 
     )
   )
   ECHO.
-  ECHO      %yellow%   CLIENT MODS MOVED! ...     %blue%
+  ECHO      %yellow%   CLIENT MODS MOVED TO THIS FOLDER AS STORAGE:     %blue%
+  ECHO      %yellow%   "%HERE%\CLIENTMODS" 
+  ECHO.
+  ECHO.
   ECHO      %yellow% -PRESS ANY KEY TO CONTINUE- %blue%
   ECHO.
   PAUSE
   
-GOTO :resetaskmodscheckforge
+GOTO :mainmenu
 
 :noclients
 CLS
@@ -1708,59 +1805,51 @@ ECHO   %yellow% ----------------------------------------- %blue%
 ECHO.
 ECHO    PRESS ANY KEY TO CONTINUE...
 ECHO.
-
 PAUSE
-
-:resetaskmodscheckforge
-
-:: Resets the settings-universalator.txt file so that it won't ask to scan mods next run.
-REM User can change config from NO to YES to rescan next run.
-powershell -Command "$content = Get-Content -Path '%HERE%\settings-universalator.txt'; $newContent = $content -replace 'SET ASKMODSCHECK=Y', 'SET ASKMODSCHECK=N'; $newContent | Set-Content -Path '%HERE%\settings-universalator.txt'"
-
-:skipforgemodscheck
-:: Cleans up the utility txt files used for mod scanning if present.
-IF EXIST foundclientids.txt DEL foundclientids.txt
-IF EXIST masterclientids.txt DEL masterclientids.txt
-IF EXIST mods.toml DEL mods.toml
-IF EXIST rawidlist.txt DEL rawidlist.txt
-IF EXIST serveridlist.txt DEL serveridlist.txt
-IF EXIST servermods.txt DEL servermods.txt
-IF EXIST temp2.txt DEL temp2.txt
+GOTO :mainmenu
 
 :: FINALLY LAUNCH FORGE SERVER!
+:launchforge
 
 CLS
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO            %yellow%   Universalator - Server launcher script    %blue%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-ECHO.
-ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
 ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
 ECHO.
 ECHO        CURRENT SERVER SETTINGS:
 ECHO        MINECRAFT - !MINECRAFT!
 ECHO        FORGE - !FORGE!
-ECHO        JAVA - !JAVAVERSION!
-ECHO.
-ECHO.
+IF !OVERRIDE!==N ECHO        JAVA - !JAVAVERSION!
+IF !OVERRIDE!==Y ECHO        JAVA - CUSTOM OVERRIDE
 ECHO ============================================
 ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
+IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO.
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==ON ECHO       %yellow% UPNP STATUS %blue% - %green% ENABLED %blue%
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==OFF ECHO       %yellow% UPNP STATUS %blue% ------------------ %red% NOT ACTIVE %blue%
 ECHO.
-ECHO       %yellow% PUBLIC IPv4 %blue% AND PORT ADDRESS - %yellow% %PUBLICIP%:%PORT% %blue%
-ECHO            --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
+ECHO       %yellow% PUBLIC IPv4 %blue% AND PORT ADDRESS - %green% %PUBLICIP%:%PORT% %blue%
+ECHO            --CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE THIS ADDRESS TO CONNECT
+IF NOT DEFINED UPNPSTATUS ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER OR HAVE UPNP FORWARDING ENABLED
+IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==OFF ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER OR HAVE UPNP FORWARDING ENABLED
+IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==ON ECHO.
 ECHO.
-ECHO       INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
-ECHO            --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO       %yellow% INTERNAL IPv4 %blue% AND PORT ADDRESS 
+ECHO            --ENTER 'ipconfig' FROM A COMMAND PROMPT TO FIND
+ECHO            --CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE THIS ADDRESS TO CONNECT
+ECHO.
+ECHO       %yellow% SAME COMPUTER %blue%
 ECHO            --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER INSTEAD OF ENTERING AN IP ADDRESS
-ECHO.
 ECHO ============================================
 ECHO.
-ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
+ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
+ECHO    PRESS ANY KEY TO START SERVER LAUNCH
 ECHO.
 PAUSE
-
+ECHO. && ECHO   Launching... && ping -n 2 127.0.0.1 > nul && ECHO   Launching.. && ping -n 2 127.0.0.1 > nul && ECHO   Launching. && ECHO.
 :: Starts forge depending on what java version is set.  Only correct combinations will launch - others will crash.
+
+IF !OVERRIDE!==Y SET "JAVAFILE=java"
 
 :: Special case forge.jar filenames for older OLD versions
 IF %OLDORNEW%==OLD IF !MINECRAFT!==1.6.4 (
@@ -1789,31 +1878,47 @@ IF %OLDORNEW%==OLD IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECR
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar forge-!MINECRAFT!-!FORGE!.jar nogui
 ) 
 
-
 :: General case for NEW (1.17 and newer) Minecraft versions.  This remains unchanged at least until 1.19.3.
 IF %OLDORNEW%==NEW (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/win_args.txt nogui %*
 ) 
 
 :: Complains in console output if launch attempt crashes
-
-IF %ERRORLEVEL% NEQ 0 (
+IF %ERRORLEVEL%==1 GOTO :skipcrashedforge
+IF %ERRORLEVEL% NEQ 1 (
   ECHO.
   ECHO.
-  ECHO  SOMETHING CRASHED!
+  ECHO  %yellow%  SOMETHING CRASHED! %blue%
   ECHO.
-  ECHO  CHECK LOG MESSAGES ABOVE IN CONSOLE, 'logs' FOLDER 'latest.log' FILE, OR 'crash-reports' FOLDERS
+  ECHO    AT THIS POINT FORGE WAS LAUNCHED BY THE UNIVERSALATOR SCRIPT BUT THE FORGE SERVER STOPPED WORKING WITH AN ERROR
+  ECHO    CHECK: Log messsages above in console, the file 'latest.log' in the 'logs' folder , in 'crash-reports' folder if exists
   ECHO.
-  ECHO  ELSE POSSIBILITY --
-  ECHO  IF YOU ARE SEEING THIS MESSAGE IT IS POSSIBLE YOUR COMBINATION OF JAVA / MINECRAFT / FORGE SETTINGS ARE NOT CORRECT TO FUNCTION.
-  ECHO   TRY AGAIN AND TRY HARDER.  HAVE A NICE DAY.  GOOD LUCK WITH THAT.
+  ECHO    POSSIBILITIES IF CRASH HAPPENS WHEN FIRST LOADING--
+  ECHO      -Your selection of Java version is not compatible with the Minecraft/Forge version.
+  ECHO      -There are undetected client only mods crashing the server.
+  ECHO      -One or more mods have errored.
+  IF %JAVAVERSION%==19 (
+    ECHO.
+    ECHO    %yellow%--SPECIAL NOTE--%blue%
+    ECHO    %yellow%JAVA 19 WAS SELECTED - NOT MANY MODS ARE CURRENTLY COMPATIBLE WITH THIS VERSION%blue%
+    ECHO    %yellow%TRY JAVA 17 OR 18 INSTEAD%blue%
+  )
+  ECHO.
+  ECHO    POSSIBILITIES IF CRASH HAPPENS AFTER WORLD HAS LOADED
+  ECHO      -One or more mods have errored.
+  ECHO.
+  ECHO.
+  ECHO  %yellow%  SOMETHING CRASHED! %blue% && ECHO.
+  PAUSE
+  GOTO :mainmenu
 )
+:skipcrashedforge
+
 PAUSE && EXIT [\B]
 :: END FORGE MAIN SECTION
 
 
-
-:fabricmain
+:launchfabric
 :: BEGIN FABRIC MAIN SECTION
 
 :: Skips installation if already present
@@ -1821,9 +1926,9 @@ IF EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar GOTO :launchfabric
 
 :: Deletes existing core files and folders if this specific desired Fabric launch file not present.  This forces a fresh installation and prevents getting a mis-match of various minecraft and/or fabric version files conflicting.
 IF NOT EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar (
-  IF EXIST "%cd%\.fabric" RD /s /q "%cd%\.fabric\"
-  IF EXIST "%cd%\libraries" RD /s /q "%cd%\libraries\"
-  DEL *.jar
+  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+  DEL *.jar >nul 2>&1
 )
 
 :: Pings the Fabric file server
@@ -1852,7 +1957,7 @@ IF NOT EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar (
     ECHO    Something went wrong downloading the Fabric Installer file.
     ECHO    Press any key to try again.
     PAUSE
-    GOTO :fabricmain
+    GOTO :launchfabric
   )
 
 :: Sets variable equal to the value in the sha256 file.
@@ -1875,10 +1980,17 @@ set fabricinstallerhecksum=%Fout1%
 :: Checks to see if the calculated checksum hash is the same as the value from the downloaded SHA256 file value
 :: IF yes then install fabric server files
 IF EXIST fabric-installer.jar (
-    IF /i %INSTALLERVAL%==%fabricinstallerhecksum% (
+    IF /I %INSTALLERVAL%==%fabricinstallerhecksum% (
       %JAVAFILE% -XX:+UseG1GC -jar fabric-installer.jar server -loader !FABRICLOADER! -mcversion !MINECRAFT! -downloadMinecraft
     ) ELSE (
-      GOTO :fabricmain
+      DEL fabric-installer.jar
+      ECHO.
+      ECHO   FABRIC INSTALLER FILE CHECKSUM VALUE DID NOT MATCH THE CHECKSUM IT WAS SUPPOSED TO BE
+      ECHO   THIS LIKELY MEANS A CORRUPTED DOWNLOAD.
+      ECHO.
+      ECHO   PRESS ANY KEY TO TRY DOWNLOADING AGAIN!
+      PAUSE
+      GOTO :launchfabric
     )
 )
 IF EXIST fabric-installer.jar DEL fabric-installer.jar
@@ -1887,10 +1999,9 @@ IF EXIST fabric-server-launch.jar (
   RENAME fabric-server-launch.jar fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar
 )
 
-:launchfabric
-
 ::If eula.txt doens't exist yet 
 
+:fabriceula
 SET RESPONSE=IDKYET
 IF NOT EXIST eula.txt (
   CLS
@@ -1902,7 +2013,7 @@ IF NOT EXIST eula.txt (
   ECHO.
   ECHO   %yellow% ENTER YOUR RESPONSE %blue%
   ECHO.
-  SET /P RESPONSE=
+  SET /P "RESPONSE="
 )
 IF /I !RESPONSE!==AGREE (
   ECHO.
@@ -1910,55 +2021,19 @@ IF /I !RESPONSE!==AGREE (
   ECHO.
   ECHO eula=true> eula.txt
 )
-IF /I !RESPONSE! NEQ AGREE IF NOT EXIST eula.txt (
-  GOTO :launchfabric
-)
+IF /I !RESPONSE! NEQ AGREE IF !RESPONSE! NEQ IDKYET GOTO :fabriceula
+
 IF EXIST eula.txt (
   ECHO.
   ECHO eula.txt file found! ..
   ECHO.
 )
+GOTO :launchfabric
 
-:: Skips client only mods scanning if ASKMODSCHECK is not Y
-IF /I %ASKMODSCHECK% NEQ Y GOTO :actuallylaunchfabric
+:: BEGIN FABRIC client only mods scanning
+:: Prompt user to decide to scan for client only mods or not.
 
-
-REM BEGIN FABRIC client only mods scanning
-
-:: Sets a variable to the current directory to use later.  In some niche cases it seems to work better than cd.
-SET HERE="%cd%"
-
-:: Prompt user to decide to scan for client only mods or not.  Either path will eventually set AUTOMODSCHECK==NO
-
-:askcheckfabric
-IF %ASKMODSCHECK%==Y (
-  CLS
-  ECHO.
-  ECHO.
-  ECHO   %yellow% WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? %blue%
-  ECHO.
-  ECHO   ----------------------------------------------------------------------------------
-  ECHO.
-  ECHO     --MANY MODS ARE NOT CODED PROPERLY TO SELF DISABLE ON SERVERS AND MAY CRASH THEM
-  ECHO.
-  ECHO     --THIS LAUNCHER CAN SCAN THE MODS FOLDER AND SEE IF ANY ARE PRESENT WHICH
-  ECHO       ARE ON THE LAUNCHERS MASTER LIST OF CLIENT ONLY MODS.
-  ECHO.
-  ECHO.
-  ECHO.
-  ECHO.
-  ECHO.
-  ECHO.
-  ECHO             %yellow% Please choose "Y" or "N" %blue%
-  ECHO.
-  SET /P DOSCAN=
-  IF /I !DOSCAN!==N (
-    GOTO :resetaskmodscheckfabric
-  )
-  )
-  IF /I !DOSCAN! NEQ N IF /I !DOSCAN! NEQ Y (
-    GOTO :askcheckfabric
-  )
+:scanfabric
 
   IF EXIST rawidlist.txt DEL rawidlist.txt
   IF EXIST serveridlist.txt DEL serveridlist.txt
@@ -1970,11 +2045,9 @@ IF %ASKMODSCHECK%==Y (
 
   PUSHD mods
   dir /b /a-d > list1.txt
-  FINDSTR ".jar" list1.txt > list2.txt
+  FINDSTR .jar list1.txt > list2.txt
   SORT list2.txt > servermods.txt
   DEL list1.txt && DEL list2.txt
-  POPD
-  MOVE mods\servermods.txt servermods.txt >nul
   
   :: Extracts the fabric.mod.json file from each JAR
   :: Gets the list of ids from actual mod JAR files using servermods.txt for file names
@@ -1998,7 +2071,7 @@ IF %ASKMODSCHECK%==Y (
   FOR /F "usebackq delims=" %%N IN (servermods.txt) DO (
 
     REM  Uses 7 zip to extract each fabric.mod.json which is then scanned
-    "%cd%\java\7za.exe" e -aoa "mods\%%N" "fabric.mod.json" >nul
+    "%HERE%\univ-utils\7-zip\7za.exe" e -aoa "%HERE%\mods\%%N" "fabric.mod.json" >nul
 
     SET /a modcount+=1
     ECHO SCANNING - !modcount!/!rawmodstotal! - %%N
@@ -2106,9 +2179,7 @@ IF %ASKMODSCHECK%==Y (
   SET TOTCLIENTCOUNT=!SERVCOUNT!
 
   :: Skips bothering to compare dependency lists of all mods vs client IDs and user report if no client mods found.
-  IF [!FABRICCLIENTS[0].name!]==[] (
-    GOTO :noclientsfabric
-  )
+  IF [!FABRICCLIENTS[0].name!]==[] GOTO :noclientsfabric
 
   :: Processes allfabricdeps.txt and compares to list of client mods
   IF EXIST allfabricdepssorted.txt DEL allfabricdepssorted.txt
@@ -2138,19 +2209,23 @@ IF %ASKMODSCHECK%==Y (
     SET /a ISITADEP=0
   )
   SET finalcount=!ifinal!
+
+  :noclientsfabric
   IF EXIST actualdeps.txt DEL actualdeps.txt
   IF EXIST allfabricdeps.txt DEL allfabricdeps.txt
   IF EXIST allfabricdepssorted.txt DEL allfabricdepssorted.txt
   IF EXIST deps.txt DEL deps.txt
   IF EXIST servermods.txt DEL servermods.txt
   IF EXIST whichsided.txt DEL whichsided.txt
+  POPD
+  IF [!FABRICCLIENTS[0].name!]==[] GOTO :finalnoclientsfabric
+
 
   REM Prints report to user - echos all entries without the modID name = forge
   CLS
   ECHO.
   ECHO.
   ECHO   %yellow% THE FOLLOWING FABRIC - CLIENT MARKED MODS WERE FOUND %blue%
-  ECHO.
   ECHO.
   ECHO    ------------------------------------------------------
   REM Prints to the screen all of the values in the array that are not equal to forge or null
@@ -2162,23 +2237,21 @@ IF %ASKMODSCHECK%==Y (
   ECHO    ------------------------------------------------------
   ECHO.
   ECHO.
+  ECHO   %green% *** DO YOU WANT TO MOVE THESE CLIENT MODS TO A DIFFERENT FOLDER FOR SAFE KEEPING? *** %blue%
   ECHO.
-  ECHO.
-  ECHO   %yellow% *** DO YOU WANT TO MOVE THESE CLIENT MODS TO A DIFFERENT FOLDER FOR SAFE KEEPING? *** %blue%
-  ECHO.
-  ECHO         If "Y" they will NOT be deleted - they WILL be moved to a new folder in the server named CLIENTMODS
+  ECHO         If 'Y' they will NOT be deleted - they WILL be moved to a new folder in the server named %green% CLIENTMODS %blue%
   ECHO         SOME CLIENT MODS ARE NOT CODED TO SELF DISABLE AND WILL CRASH SERVERS IF LEFT IN THE MODS FOLDER
   ECHO.
   :typo
   ECHO.
   ECHO    ------------------------------------------------------
   ECHO.
-  ECHO       %yellow% ENTER YOUR RESPONSE - "Y" OR "N" %blue%
+  ECHO       %yellow% ENTER YOUR RESPONSE - 'Y' OR 'N' %blue%
   ECHO.
   SET /P MOVEMODS=
-  IF /I !MOVEMODS!==N GOTO :resetaskmodscheckfabric
+  IF /I !MOVEMODS!==N GOTO :mainmenu
   IF /I !MOVEMODS!==Y (
-    IF NOT EXIST "%cd%\CLIENTMODS" (
+    IF NOT EXIST "%HERE%\CLIENTMODS" (
       MD CLIENTMODS
       )
       ) ELSE GOTO :typo
@@ -2188,19 +2261,21 @@ IF %ASKMODSCHECK%==Y (
   ECHO.
   FOR /L %%L IN (0,1,%finalcount%) DO (
     IF "!FINALFABRICCLIENTS[%%L].name!" NEQ "" (
-    MOVE "%cd%\mods\!FINALFABRICCLIENTS[%%L].name!" "%cd%\CLIENTMODS\!FINALFABRICCLIENTS[%%L].name!" >nul
-    ECHO   MOVED - !FINALFABRICCLIENTS[%%L].name! - to - %cd%\CLIENTMODS
+    MOVE "%HERE%\mods\!FINALFABRICCLIENTS[%%L].name!" "%HERE%\CLIENTMODS\!FINALFABRICCLIENTS[%%L].name!" >nul
+    ECHO   MOVED - "!FINALFABRICCLIENTS[%%L].name!" 
     )
   )
   ECHO.
-  ECHO        %yellow% CLIENT MODS MOVED! ... %blue%
-  ECHO       -PRESS ANY KEY TO CONTINUE-
+  ECHO      %yellow%   CLIENT MODS MOVED TO THIS FOLDER AS STORAGE:     %blue%
+  ECHO      %yellow%   "%HERE%\CLIENTMODS" 
+  ECHO.
+  ECHO.
+  ECHO      %yellow% -PRESS ANY KEY TO CONTINUE- %blue%
   ECHO.
   PAUSE
-  
-GOTO :resetaskmodscheckfabric
+  GOTO :mainmenu
 
-:noclientsfabric
+:finalnoclientsfabric
 CLS
 ECHO.
 ECHO.
@@ -2210,24 +2285,14 @@ ECHO   %yellow% ----------------------------------------- %blue%
 ECHO.
 ECHO    PRESS ANY KEY TO CONTINUE...
 ECHO.
-
 PAUSE
+GOTO :mainmenu
 
-:resetaskmodscheckfabric
+::END FABRIC CLIENT ONLY MODS SCANNING
 
-:: Resets the settings-universalator.txt file so that it won't ask to scan mods next run.
-REM User can change config from NO to YES to rescan next run.
-powershell -Command "$content = Get-Content -Path '%HERE%\settings-universalator.txt'; $newContent = $content -replace 'SET ASKMODSCHECK=Y', 'SET ASKMODSCHECK=N'; $newContent | Set-Content -Path '%HERE%\settings-universalator.txt'"
 
-:skipcheck
-IF EXIST whichsided.txt DEL whichsided.txt
-
-REM END FABRIC client only mods scanning
-
-:actuallylaunchfabric
-
-:: FINALLY LAUNCH FORGE SERVER!
-
+:: FINALLY LAUNCH FABRIC SERVER!
+:launchfabric
 CLS
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO            %yellow%   Universalator - Server launcher script    %blue%
@@ -2238,27 +2303,353 @@ ECHO.
 ECHO        CURRENT SERVER SETTINGS:
 ECHO        MINECRAFT - !MINECRAFT!
 ECHO        FABRIC LOADER - !FABRICLOADER!
-ECHO        JAVA - !JAVAVERSION!
+IF !OVERRIDE!==N ECHO        JAVA - !JAVAVERSION!
+IF !OVERRIDE!==Y ECHO        JAVA - CUSTOM OVERRIDE
 ECHO.
 ECHO.
 ECHO ============================================
 ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO.
-ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS - %PUBLICIP%:%PORT% %blue%
+ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS %blue% - %green% %PUBLICIP%:%PORT% %blue%
 ECHO        --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
 ECHO        --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
 ECHO.
 ECHO   INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
 ECHO        --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+ECHO.
 ECHO        --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
 ECHO.
 ECHO ============================================
 ECHO.
-ECHO.
 ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
 ECHO.
 PAUSE
+ECHO. && ECHO   Launching... && ping -n 2 127.0.0.1 > nul && ECHO   Launching.. && ping -n 2 127.0.0.1 > nul && ECHO   Launching. && ECHO.
+
+IF !OVERRIDE!==Y SET "JAVAFILE=java"
 
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar nogui
 
+:: Complains in console output if launch attempt crashes
+IF %ERRORLEVEL%==0 GOTO :skipcrashedfabric
+IF !ERRORLEVEL! NEQ 0 (
+  ECHO.
+  ECHO.
+  ECHO  %yellow%  SOMETHING CRASHED! BELOW MESSAGES ADDED BY THE UNIVERSALATOR SCRIPT %blue%
+  ECHO.
+  ECHO.
+  ECHO    AT THIS POINT FORGE WAS LAUNCHED BY THE UNIVERSALATOR SCRIPT BUT THE FORGE SERVER STOPPED WORKING WITH AN ERROR
+  ECHO    CHECK: Log messsages above in console, the file 'latest.log' in the 'logs' folder , in 'crash-reports' folder if exists
+  ECHO.
+  ECHO    POSSIBILITIES IF CRASH HAPPENS WHEN FIRST LOADING--
+  ECHO      -Your selection of Java version is not compatible with the Minecraft/Forge version.
+  ECHO      -There are undetected client only mods crashing the server.
+  ECHO      -One or more mods have errored.
+  IF %JAVAVERSION%==19 (
+    ECHO.
+    ECHO    %yellow%--SPECIAL NOTE--%blue%
+    ECHO    %yellow%JAVA 19 WAS SELECTED - NOT MANY MODS ARE CURRENTLY COMPATIBLE WITH THIS VERSION%blue%
+    ECHO    %yellow%TRY JAVA 17 OR 18 INSTEAD%blue%
+  )
+  ECHO.
+  ECHO    POSSIBILITIES IF CRASH HAPPENS AFTER WORLD HAS LOADED
+  ECHO      -One or more mods have errored.
+  ECHO.
+  IF EXIST "%HERE%\latest.log" (
+    TYPE latest.log | FINDSTR "invalid dist DEDICATED_SERVER" >nul
+  )
+  IF !ERRORLEVEL!==0 (
+  ECHO    --- SPECIAL MESSAGE --- && ECHO.
+  ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
+  ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER.  OR SOME MOD AUTHORS FORGET TO SILENCE THAT MESSAGE IF INNOCENT.
+  ECHO.
+  ECHO    TRY USING THE UNIVERSALATOR 'SCAN' OPTION. && ECHO.
+  ECHO    --- SPECIAL MESSAGE ---
+  )
+  ECHO.
+  ECHO  %yellow%  SOMETHING CRASHED! %blue% && ECHO.
+  PAUSE
+  GOTO :mainmenu
+)
+:skipcrashedfabric
+
+PAUSE && EXIT [\B]
+
+
+:: BEGIN UPNP SECTION
+:upnpmenu
+CLS
+ECHO.%yellow%
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ECHO      UPNP PORT FORWARDING MENU    
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
+ECHO.
+IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
+ECHO   %yellow% MiniUPnP PROGRAM %blue% - %red% NOT YET INSTALLED / DOWNLOADED %blue%
+ECHO   Port forwarding done in one way or another is requied for people outside your router network to connect.
+ECHO   ---------------------------------------------------------------------------------------------
+ECHO   %yellow% SETTING UP PORT FORWARDING: %blue%
+ECHO   1- THE PREFERRED METHOD IS MANUALLY SETTING UP PORT FORWARDING IN YOUR ROUTER
+ECHO        Manual setting of port forwarding introduces less risk allowing connections than using UPnP.  
+ECHO.
+ECHO   2- UPnP CAN BE USED IF YOU HAVE A COMPATIBLE NETWORK ROUTER WITH UPnP SET TO ENABLED
+ECHO        UPnP is a connection method with which networked computers can open ports on network routers.
+ECHO        Not all routers have UPnP - and if yours does it needs to be enabled in settings  - it often is by default.
+ECHO. && ECHO.
+ECHO        For personal preference the tool used by the Universalator to do UPnP functions - MiniUPnP - is not downloaded
+ECHO        by default.  To check if your router can use UPnP, and use it for setting up port forwarding - you can
+ECHO        enter %yellow% DOWNLOAD %blue% to get the file and enable Universalator script UPnP functions.
+ECHO. && ECHO.
+ECHO      %yellow% FOR MORE INFORMATION ON PORT FORWARDING AND UPnP - VISIT THE UNIVERSALATOR WIKI AT: %blue%
+ECHO      %yellow% https://github.com/nanonestor/universalator/wiki                                    %blue%
+ECHO. && ECHO   ENTER YOUR SELECTION && ECHO      %green% 'DOWNLOAD' - Download UPnP Program %blue% && ECHO      %green% 'M' - Main Menu %blue%
+)
+
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
+ECHO. && ECHO   %yellow% MiniUPnP PROGRAM %blue% - %green% INSTALLED / DOWNLOADED %blue%
+IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue% -      %red% NOT ACTIVATED %blue% && ECHO. && ECHO.
+IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue% - %green% ACTIVE - FORWARDING PORT %PORT% %blue% && ECHO. && ECHO.
+)
+
+
+
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
+ECHO. && ECHO.
+ECHO   %green% CHECK - Check for a network router with UPnP enabled %blue% && ECHO.
+ECHO   %green%                                       %blue%
+ECHO   %green% A - Activate UPnP Port Forwarding     %blue%
+ECHO   %green%                                       %blue%
+ECHO   %green% D - Deactivate UPnP Port Forwarding   %blue%
+ECHO   %green%                                       %blue%
+ECHO   %green% S - Status of port forwarding refresh %blue%
+ECHO   %green%                                       %blue%
+ECHO. && ECHO   %green% M - Main Menu %blue%
+ECHO. && ECHO   Enter your choice:
+)
+ECHO.
+
+SET /P "ASKUPNPMENU="
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
+IF /I !ASKUPNPMENU!==M GOTO :mainmenu
+IF /I !ASKUPNPMENU!==CHECK GOTO :upnpvalid
+IF /I !ASKUPNPMENU!==A GOTO :upnpactivate
+IF /I !ASKUPNPMENU!==D GOTO :upnpdeactivate
+IF /I !ASKUPNPMENU!==S GOTO :upnpstatus
+IF /I !ASKUPNPMENU! NEQ M IF /I !ASKUPNPMENU! NEQ CHECK IF /I !ASKUPNPMENU! NEQ A IF /I !ASKUPNPMENU! NEQ D IF /I !ASKUPNPMENU! NEQ S GOTO :upnpmenu
+)
+
+IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
+IF /I !ASKUPNPMENU!==DOWNLOAD GOTO :upnpdownload
+IF /I !ASKUPNPMENU!==M GOTO :mainmenu
+IF /I !ASKUPNPMENU! NEQ DOWNLOAD IF /I !ASKUPNPMENU! NEQ M GOTO :upnpmenu
+)
+
+
+:: BEGIN UPNP LOOK FOR VALID & ENABLED UPNP ROUTER
+:upnpvalid
+:: Loops through the status flag -s looking for lines that are different between itself and itself but replacing any found 'Found valid IGD' with random other string.
+SET FOUNDVALIDUPNP=N
+ECHO   Checking for UPnP Enabled Network Router ... ... ...
+FOR /F "delims=" %%B IN ('univ-utils\miniupnp\upnpc-static.exe -s') DO (
+    SET UPNPSCAN=%%B
+    IF "!UPNPSCAN!" NEQ "!UPNPSCAN:Found valid IGD=huh!" SET FOUNDVALIDUPNP=Y
+)
+:: Messages to confirm or give the bad news about finding a UPNP enabled device.
+IF !FOUNDVALIDUPNP!==N (
+    CLS
+    ECHO. && ECHO.
+    ECHO   %red% NO UPNP ENABLED NETWORK ROUTER WAS FOUND - SORRY. %blue% && ECHO.
+    ECHO   IT IS POSSIBLE THAT YOUR ROUTER DOES HAVE UPNP COMPATIBILITY BUT IT IS CURRENTLY
+    ECHO   SET TO DISABLED.  CHECK YOUR NETWORK ROUTER SETTINGS.
+    ECHO. && ECHO   or && ECHO.
+    ECHO   YOU WILL NEED TO CONFIGURE PORT FORWARDING ON YOUR NETWORK ROUTER MANUALLY
+    ECHO   FOR INSRUCTIONS YOU CAN WEB SEARCH PORT FORWARDING MINECRAFT SERVERS
+    ECHO   OR
+    ECHO   VISIT THE UNIVERSALATOR WIKI AT:
+    ECHO   https://github.com/nanonestor/universalator/wiki
+    ECHO. && ECHO.
+    PAUSE
+    GOTO :upnpmenu
+)
+IF !FOUNDVALIDUPNP!==Y (
+    CLS
+    ECHO. && ECHO. && ECHO.
+    ECHO     %green% FOUND A NETWORK ROUTER WITH UPNP ENABLED FOR USE %blue%
+    ECHO.
+    SET ISUPNPACTIVE=N
+    PAUSE
+    GOTO :upnpmenu
+)
+GOTO :upnpmenu
+:: END UPNP LOOK FOR VALID & ENABLED UPNP ROUTER
+
+
+:: BEGIN UPNP ENABLE PORT FOWARD
+:upnpactivate
+CLS
+ECHO. && ECHO. && ECHO.
+ECHO       %yellow% ENABLE UPNP PORT FORWARDING? %blue%
+ECHO. && ECHO.
+ECHO         Enter your choice:
+ECHO.
+ECHO         %green% 'Y' or 'N' %blue%
+ECHO.
+SET /P "ENABLEUPNP="
+IF /I !ENABLEUPNP! NEQ N IF /I !ENABLEUPNP! NEQ Y GOTO :upnpactivate
+IF /I !ENABLEUPNP!==N GOTO :upnpmenu
+IF /I !ENABLEUPNP!==Y (
+  univ-utils\miniupnp\upnpc-static.exe -a %PUBLICIP% %PORT% %PORT%% TCP
+  univ-utils\miniupnp\upnpc-static.exe -r %PORT% TCP
+  GOTO :upnpstatus
+)
+:: END UPNP ENABLE  PORT FORWARD
+
+
+:: BEGIN UPNP CHECK STATUS
+:upnpstatus
+:: Loops through the lines in the -l flag to list MiniUPNP active ports - looks for a line that is different with itself compated to itself but
+:: trying to replace any string inside that matches the port number with a random different string - in this case 'PORT' for no real reason.
+:: Neat huh?  Is proabably faster than piping an echo of the variables to findstr and then checking errorlevels (other method to do this).
+ECHO   %red% Checking Status of UPnP Port Forward ... ... ... %blue%
+SET ISUPNPACTIVE=N
+FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
+    SET UPNPSTATUS=%%E
+    IF "!UPNPSTATUS!" NEQ "!UPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
+)
+GOTO :upnpmenu
+:: END UPNP CHECK STATUS
+
+
+:: BEGIN UPNP DEACTIVATE AND CHECK STATUS AFTER
+:upnpdeactivate
+IF !ISUPNPACTIVE!==Y (
+    CLS
+    ECHO. && ECHO. && ECHO.
+    ECHO   %yellow% UPNP IS CURRENTLY ACTIVE %blue%
+    ECHO.
+    ECHO   %yellow% DO YOU WANT TO DEACTIVATE IT? %blue%
+    ECHO. && ECHO.
+    ECHO       %green% 'Y' or 'N' %blue% && ECHO.
+    ECHO       Enter your choice: && ECHO.
+    SET /P "DEACTIVATEUPNP="
+)
+IF /I !DEACTIVATEUPNP! NEQ Y IF /I !DEACTIVATEUPNP! NEQ N GOTO :upnpdeactivate
+IF /I !DEACTIVATEUPNP!==N GOTO :upnpmenu
+:: Deletes the port connection used by the MiniUPNP program.
+IF /I !DEACTIVATEUPNP!==Y (
+    univ-utils\miniupnp\upnpc-static.exe -d %PORT% TCP
+    SET ISUPNPACTIVE=N
+    FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
+        SET UPNPSTATUS=%%E
+        IF "!UPNPSTATUS!" NEQ "!UPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
+    )
+    IF !ISUPNPACTIVE!==N (
+        CLS
+        ECHO. && ECHO.
+        ECHO      UPNP SUCCESSFULLY DEACTIVATED
+        ECHO.
+        PAUSE
+        GOTO :upnpmenu
+    )
+    IF !ISUPNPACTIVE!==Y (
+      ECHO.
+      ECHO   %red% DEACTIVATION OF UPNP PORT FORWARDING HAS FAILED %blue% && ECHO.
+      ECHO   %red% UPNP PORT FORWARDING IS STILL ACTIVE %blue% && ECHO.
+      PAUSE
+      GOTO :upnpmenu
+    )
+)
+:: END UPNP DEACTIVATE AND CHECK STATUS AFTER
+
+
+:: BEGIN UPNP FILE DOWNLOAD
+:upnpdownload
+CLS
+ECHO. && ECHO.
+ECHO  %yellow% DOWNLOAD MINIUPNP PROGRAM? %blue% && ECHO.
+ECHO  THE SCRIPT WILL DOWNLOAD THE MINIUPnP PROGRAM FROM THAT PROJECTS WEBSITE AT: && ECHO.
+ECHO   http://miniupnp.free.fr/files/ && ECHO.
+ECHO   MiniUPnP is published / licensed as a free and open source program. && ECHO.
+ECHO  %yellow% DOWNLOAD MINIUPNP PROGRAM? %blue% && ECHO.
+ECHO   ENTER YOUR CHOICE: && ECHO.
+ECHO   %green%  'Y' - Download file %blue%
+ECHO   %green%  'N' - NO  (Back to UPnP menu) %blue% && ECHO.
+SET /P "ASKUPNPDOWNLOAD="
+IF /I !ASKUPNPDOWNLOAD! NEQ N IF /I !ASKUPNPDOWNLOAD! NEQ Y GOTO :upnpdownload
+IF /I !ASKUPNPDOWNLOAD!==N GOTO :upnpmenu
+:: If download is chosen - download the MiniUPNP Windows client ZIP file, License.  Then unzip out only the standalone miniupnp-static.exe file and delete the ZIP.
+IF /I !ASKUPNPDOWNLOAD!==Y IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
+  CLS
+  ECHO. && ECHO. && ECHO   Downloading ZIP file ... ... ... && ECHO.
+  IF NOT EXIST "%HERE%\univ-utils\miniupnp" MD "%HERE%\univ-utils\miniupnp"
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('http://miniupnp.free.fr/files/upnpc-exe-win32-20220515.zip', 'univ-utils\miniupnp\upnpc-exe-win32-20220515.zip')"
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/miniupnp/miniupnp/master/LICENSE', 'univ-utils\miniupnp\LICENSE.txt')"
+  IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" (
+    ECHO   %green% SUCCESSFULLY DOWNLOADED MINIUPNP BINARAIES ZIP FILE %blue%
+    "%HERE%\univ-utils\7-zip\7za.exe" e -aoa "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" "upnpc-static.exe" -ouniv-utils\miniupnp >nul
+    DEL "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" >nul 2>&1
+  ) ELSE (
+      ECHO. && ECHO  %red% DOWNLOAD OF MINIUPNP FILES ZIP FAILED %blue%
+      PAUSE
+      GOTO :upnpmenu
+  )
+  IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
+    SET FOUNDUPNPEXE=Y
+    ECHO. && ECHO   %green% MINIUPNP FILE upnpc-static.exe SUCCESSFULLY EXTRACTED FROM ZIP %blue% && ECHO. && ECHO.
+    PAUSE
+  ) ELSE (
+    SET FOUNDUPNPEXE=N
+    ECHO. && ECHO   %green% MINIUPNP BINARY ZIP FILE WAS FOUND TO BE DOWNLOADED %blue% && ECHO   %red% BUT FOR SOME REASON EXTRACTING THE upnpc-static.exe FILE FROM THE ZIP FAILED %blue%
+    PAUSE 
+  )
+  GOTO :upnpmenu
+) ELSE GOTO :upnpmenu
+
+:: END UPNP SECTION
+
+:: BEGIN JAVA OVERRIDE SECTION
+:override
+CLS
+ECHO. && ECHO. && ECHO   %green% JAVA OVERRIDE FOR THE CURRENT PROGRAM SESSION ENABLED %blue% && ECHO   %yellow% Using the following system Path Java %blue% && ECHO.
+FOR /F "delims=" %%J IN ('java -version') DO ECHO %%J
+ECHO. && ECHO   %yellow% GOOD LUCK WITH THAT !! %blue% && ECHO. && ECHO   %green% JAVA OVERRIDE FOR THE CURRENT PROGRAM SESSION ENABLED %blue% && ECHO.
+SET OVERRIDE=Y
 PAUSE
+GOTO :mainmenu
+:: END JAVA OVERRIDE SECTION
+
+:: BEGIN MCREATOR SECTION
+:mcreator
+CLS
+ECHO.
+ECHO %yellow% Searching 'mods' folder for MCreator mods [Please Wait] %blue%
+ECHO.
+PUSHD mods
+findstr /i /m "net/mcreator /procedures/" *.jar >final.txt
+IF !ERRORLEVEL!==1 (
+  IF EXIST final.txt DEL final.txt
+  POPD
+  ECHO. && ECHO  %green% NO MCREATOR MADE MODS WERE DETECTED IN THE MODS FOLDER %blue% && ECHO.
+  PAUSE
+  GOTO :mainmenu
+)
+ver >nul
+SORT final.txt > mcreator-mods.txt
+DEL final.txt
+POPD
+MOVE "%HERE%\mods\mcreator-mods.txt" "%HERE%\mcreator-mods.txt"
+CLS
+ECHO.
+ECHO            %yellow% RESULTS OF Search %blue%
+ECHO ---------------------------------------------
+for /f "tokens=1 delims=" %%i in (mcreator-mods.txt) DO (
+  ECHO    mcreator mod - %%i
+)
+ECHO. && ECHO. && ECHO.
+ECHO    The above mod files were created using MCreator.
+ECHO    %red% They are known to often cause severe problems because of the way they get coded. %blue% && ECHO.
+ECHO    A text tile has been generated in this directory named mcreator-mods.txt listing
+ECHO      the mod file names for future reference. && ECHO.
+PAUSE
+GOTO :mainmenu
+:: END MCREATOR SECTION
