@@ -1068,24 +1068,25 @@ IF /I !MAINMENU!==J GOTO :actuallylaunch
 :: Uses the systeminfo command to get the total and available/free ram/memory on the computer.
 FOR /F "delims=" %%D IN ('systeminfo') DO (
     SET INFO=%%D
-    IF "!INFO!" NEQ "!INFO:Total Physical Memory=tot!" SET RAWTOTALRAM=!INFO:~27,4!
-    IF "!INFO!" NEQ "!INFO:Available Physical Memory=free!" SET RAWFREERAM=!INFO:~27,4!
+    IF "!INFO!" NEQ "!INFO:Total Physical Memory=tot!" SET RAWTOTALRAM=%%D
+    IF "!INFO!" NEQ "!INFO:Available Physical Memory=free!" SET RAWFREERAM=%%D
 )
-:: Pulls apart the value obtained above to store the first two spaces and fourth space (after comma) - as integers.
-SET /a TOTALRAM=!RAWTOTALRAM:~0,2!
-SET /a FREERAM=!RAWFREERAM:~0,2!
-SET /a DECIMALTOTAL=!RAWTOTALRAM:~3,1!
-SET /a DECIMALFREE=!RAWFREERAM:~3,1!
-:: Rounds up the totalram/freeram integer values if the number after the decimal is greater or equal to 5.
-IF !DECIMALTOTAL! GEQ 5 SET /a TOTALRAM += 1
-IF !DECIMALFREE! GEQ 5 SET /a FREERAM += 1
-
-
+FOR /F "tokens=4,5 delims=, " %%E IN ("!RAWTOTALRAM!") DO (
+    SET /a TOTALRAM=%%E
+    SET AFTERCOMMATOTAL=%%F
+    SET /a DECIMALTOTAL=!AFTERCOMMATOTAL:~0,1!
+)
+FOR /F "tokens=4,5 delims=, " %%E IN ("!RAWFREERAM!") DO (
+    SET /a FREERAM=%%E
+    SET AFTERCOMMAFREE=%%F
+    SET /a DECIMALFREE=!AFTERCOMMAFREE:~0,1!
+)
+:: Ram / Memory setting amount entry menu
   CLS
   ECHO.
-  ECHO %yellow%    Computer Total Total Memory/RAM     %blue% = %yellow% !TOTALRAM! Gigabytes (GB) %blue%
-  ECHO %yellow%    Current Available (Free) Memory/RAM %blue% = %yellow% !FREERAM! Gigabytes (GB) %blue%
-  ECHO     *Numbers are rounded from actual values
+  ECHO %yellow%    Computer Total Total Memory/RAM     %blue% = %yellow% !TOTALRAM!.!DECIMALTOTAL! Gigabytes (GB) %blue%
+  ECHO %yellow%    Current Available (Free) Memory/RAM %blue% = %yellow% !FREERAM!.!DECIMALFREE! Gigabytes (GB) %blue%
+  ECHO.
   ECHO. && ECHO.
   ECHO. && ECHO. && ECHO. && ECHO.
   ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) %blue%
