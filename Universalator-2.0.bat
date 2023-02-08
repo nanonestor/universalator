@@ -74,6 +74,7 @@ ECHO. && ECHO. && ECHO   Loading ... ... ...
 
 :: BEGIN GENERAL PRE-RUN ITEMS
 setlocal enabledelayedexpansion
+TITLE Universalator
 :: Sets the backgound color of the command window
 color 1E
 :: Additional JVM arguments that will always be applied
@@ -503,7 +504,7 @@ SET ASKMODSCHECK=Y
 
 :mainmenu
 
-
+TITLE Universalator
 IF EXIST settings-universalator.txt (
   RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
   IF DEFINED MAXRAMGIGS IF !MAXRAMGIGS! NEQ "" SET MAXRAM=-Xmx!MAXRAMGIGS!G
@@ -586,25 +587,13 @@ SET /P MINECRAFT=
 ::This is done again later after the settings-universalator.txt is present and this is section is skipped
 SET DOTORNOT=!MINECRAFT:~3,1!
 SET OLDORNEW=IDK
-
-IF %DOTORNOT%==. (
-    SET OLDORNEW=OLD
-)
-IF %DOTORNOT% NEQ . (
-  IF !MINECRAFT! GEQ 1.17 (
-  SET OLDORNEW=NEW
-  )
-)
-IF %DOTORNOT% NEQ . (
-  IF !MINECRAFT! LSS 1.17 (
-  SET OLDORNEW=OLD
-  )
-)
+IF %DOTORNOT%==. SET OLDORNEW=OLD
+IF %DOTORNOT% NEQ . IF !MINECRAFT! GEQ 1.17 SET OLDORNEW=NEW
+IF %DOTORNOT% NEQ . IF !MINECRAFT! LSS 1.17 SET OLDORNEW=OLD
 
 IF %OLDORNEW%==IDK (
-  ECHO %yellow% INVALID MINECRAFT VERSION ENTERED IN VALUES %blue%
-  ECHO   PRESS ANY KEY TO TRY AGAIN
-  ECHO.
+  ECHO. && ECHO.  && ECHO %yellow% INVALID MINECRAFT VERSION ENTERED IN VALUES %blue%
+  ECHO   PRESS ANY KEY TO TRY AGAIN && ECHO.
   PAUSE
   GOTO :startover
 )
@@ -679,14 +668,16 @@ IF !MINECRAFT!==1.6.4 (
   ECHO. && ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.6.4 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 9.11.1.1345
+  ECHO    FORGE = %green% 9.11.1.1345 %blue%
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.6.4 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
   ECHO.
-  ECHO    ENTER "Y" OR "N"
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -700,11 +691,16 @@ IF !MINECRAFT!==1.7.10 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.7.10 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 10.13.4.1614
+  ECHO    FORGE = %green% 10.13.4.1614 %blue%
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO    ENTER "Y" OR "N"
+  ECHO.
+  ECHO   %yellow% YOU HAVE ENTERED 1.7.10 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -718,12 +714,16 @@ IF !MINECRAFT!==1.8.9 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.8.9 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 11.15.1.2318
+  ECHO    FORGE = %green% 11.15.1.2318 %blue%
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHo.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.8.9 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
@@ -734,14 +734,18 @@ IF /I !USEDEFAULT!==Y (
 IF !MINECRAFT!==1.9.4 (
   CLS
   ECHO.
-  ECHO   %yellow% YOU HAVE ENTERED 1.8.9 WHICH IS A POPULAR VERSION %blue%
+  ECHO   %yellow% YOU HAVE ENTERED 1.9.4 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 12.17.0.2317
+  ECHO    FORGE = %green% 12.17.0.2317 %blue%
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHo.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.9.4 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
@@ -754,12 +758,16 @@ IF !MINECRAFT!==1.10.2 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.10.2 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 12.18.3.2511
+  ECHO    FORGE = %green% 12.18.3.2511 %blue%
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHo.
-  ECHO    ENTER "Y" OR "N"
+  ECHO.
+  ECHO   %yellow% YOU HAVE ENTERED 1.10.2 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
@@ -772,12 +780,16 @@ IF !MINECRAFT!==1.12.2 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.12.2 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 14.23.5.2860
+  ECHO    FORGE = %green% 14.23.5.2860 %blue%
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.12.2 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
@@ -790,12 +802,16 @@ IF !MINECRAFT!==1.14.4 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.14.4 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 28.2.26
+  ECHO    FORGE = %green% 28.2.26 %blue%
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.14.4 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
@@ -808,12 +824,16 @@ IF !MINECRAFT!==1.15.2 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.15.2 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSION OF FORGE?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 31.2.57
+  ECHO    FORGE = %green% 31.2.57 %blue%
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.15.2 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
   IF /I !USEDEFAULT!==Y (
     SET FORGE=31.2.57
@@ -826,11 +846,15 @@ IF !MINECRAFT!==1.16.5 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.16.5 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSION OF FORGE?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE?
   ECHO.
-  ECHO    FORGE = 36.2.39
+  ECHO    FORGE = %green% 36.2.39 %blue%
   ECHO.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.16.5 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
   IF /I !USEDEFAULT!==Y (
     SET FORGE=36.2.39
@@ -842,12 +866,16 @@ IF !MINECRAFT!==1.17.1 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.17.1 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE?
   ECHO.
-  ECHO    FORGE = 37.1.1
+  ECHO    FORGE = %green% 37.1.1 %blue%
   ECHO    JAVA = 16  **JAVA MUST BE 16**
   ECHO.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.17.1 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
@@ -883,13 +911,17 @@ IF !MINECRAFT!==1.19.2 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.19.2 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 43.2.4
-  ECHO    JAVA = 17  **JAVA CAN BE 17, 18, 19**
+  ECHO    FORGE = %green% 43.2.4 %blue%
+  ECHO    JAVA = %green% 17 %blue%  **JAVA CAN BE 17, 18, 19**
   ECHO            **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
   ECHO.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.19.2 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
@@ -902,17 +934,21 @@ IF !MINECRAFT!==1.19.3 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.19.3 WHICH IS A POPULAR VERSION %blue%
   ECHO.
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT RECOMMENDED VERSIONS OF FORGE AND JAVA?
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = 44.1.8
-  ECHO    JAVA = 17  **JAVA CAN BE 17, 18, 19**
+  ECHO    FORGE = %green% 44.1.16 %blue%
+  ECHO    JAVA = %green% 17 %blue%  **JAVA CAN BE 17, 18, 19**
   ECHO            **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
   ECHO.
-  ECHO    ENTER "Y" OR "N"
+  ECHO   %yellow% YOU HAVE ENTERED 1.19.3 WHICH IS A POPULAR VERSION %blue%
+  ECHO. && ECHO.
+  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO.
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=44.1.8
+  SET FORGE=44.1.16
   SET JAVAVERSION=17
   GOTO :goramentry
 )
@@ -1850,7 +1886,8 @@ ECHO. && ECHO   Launching... && ping -n 2 127.0.0.1 > nul && ECHO   Launching.. 
 :: Starts forge depending on what java version is set.  Only correct combinations will launch - others will crash.
 
 IF !OVERRIDE!==Y SET "JAVAFILE=java"
-
+TITLE Universalator - !MINECRAFT! Forge
+ver >nul
 :: Special case forge.jar filenames for older OLD versions
 IF %OLDORNEW%==OLD IF !MINECRAFT!==1.6.4 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar minecraftforge-universal-1.6.4-!FORGE!.jar nogui
@@ -1883,40 +1920,34 @@ IF %OLDORNEW%==NEW (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/win_args.txt nogui %*
 ) 
 
-:: Complains in console output if launch attempt crashes
-IF %ERRORLEVEL%==1 GOTO :skipcrashedforge
-IF %ERRORLEVEL% NEQ 1 (
-  ECHO.
-  ECHO.
-  ECHO  %yellow%  SOMETHING CRASHED! %blue%
-  ECHO.
-  ECHO    AT THIS POINT FORGE WAS LAUNCHED BY THE UNIVERSALATOR SCRIPT BUT THE FORGE SERVER STOPPED WORKING WITH AN ERROR
-  ECHO    CHECK: Log messsages above in console, the file 'latest.log' in the 'logs' folder , in 'crash-reports' folder if exists
-  ECHO.
-  ECHO    POSSIBILITIES IF CRASH HAPPENS WHEN FIRST LOADING--
-  ECHO      -Your selection of Java version is not compatible with the Minecraft/Forge version.
-  ECHO      -There are undetected client only mods crashing the server.
-  ECHO      -One or more mods have errored.
-  IF %JAVAVERSION%==19 (
-    ECHO.
-    ECHO    %yellow%--SPECIAL NOTE--%blue%
-    ECHO    %yellow%JAVA 19 WAS SELECTED - NOT MANY MODS ARE CURRENTLY COMPATIBLE WITH THIS VERSION%blue%
-    ECHO    %yellow%TRY JAVA 17 OR 18 INSTEAD%blue%
-  )
-  ECHO.
-  ECHO    POSSIBILITIES IF CRASH HAPPENS AFTER WORLD HAS LOADED
-  ECHO      -One or more mods have errored.
-  ECHO.
-  ECHO.
-  ECHO  %yellow%  SOMETHING CRASHED! %blue% && ECHO.
-  PAUSE
-  GOTO :mainmenu
+:: Complaints to report in console output if launch attempt crashes
+
+:: Looks for the stopping the server text to decide if the server was shut down on purpose.  If so goes to main menu.
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Stopping the server" >nul 2>&1 && PAUSE && GOTO :mainmenu
+
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Unsupported class file major version" >nul 2>&1
+IF !ERRORLEVEL!==0 (
+  ECHO. && ECHO        %red% --SPECIAL NOTE-- %blue%
+  ECHO    %yellow% FROM SCANNING THE LOGS IT LOOKS LIKE YOUR SERVER MAY HAVE CRASHED FOR ONE OF TWO REASONS:  %blue%
+  ECHO    %yellow% --YOUR SELECTED JAVA VERSION IS CRASHING WITH THE CURRENT FORGE AND MODS VERSIONS %blue%
+  ECHO    %yellow% --AT LEAST ONE MOD FILE IN THE MODS FOLDER IS FOR A DIFFERENT VERSION OF FORGE / MINECRAFT %blue% && ECHO.
+  ECHO        %red% --SPECIAL NOTE-- %blue% && ECHO.
 )
-:skipcrashedforge
 
-PAUSE && EXIT [\B]
+  :: Search if the standard client side mod message was found.  Ignore if java 19 is detected as probably the more important item.
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul 2>&1
+IF !ERRORLEVEL!==0 (
+  ECHO. && ECHO        %red% --- SPECIAL MESSAGE --- %blue%
+  ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
+  ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER - OTHERWISE SOME MOD AUTHORS DID NOT SILENCE THAT MESSAGE.
+  ECHO.
+  ECHO    TRY USING THE UNIVERSALATOR %green% 'SCAN' %blue% OPTION TO FIND CLIENT MODS.
+  ECHO        %red% --- SPECIAL MESSAGE --- %blue% && ECHO.
+)
+
+PAUSE
+GOTO :mainmenu
 :: END FORGE MAIN SECTION
-
 
 :launchfabric
 :: BEGIN FABRIC MAIN SECTION
@@ -2327,54 +2358,37 @@ PAUSE
 ECHO. && ECHO   Launching... && ping -n 2 127.0.0.1 > nul && ECHO   Launching.. && ping -n 2 127.0.0.1 > nul && ECHO   Launching. && ECHO.
 
 IF !OVERRIDE!==Y SET "JAVAFILE=java"
+TITLE Universalator - !MINECRAFT! Fabric
 
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar nogui
 
 :: Complains in console output if launch attempt crashes
-IF %ERRORLEVEL%==0 GOTO :skipcrashedfabric
-IF !ERRORLEVEL! NEQ 0 (
-  ECHO.
-  ECHO.
-  ECHO  %yellow%  SOMETHING CRASHED! BELOW MESSAGES ADDED BY THE UNIVERSALATOR SCRIPT %blue%
-  ECHO.
-  ECHO.
-  ECHO    AT THIS POINT FORGE WAS LAUNCHED BY THE UNIVERSALATOR SCRIPT BUT THE FORGE SERVER STOPPED WORKING WITH AN ERROR
-  ECHO    CHECK: Log messsages above in console, the file 'latest.log' in the 'logs' folder , in 'crash-reports' folder if exists
-  ECHO.
-  ECHO    POSSIBILITIES IF CRASH HAPPENS WHEN FIRST LOADING--
-  ECHO      -Your selection of Java version is not compatible with the Minecraft/Forge version.
-  ECHO      -There are undetected client only mods crashing the server.
-  ECHO      -One or more mods have errored.
-  IF %JAVAVERSION%==19 (
-    ECHO.
-    ECHO    %yellow%--SPECIAL NOTE--%blue%
-    ECHO    %yellow%JAVA 19 WAS SELECTED - NOT MANY MODS ARE CURRENTLY COMPATIBLE WITH THIS VERSION%blue%
-    ECHO    %yellow%TRY JAVA 17 OR 18 INSTEAD%blue%
-  )
-  ECHO.
-  ECHO    POSSIBILITIES IF CRASH HAPPENS AFTER WORLD HAS LOADED
-  ECHO      -One or more mods have errored.
-  ECHO.
-  IF EXIST "%HERE%\latest.log" (
-    TYPE latest.log | FINDSTR "invalid dist DEDICATED_SERVER" >nul
-  )
-  IF !ERRORLEVEL!==0 (
-  ECHO    --- SPECIAL MESSAGE --- && ECHO.
-  ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
-  ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER.  OR SOME MOD AUTHORS FORGET TO SILENCE THAT MESSAGE IF INNOCENT.
-  ECHO.
-  ECHO    TRY USING THE UNIVERSALATOR 'SCAN' OPTION. && ECHO.
-  ECHO    --- SPECIAL MESSAGE ---
-  )
-  ECHO.
-  ECHO  %yellow%  SOMETHING CRASHED! %blue% && ECHO.
-  PAUSE
-  GOTO :mainmenu
+:: Looks for the stopping the server text to decide if the server was shut down on purpose.  If so goes to main menu.
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Stopping the server" >nul 2>&1 && PAUSE && GOTO :mainmenu
+
+:: Search if java version mismatch is found
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Unsupported class file major version" >nul 2>&1
+IF !ERRORLEVEL!==0 (
+  ECHO. && ECHO        %red% --SPECIAL NOTE-- %blue%
+  ECHO    %yellow% FROM SCANNING THE LOGS IT LOOKS LIKE YOUR SERVER MAY HAVE CRASHED FOR ONE OF TWO REASONS:  %blue%
+  ECHO    %yellow% --YOUR SELECTED JAVA VERSION IS CRASHING WITH THE CURRENT FORGE AND MODS VERSIONS %blue%
+  ECHO    %yellow% --AT LEAST ONE MOD FILE IN THE MODS FOLDER IS FOR A DIFFERENT VERSION OF FORGE / MINECRAFT %blue% && ECHO.
+  ECHO        %red% --SPECIAL NOTE-- %blue% && ECHO.
 )
-:skipcrashedfabric
 
-PAUSE && EXIT [\B]
+:: Search if the standard client side mod message was found.  Ignore if java 19 is detected as probably the more important item.
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul 2>&1
+IF !ERRORLEVEL!==0 (
+  ECHO. && ECHO        %red% --- SPECIAL MESSAGE --- %blue%
+  ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
+  ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER - OTHERWISE SOME MOD AUTHORS DID NOT SILENCE THAT MESSAGE.
+  ECHO.
+  ECHO    TRY USING THE UNIVERSALATOR %green% 'SCAN' %blue% OPTION TO FIND CLIENT MODS.
+  ECHO        %red% --- SPECIAL MESSAGE --- %blue% && ECHO.
+)
 
+PAUSE
+GOTO :mainmenu
 
 :: BEGIN UPNP SECTION
 :upnpmenu
