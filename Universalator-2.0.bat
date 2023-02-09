@@ -583,20 +583,17 @@ ECHO   %yellow% ENTER THE MINECRAFT VERSION %blue%
 ECHO. && ECHO.
 SET /P MINECRAFT=
 
-::Detects whether Minecraft version is older than, or equal/greater than 1.17 and stores in OLDORNEW variable
-::This is done again later after the settings-universalator.txt is present and this is section is skipped
-SET DOTORNOT=!MINECRAFT:~3,1!
-SET OLDORNEW=IDK
-IF %DOTORNOT%==. SET OLDORNEW=OLD
-IF %DOTORNOT% NEQ . IF !MINECRAFT! GEQ 1.17 SET OLDORNEW=NEW
-IF %DOTORNOT% NEQ . IF !MINECRAFT! LSS 1.17 SET OLDORNEW=OLD
+:: IF running SCAN from main menu it gets placed here first to get values for MC major and minor versions.
+:scanmods
 
-IF %OLDORNEW%==IDK (
-  ECHO. && ECHO.  && ECHO %yellow% INVALID MINECRAFT VERSION ENTERED IN VALUES %blue%
-  ECHO   PRESS ANY KEY TO TRY AGAIN && ECHO.
-  PAUSE
-  GOTO :startover
+:: Stores the major and minor Minecraft version numbers in their own variables as integers.
+FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
+    SET /a MCMAJOR=%%E
+    SET /a MCMINOR=%%F
 )
+
+:: IF running SCAN from main menu now goto actual scan section
+IF /I !MAINMENU!==SCAN GOTO :actuallyscanmods
 
 :reentermodloader
 :: User entry for Modloader version
@@ -617,7 +614,7 @@ IF /I !MODLOADER! NEQ FORGE IF /I !MODLOADER! NEQ FABRIC (
 
 :: Detects if settings are trying to use some weird old Minecraft Forge version that isn't supported.
 :: This is done again later after the settings-universalator.txt is present and this is section is skipped.
-IF /I !MODLOADER!==FORGE IF %DOTORNOT%==. IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 (
+IF /I !MODLOADER!==FORGE IF !MCMAJOR! LSS 10 IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 (
   ECHO.
   ECHO  SORRY - YOUR ENTERED MINECRAFT VERSION - FORGE FOR MINECRAFT !MINECRAFT! - IS NOT SUPPORTED.
   ECHO.
@@ -967,27 +964,14 @@ IF /I !USEDEFAULT!==Y GOTO :justsetram
 
 :gojava
 
-:: TBD - clean this up to not be entered so many times in the script for checks
-:: Detects whether Minecraft version is older than, or equal/greater than 1.17 and stores in OLDORNEW variable
-SET DOTORNOT=!MINECRAFT:~3,1!
-SET OLDORNEW=IDK
-IF %DOTORNOT%==. SET OLDORNEW=OLD
-IF %DOTORNOT% NEQ . IF !MINECRAFT! GEQ 1.17 SET OLDORNEW=NEW
-IF %DOTORNOT% NEQ . IF !MINECRAFT! LSS 1.17 SET OLDORNEW=OLD
-IF /I !OLDORNEW!==NEW SET /a NEWMAJOR=!MINECRAFT:~2,2!
-IF !NEWMAJOR! NEQ 17 SET ISITSEVENTEEN=N
-IF !NEWMAJOR! EQU 17 SET ISITSEVENTEEN=Y
-
-
-
-IF /I !MODLOADER!==FORGE IF /I !OLDORNEW!==NEW (
+IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! GEQ 17 (
   CLS
   ECHO.
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO.
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
   ECHO.
-  IF /I !ISITSEVENTEEN!==Y (
+  IF /I !MCMAJOR!==17 (
   ECHO   -JAVA VERSION FOR 1.17/1.17.1 %green% MUST BE %blue% 16
   ECHO. && ECHO. && ECHO.
   ) ELSE (
@@ -1000,11 +984,11 @@ IF /I !MODLOADER!==FORGE IF /I !OLDORNEW!==NEW (
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO. && ECHO.
   SET /P JAVAVERSION=
-  IF /I !ISITSEVENTEEN!==N IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :gojava
-  IF /I !ISITSEVENTEEN!==Y IF !JAVAVERSION! NEQ 16 GOTO :gojava
+  IF /I !MCMAJOR! NEQ 17 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :gojava
+  IF /I !MCMAJOR!==17 IF !JAVAVERSION! NEQ 16 GOTO :gojava
 )
 
-IF /I !MODLOADER!==FORGE  IF /I !OLDORNEW!==OLD IF !MINECRAFT!==1.16.5 (
+IF /I !MODLOADER!==FORGE IF !MINECRAFT!==1.16.5 (
   CLS
   ECHO.
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
@@ -1021,7 +1005,7 @@ IF /I !MODLOADER!==FORGE  IF /I !OLDORNEW!==OLD IF !MINECRAFT!==1.16.5 (
   IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
 )
 
-IF /I !MODLOADER!==FORGE IF /I !OLDORNEW!==OLD IF !MINECRAFT! NEQ 1.16.5 (
+IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 17 IF !MINECRAFT! NEQ 1.16.5 (
   CLS
   ECHO.
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
@@ -1096,7 +1080,7 @@ FOR /F "tokens=4,5 delims=, " %%E IN ("!RAWFREERAM!") DO (
   ECHO.
   ECHO    TYPICAL VALUES FOR MODDED MINECRAFT SERVERS ARE BETWEEN 4 AND 10
   ECHO.
-  ECHO    ONLY ENTER THE NUMBER - %red% MUST NOT %blue% INCLUDE ANY LETTERS.
+  ECHO    ONLY ENTER A WHOLE NUMBER - %red% MUST NOT %blue% INCLUDE ANY LETTERS.
   ECHO    %green% Example - 6 %blue%
   ECHO.
   ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) %blue%
@@ -1107,6 +1091,18 @@ FOR /F "tokens=4,5 delims=, " %%E IN ("!RAWFREERAM!") DO (
   :: END RAM / MEMORY SETTING
 
 :actuallylaunch
+
+:: Checks to see if the Java version entered is available - this shouldn't even be possible using settings normally, but checking anyways
+IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 IF !JAVAVERSION! NEQ 16 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 (
+  ECHO.
+  ECHO   %yellow% THE JAVA VERSION YOU ENTERED IN SETTINGS IS NOT AVAILABLE FOR THIS LAUNCHER %blue%
+  ECHO    AVAILABLE VERSIONS ARE = 8, 11, 16, 17, 19
+  ECHO.
+  PAUSE
+  GOTO :gojava
+)
+
+
 
 IF /I !MAINMENU!==L SET ASKMODSCHECK=N
 :: Generates settings-universalator.txt file if settings-universalator.txt does not exist
@@ -1150,30 +1146,6 @@ IF /I !MAINMENU!==R GOTO :mainmenu
 ::)
 SET MAXRAM=-Xmx!MAXRAMGIGS!G
 
-:scanmods
-::Detects whether Minecraft version is older than, or equal/greater than 1.17 and stores in OLDORNEW variable
-SET DOTORNOT=!MINECRAFT:~3,1!
-SET OLDORNEW=IDK
-IF !DOTORNOT!==. SET OLDORNEW=OLD
-IF !DOTORNOT! NEQ . IF !MINECRAFT! GEQ 1.17 SET OLDORNEW=NEW
-IF !DOTORNOT! NEQ . IF !MINECRAFT! LSS 1.17 SET OLDORNEW=OLD
-
-:: Sets HOWOLD depending on whether version is newer than, or equal/lessthan 1.12.2.
-:: This is used to determine which arrangement of files that mods of that era stored their modID names.  The current mods.toml used started with 1.13.
-SET HOWOLD=NOTVERY
-IF !OLDORNEW!==OLD IF !DOTORNOT!==. SET HOWOLD=SUPEROLD
-IF !OLDORNEW!==OLD IF !DOTORNOT! NEQ . IF !MINECRAFT! LSS 1.13 SET HOWOLD=SUPEROLD
-
-:: If older than MC 1.10 then only passes by this if it is one of the major supported versions below - otherwise setting is rejected
-IF !DOTORNOT!==. IF !MODLOADER!==FORGE IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 (
-  ECHO.
-  ECHO  SORRY - YOUR ENTERED MINECRAFT VERSION - FORGE FOR MINECRAFT !MINECRAFT! - IS NOT SUPPORTED.
-  ECHO.
-  ECHO  FIND A MODPACK WITH A MORE POPULARLY USED VERSION.
-  ECHO.
-  PAUSE && EXIT [\B]
-)
-
 :: Returns to main menu if asking to scan mods is flagged as done previously once before
 :: Otherwise if Y goes to the mod scanning section for each modloader
 IF /I !MAINMENU!==S IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
@@ -1182,65 +1154,45 @@ IF /I !MAINMENU!==S IF /I !ASKMODSCHECK!==Y (
   SET ASKMODSCHECK=N
   GOTO :actuallyscanmods
 )
-IF /I !MAINMENU!==SCAN (
-  SET ASKMODSCHECK=N
-  GOTO :actuallyscanmods
-)
 
 ::Stores values in variables depending on Java version entered
-SET JAVAGOOD="bad"
-
 IF !JAVAVERSION!==8 (
     SET JAVAFILENAME="jdk8u362-b09/OpenJDK8U-jre_x64_windows_hotspot_8u362b09.zip"
     SET JAVAFOLDER="univ-utils\java\jdk8u362-b09-jre\."
     SET checksumeight=3569dcac27e080e93722ace6ed7a1e2f16d44a61c61bae652c4050af58d12d8b
     SET JAVAFILE="univ-utils\java\jdk8u362-b09-jre\bin\java.exe"
-    SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==11 (
     SET JAVAFILENAME="jdk-11.0.18%%2B10/OpenJDK11U-jre_x64_windows_hotspot_11.0.18_10.zip"
     SET JAVAFOLDER="univ-utils\java\jdk-11.0.18+10-jre\."
     SET checksumeight=dea0fe7fd5fc52cf5e1d3db08846b6a26238cfcc36d5527d1da6e3cb059071b3
     SET JAVAFILE="univ-utils\java\jdk-11.0.18+10-jre\bin\java.exe"
-    SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==16 (
     SET JAVAFILENAME="jdk-16.0.2%%2B7/OpenJDK16U-jdk_x64_windows_hotspot_16.0.2_7.zip"
     SET JAVAFOLDER="univ-utils\java\jdk-16.0.2+7\."
     SET checksumeight=40191ffbafd8a6f9559352d8de31e8d22a56822fb41bbcf45f34e3fd3afa5f9e
     SET JAVAFILE="univ-utils\java\jdk-16.0.2+7\bin\java.exe"
-    SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==17 (
     SET JAVAFILENAME="jdk-17.0.6%%2B10/OpenJDK17U-jre_x64_windows_hotspot_17.0.6_10.zip"
     SET JAVAFOLDER="univ-utils\java\jdk-17.0.6+10-jre\."
     SET checksumeight=85ce690a348977e3739fde3fd729b36c61e86c33da6628bc7ceeba9974a3480b
     SET JAVAFILE="univ-utils\java\jdk-17.0.6+10-jre\bin\java.exe"
-    SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==18 (
     SET JAVAFILENAME="jdk-18.0.2.1%%2B1/OpenJDK18U-jre_x64_windows_hotspot_18.0.2.1_1.zip"
     SET JAVAFOLDER="univ-utils\java\jdk-18.0.2.1+1-jre\."
     SET checksumeight=ba7976e86e9a7e27542c7cf9d5081235e603a9be368b6cbd49673b417da544b1
     SET JAVAFILE="univ-utils\java\jdk-18.0.2.1+1-jre\bin\java.exe"
-    SET JAVAGOOD="good"
 )
 IF !JAVAVERSION!==19 (
     SET JAVAFILENAME="jdk-19.0.2%%2B7/OpenJDK19U-jre_x64_windows_hotspot_19.0.2_7.zip"
     SET JAVAFOLDER="univ-utils\java\jdk-19.0.2+7-jre\."
     SET checksumeight=daaaa092343e885b0814dd85caa74529b9dec2c1f28a711d5dbc066a9f7af265
     SET JAVAFILE="univ-utils\java\jdk-19.0.2+7-jre\bin\java.exe"
-    SET JAVAGOOD="good"
 )
 
-:: Checks to see if the Java version entered is available - this shouldn't even be possible using settings normally, but checking anyways
-IF %JAVAGOOD%=="bad" (
-  ECHO.
-  ECHO   %yellow% THE JAVA VERSION YOU ENTERED IN SETTINGS IS NOT AVAILABLE FOR THIS LAUNCHER %blue%
-  ECHO    AVAILABLE VERSIONS ARE = 8, 11, 16, 17, 19
-  ECHO.
-  PAUSE && EXIT [\B]
-)
 
 :: Checks to see if the mods folder even exists yet
 SET NEWRESPONSE=Y
@@ -1351,44 +1303,28 @@ IF EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
 )
 
 :: Downloads the Minecraft server JAR if version is = OLD and does not exist.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets it first.
-IF !OLDORNEW!==OLD IF NOT EXIST minecraft_server.!MINECRAFT!.jar (
+IF !MCMAJOR! LEQ 16 IF NOT EXIST minecraft_server.!MINECRAFT!.jar (
   powershell -Command "(New-Object Net.WebClient).DownloadFile(((Invoke-RestMethod -Method Get -Uri ((Invoke-RestMethod -Method Get -Uri "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json").versions | Where-Object -Property id -Value !MINECRAFT! -EQ).url).downloads.server.url), 'minecraft_server.!MINECRAFT!.jar')"
 )
 
 :pingforgeagain
 :: Pings the Forge files server to see it can be reached - decides to ping if forge file not present - accounts for extremely annoyng changes in filenames depending on OLD version names.
-IF !OLDORNEW!==OLD IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar IF NOT EXIST minecraftforge-universal-!MINECRAFT!-!FORGE!.jar IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-  ECHO Pinging Forge file server...
+ECHO Pinging Forge file server...
+ECHO.
+ping -n 4 maven.minecraftforge.net >nul
+IF %ERRORLEVEL% NEQ 0 (
+  CLS
   ECHO.
-  ping -n 4 maven.minecraftforge.net >nul
-  IF %ERRORLEVEL% NEQ 0 (
-    CLS
-    ECHO.
-    ECHO A PING TO THE FORGE FILE SERVER HAS FAILED
-    ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
-    ECHO PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN
-    PAUSE
-    GOTO :pingforgeagain
-  )
-)
-:: Pings the Forge files server for NEW types of Forge (1.17 and newer).  Decides to ping if specific folder is not detected as existing.
-IF !OLDORNEW!==NEW IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. (
-  ping -n 4 maven.minecraftforge.net >nul
-  IF %ERRORLEVEL% NEQ 0 (
-    CLS
-    ECHO.
-    ECHO A PING TO THE FORGE FILE SERVER HAS FAILED
-    ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
-    ECHO PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN
-    PAUSE
-    GOTO :pingforgeagain
-
-  )
+  ECHO A PING TO THE FORGE FILE SERVER HAS FAILED
+  ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
+  ECHO PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN
+  PAUSE
+  GOTO :pingforgeagain
 )
 
 :: Forge installer file download
 :: Detects if installed files or folders exist - if not then deletes existing JAR files and libraries folder to prevent mash-up of various versions installing on top of each other, and then downloads installer JAR
-IF !OLDORNEW!==NEW GOTO :skipolddownload
+IF !MCMAJOR! GEQ 17 GOTO :skipolddownload
 
 :: 1.6.4
 IF !MINECRAFT!==1.6.4 IF NOT EXIST minecraftforge-universal-1.6.4-!FORGE!.jar (
@@ -1400,7 +1336,7 @@ IF !MINECRAFT!==1.6.4 IF NOT EXIST minecraftforge-universal-1.6.4-!FORGE!.jar (
   ECHO Any existing JAR files and 'libaries' folder deleted.
   ECHO Downloading installer...
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-
+  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: 1.7.10
@@ -1411,7 +1347,7 @@ IF !MINECRAFT!==1.7.10 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univer
   ECHO.
   ECHO Forge Server JAR-file not found. Downloading installer...
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-
+  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: 1.8.9
@@ -1422,7 +1358,7 @@ IF !MINECRAFT!==1.8.9 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univers
   ECHO.
   ECHO Forge Server JAR-file not found. Downloading installer...
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-
+  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: 1.9.4
@@ -1433,7 +1369,7 @@ IF !MINECRAFT!==1.9.4 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univers
   ECHO.
   ECHO Forge Server JAR-file not found. Downloading installer...
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-
+  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: 1.10.2
@@ -1444,11 +1380,11 @@ IF !MINECRAFT!==1.10.2 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
   ECHO.
   ECHO Forge Server JAR-file not found. Downloading installer...
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-
+  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: OLD versions newer than 1.10.2
-IF %OLDORNEW%==OLD IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 IF !MINECRAFT! NEQ 1.10.2 (
+IF !MCMAJOR! GEQ 11 IF !MCMAJOR! LEQ 16 IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar (
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
@@ -1460,7 +1396,7 @@ IF %OLDORNEW%==OLD IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar IF !MINECRAFT! NEQ
 
 :skipolddownload
 :: For NEW (1.17 and newer) Forge detect if specific version folder is present - if not delete all JAR files and 'install' folder to guarantee no files of different versions conflicting on later install.  Then downloads installer file.
-IF !OLDORNEW!==NEW IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. (
+IF !MCMAJOR! GEQ 17 IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. (
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
@@ -1501,7 +1437,7 @@ PAUSE && EXIT [\B]
 :foundforge
 
 :: Forge was found to exist at this point - delete the files which Forge installs that this script replaces the functions of.
-IF !OLDORNEW!==NEW (
+IF !MCMAJOR! GEQ 17 (
   DEL "%HERE%\run.*" >nul 2>&1
   IF EXIST "%HERE%\user_jvm_args.txt" DEL "%HERE%\user_jvm_args.txt"
 )
@@ -1623,9 +1559,9 @@ IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   :: Extracts the mods.toml file from each JAR
 
   SET SERVCOUNT=0
-  IF EXIST mods.toml DEL mods.toml
+  IF EXIST mods.toml DEL mods.toml >nul
   :: START SCANNING MODS
-  IF !HOWOLD!==SUPEROLD GOTO :scanmcmodinfo
+  IF !MINECRAFT! LEQ 12 GOTO :scanmcmodinfo
   REM Get total number of mods currently in mods folder
   SET rawmodstotal=0
   FOR /F "usebackq delims=" %%J IN (servermods.txt) DO (
@@ -1668,8 +1604,8 @@ IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
       SET "FULLARRAY[!SERVCOUNT!].id=%%M"
       set /a SERVCOUNT+=1
   )
-  REM Below skips to finishedscan label to bypass old style mod scan.
-  IF !HOWOLD!==NOTVERY GOTO :finishedscan
+  REM Below skips to finishedscan label for MC newer or equal to 1.13 (when mods.toml began use).
+  IF !MCMAJOR! GEQ 13 GOTO :finishedscan
 
   REM END SCANNING NEW STYLE MODS.TOML - BEGIN SCANNING OLD STYLE MCMOD.INFO
   :scanmcmodinfo
@@ -1890,34 +1826,33 @@ IF !OVERRIDE!==Y SET "JAVAFILE=java"
 TITLE Universalator - !MINECRAFT! Forge
 ver >nul
 :: Special case forge.jar filenames for older OLD versions
-IF %OLDORNEW%==OLD IF !MINECRAFT!==1.6.4 (
+IF !MINECRAFT!==1.6.4 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar minecraftforge-universal-1.6.4-!FORGE!.jar nogui
 ) 
 
-IF %OLDORNEW%==OLD IF !MINECRAFT!==1.7.10 (
+IF !MINECRAFT!==1.7.10 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-1.7.10-!FORGE!-1.7.10-universal.jar nogui
 ) 
 
-IF %OLDORNEW%==OLD IF !MINECRAFT!==1.8.9 (
+IF !MINECRAFT!==1.8.9 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-1.8.9-!FORGE!-1.8.9-universal.jar nogui
 ) 
 
-IF %OLDORNEW%==OLD IF !MINECRAFT!==1.9.4 (
+IF !MINECRAFT!==1.9.4 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-1.9.4-!FORGE!-1.9.4-universal.jar nogui
 ) 
 
-IF %OLDORNEW%==OLD IF !MINECRAFT!==1.10.2 (
+IF !MINECRAFT!==1.10.2 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-1.10.2-!FORGE!-universal.jar nogui
 ) 
 
-:: General case forge.jar filenames for regular OLD Minecraft Forge newer (higher numbered) than 1.10.2
-:: This will let non-specified special cases above slip though (weird unpopular versions).  Only a small percent of use cases will ever try them.
-IF %OLDORNEW%==OLD IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 IF !MINECRAFT! NEQ 1.10.2 (
+:: General case forge.jar filenames for regular OLD Minecraft Forge newer (higher numbered) than 1.10.2 but older than 1.17
+IF !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 IF !MINECRAFT! NEQ 1.10.2 (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar forge-!MINECRAFT!-!FORGE!.jar nogui
 ) 
 
 :: General case for NEW (1.17 and newer) Minecraft versions.  This remains unchanged at least until 1.19.3.
-IF %OLDORNEW%==NEW (
+IF !MCMAJOR! GEQ 17 (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/win_args.txt nogui %*
 ) 
 
@@ -1964,23 +1899,23 @@ IF NOT EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar (
 )
 
 :: Pings the Fabric file server
-  :fabricserverpingagain
-  ping -n 3 maven.fabricmc.net >nul
-  IF %ERRORLEVEL% NEQ 0 (
-    CLS
-    ECHO.
-    ECHO A PING TO THE FABRIC FILE SERVER HAS FAILED
-    ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
-    ECHO PRESS ANY KEY TO TRY AGAIN
-    PAUSE
-    GOTO :fabricserverpingagain
-  )
+:fabricserverpingagain
+ ping -n 3 maven.fabricmc.net >nul
+IF %ERRORLEVEL% NEQ 0 (
+  CLS
+  ECHO.
+  ECHO A PING TO THE FABRIC FILE SERVER HAS FAILED
+  ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
+  ECHO PRESS ANY KEY TO TRY AGAIN
+  PAUSE
+  GOTO :fabricserverpingagain
+)
 
 :: Downloads Fabric installer and SHA256 hash value file
-  IF EXIST fabric-installer.jar DEL fabric-installer.jar
-  IF EXIST fabric-installer.jar.sha256 DEL fabric-installer.jar.sha256
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabricmc.net/net/fabricmc/fabric-installer/!FABRICINSTALLER!/fabric-installer-!FABRICINSTALLER!.jar', 'fabric-installer.jar')" >nul
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabricmc.net/net/fabricmc/fabric-installer/!FABRICINSTALLER!/fabric-installer-!FABRICINSTALLER!.jar.sha256', 'fabric-installer.jar.sha256')" >nul
+IF EXIST fabric-installer.jar DEL fabric-installer.jar
+IF EXIST fabric-installer.jar.sha256 DEL fabric-installer.jar.sha256
+powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabricmc.net/net/fabricmc/fabric-installer/!FABRICINSTALLER!/fabric-installer-!FABRICINSTALLER!.jar', 'fabric-installer.jar')" >nul
+powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabricmc.net/net/fabricmc/fabric-installer/!FABRICINSTALLER!/fabric-installer-!FABRICINSTALLER!.jar.sha256', 'fabric-installer.jar.sha256')" >nul
 
 
 :: Sends script execution back if no installer file found.
