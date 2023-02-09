@@ -1331,12 +1331,10 @@ IF !MINECRAFT!==1.6.4 IF NOT EXIST minecraftforge-universal-1.6.4-!FORGE!.jar (
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO.
-  ECHO Forge Server JAR-file not found.
-  ECHO Any existing JAR files and 'libaries' folder deleted.
-  ECHO Downloading installer...
+  ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
+  ECHO   Any existing JAR files and 'libaries' folder deleted.
+  ECHO   Downloading installer... && ECHO.
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: 1.7.10
@@ -1344,10 +1342,10 @@ IF !MINECRAFT!==1.7.10 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univer
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
+  ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
+  ECHO   Any existing JAR files and 'libaries' folder deleted.
+  ECHO   Downloading installer... && ECHO.
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: 1.8.9
@@ -1355,10 +1353,10 @@ IF !MINECRAFT!==1.8.9 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univers
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
+  ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
+  ECHO   Any existing JAR files and 'libaries' folder deleted.
+  ECHO   Downloading installer... && ECHO.
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: 1.9.4
@@ -1366,10 +1364,10 @@ IF !MINECRAFT!==1.9.4 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univers
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
+  ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
+  ECHO   Any existing JAR files and 'libaries' folder deleted.
+  ECHO   Downloading installer... && ECHO.
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
-  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :: 1.10.2
@@ -1377,21 +1375,21 @@ IF !MINECRAFT!==1.10.2 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
+  ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
+  ECHO   Any existing JAR files and 'libaries' folder deleted.
+  ECHO   Downloading installer... && ECHO.
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
-:: OLD versions newer than 1.10.2
+:: Versions of MC newer than 1.10.2 but older than 17
 IF !MCMAJOR! GEQ 11 IF !MCMAJOR! LEQ 16 IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar (
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
+  ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
+  ECHO   Any existing JAR files and 'libaries' folder deleted.
+  ECHO   Downloading installer... && ECHO.
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
 :skipolddownload
@@ -1400,12 +1398,13 @@ IF !MCMAJOR! GEQ 17 IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-
   DEL *.jar >nul 2>&1
   IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
   IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO.
-  ECHO Forge Server JAR-file not found. Downloading installer...
+  ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
+  ECHO   Any existing JAR files and 'libaries' folder deleted.
+  ECHO   Downloading installer... && ECHO.
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
-  IF EXIST forge-installer.jar GOTO :useforgeinstaller
 )
 
+IF EXIST "%HERE%\forge-installer.jar" GOTO :useforgeinstaller
 CLS
 ECHO.
 ECHO forge-installer.jar not found. Maybe the Forge servers are having trouble.
@@ -1422,11 +1421,11 @@ GOTO :pingforgeagain
 :: Installs forge, detects if successfully made the main JAR file, deletes extra new style files that this BAT replaces
 :useforgeinstaller
 IF EXIST forge-installer.jar (
-  ECHO Installer downloaded. Installing...
+  ECHO. && ECHO Installer downloaded. Installing...
   !JAVAFILE! -Djava.net.preferIPv4Stack=true -XX:+UseG1GC -jar forge-installer.jar --installServer
   DEL forge-installer.jar >nul 2>&1
   DEL forge-installer.jar.log >nul 2>&1
-  ECHO Installation complete. forge-installer.jar deleted. && ECHO.
+  ECHO. && ECHO Installation complete. forge-installer.jar deleted. && ECHO.
   GOTO :detectforge
 )
 
