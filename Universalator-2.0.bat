@@ -246,7 +246,7 @@ IF %ERRORLEVEL% NEQ 0 IF NOT EXIST "C:\Windows\System32\WindowsPowerShell\v1.0\p
 SET LOC=%cd:)=]%
 
 :: Checks folder location this BAT is being run from for various system folders.  Sends appropriate messages if needed.
-ECHO "%LOC%" | FINDSTR /i "onedrive documents desktop downloads" 1>NUL
+ECHO "%LOC%" | FINDSTR /i "onedrive documents desktop downloads .minecraft" 1>NUL
 IF %ERRORLEVEL%==0 (
     ECHO.
     ECHO.
@@ -255,6 +255,8 @@ IF %ERRORLEVEL%==0 (
     ECHO   THE FOLDER THIS SCRIPT PROGRAM IS BEING RUN FROM - shown above - WAS DETECTED TO BE
     ECHO   %yellow% INSIDE A FOLDER OF 'ONEDRIVE', 'DOCUMENTS', 'DESKTOP', OR 'DOWNLOADS'. %blue%
     ECHO   SERVERS SHOULD NOT RUN IN THESE FOLDERS BECAUSE IT CAN CAUSE ISSUES WITH SYSTEM PERMISSIONS OR FUNCTIONS.
+    ECHO   or
+    ECHO   The .minecraft folder.
     ECHO.
     ECHO   USE A FILE BROWSER TO RELOCATE THIS
     ECHO   SERVER FOLDER TO A NEW LOCATION OUTSIDE OF ANY OF THESE SYSTEM FOLDERS.
