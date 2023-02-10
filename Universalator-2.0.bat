@@ -193,6 +193,7 @@ IF %LASTCHAR%==")" (
 )
 
 :: The below SET PATH only applies to this command window launch and isn't permanent to the system's PATH.
+SET PATH=%PATH%;"C:\WINDOWS\System32\"
 SET PATH=%PATH%;"C:\Windows\Syswow64\"
 
 :: Checks to see if CMD is working by checking WHERE for some commands
@@ -205,7 +206,7 @@ IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 WHERE PING >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 
-IF DEFINED CMDBROKEN (
+IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y (
   ECHO.
   ECHO        %yellow% WARNING - PROBLEM DETECTED %blue%
   ECHO        %yellow% CMD / COMMAND PROMPT FUNCTIONS ARE NOT WORKING CORRECTLY ON YOUR WINDOWS INSTALLATION. %blue%
@@ -245,18 +246,21 @@ IF %ERRORLEVEL% NEQ 0 IF NOT EXIST "C:\Windows\System32\WindowsPowerShell\v1.0\p
 :: This is to fix an edge case issue with folder paths ending in ).  Yes this is worked on already above - including this anyways!
 SET LOC=%cd:)=]%
 
+SET FOLDER=GOOD
 :: Checks folder location this BAT is being run from for various system folders.  Sends appropriate messages if needed.
-ECHO "%LOC%" | FINDSTR /i "onedrive documents desktop downloads .minecraft" 1>NUL
-IF %ERRORLEVEL%==0 (
-    ECHO.
+ECHO "%LOC%" | FINDSTR /i "onedrive documents desktop downloads .minecraft" 1>NUL && SET FOLDER=BAD
+ECHO "%LOC%" | FINDSTR /C:"Program Files" >nul 2>&1 && SET FOLDER=BAD
+IF "%cd%"=="C:\" SET FOLDER=BAD
+
+IF !FOLDER!==BAD (
     ECHO.
     ECHO   %yellow% %LOC% %blue%
     ECHO.
     ECHO   THE FOLDER THIS SCRIPT PROGRAM IS BEING RUN FROM - shown above - WAS DETECTED TO BE
-    ECHO   %yellow% INSIDE A FOLDER OF 'ONEDRIVE', 'DOCUMENTS', 'DESKTOP', OR 'DOWNLOADS'. %blue%
+    ECHO   %yellow% INSIDE A FOLDER OF 'ONEDRIVE', 'DOCUMENTS', 'DESKTOP', 'PROGRAM FILES', OR 'DOWNLOADS'. %blue%
     ECHO   SERVERS SHOULD NOT RUN IN THESE FOLDERS BECAUSE IT CAN CAUSE ISSUES WITH SYSTEM PERMISSIONS OR FUNCTIONS.
-    ECHO   or
-    ECHO   The .minecraft folder.
+    ECHO       or
+    ECHO   The %yellow% .minecraft %blue% folder.
     ECHO.
     ECHO   USE A FILE BROWSER TO RELOCATE THIS
     ECHO   SERVER FOLDER TO A NEW LOCATION OUTSIDE OF ANY OF THESE SYSTEM FOLDERS.
@@ -2463,7 +2467,7 @@ GOTO :upnpmenu
 :: END UPNP LOOK FOR VALID & ENABLED UPNP ROUTER
 
 
-:: BEGIN UPNP ENABLE PORT FOWARD
+:: BEGIN UPNP ACTIVATE PORT FOWARD
 :upnpactivate
 CLS
 ECHO. && ECHO. && ECHO.
@@ -2479,7 +2483,7 @@ IF /I !ENABLEUPNP!==N GOTO :upnpmenu
 SET /a CYCLE=1
 SET ACTIVATING=Y
 :activatecycle
-
+:: Tries several different command methods to activate the port forward using miniUPnP.  Each attempt then goes to get checked for success in the upnpstatus section.
 IF !CYCLE!==1 (
   univ-utils\miniupnp\upnpc-static.exe -a !LOCALIP! %PORT% %PORT% TCP
   SET /a CYCLE+=1
@@ -2500,7 +2504,7 @@ ECHO   %red% SORRY - The activation of UPnP port forwarding was not detected to 
 PAUSE
 GOTO :upnpmenu
 
-:: END UPNP ENABLE  PORT FORWARD
+:: END UPNP ACTIVATE PORT FORWARD
 
 
 :: BEGIN UPNP CHECK STATUS
@@ -2515,13 +2519,16 @@ FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
     SET UPNPSTATUS=%%E
     IF "!UPNPSTATUS!" NEQ "!UPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
 )
+:: IF detected port is active then reset var set if sent here by activating code, then either way go back to upnp menu.
 IF !ISUPNPACTIVE!==Y (
   IF DEFINED ACTIVATING SET ACTIVATING=N
   ECHO   %green% ACTIVE - Port forwarding using UPnP is active for port %PORT% %blue%
   PAUSE
   GOTO :upnpmenu
 )
+:: if script was sent here by the activating section and port forward still not active - goes back there.
 IF !ISUPNPACTIVE!==N IF DEFINED ACTIVATING IF !ACTIVATING!==Y GOTO :activatecycle
+:: Otherwise goes back to upnpmenu
 IF !ISUPNPACTIVE!==N ECHO   %red% NOT ACTIVE - Port forwarding using UPnP is not active for port %PORT% %blue%
 PAUSE
 GOTO :upnpmenu
@@ -2545,7 +2552,7 @@ IF !ISUPNPACTIVE!==Y (
 )
 IF /I !DEACTIVATEUPNP! NEQ Y IF /I !DEACTIVATEUPNP! NEQ N GOTO :upnpdeactivate
 IF /I !DEACTIVATEUPNP!==N GOTO :upnpmenu
-:: Deletes the port connection used by the MiniUPNP program.
+:: Deactivates the port connection used by the MiniUPNP program.
 IF /I !DEACTIVATEUPNP!==Y (
     univ-utils\miniupnp\upnpc-static.exe -d %PORT% TCP
     SET ISUPNPACTIVE=N
