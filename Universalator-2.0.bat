@@ -494,8 +494,13 @@ IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
   FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
     SET CHECKUPNPSTATUS=%%E
     IF "!CHECKUPNPSTATUS!" NEQ "!CHECKUPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
+    IF "!CHECKUPNPSTATUS!" NEQ "!CHECKUPNPSTATUS:Local LAN ip address=replace!" SET LANLINE=%%E
   )
 )
+IF DEFINED LANLINE (
+  FOR /F "tokens=5 delims=: " %%T IN ("!LANLINE!") DO SET LOCALIP=%%T
+)
+
 :: Sets ASKMODSCHECK to use as default if no settings file exists yet.
 SET ASKMODSCHECK=Y
 
@@ -2327,6 +2332,20 @@ GOTO :mainmenu
 
 :: BEGIN UPNP SECTION
 :upnpmenu
+:: First check to see if LOCALIP was found previously on launch or not.  If miniUPnP was just installed during this program run it needs to be done!
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF NOT DEFINED LOCALIP (
+  SET LOCALIP=NOLOCALIPFOUND
+  FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
+    SET CHECKUPNPSTATUS=%%E
+    IF "!CHECKUPNPSTATUS!" NEQ "!CHECKUPNPSTATUS:Local LAN ip address=replace!" SET LANLINE=%%E
+  )
+  IF DEFINED LANLINE (
+  FOR /F "tokens=5 delims=: " %%T IN ("!LANLINE!") DO SET LOCALIP=%%T
+)
+)
+:: Sets a variable to toggle so that IP addresses can be shown or hidden
+IF NOT DEFINED SHOWIP SET SHOWIP=N
+:: Actually start doing the upnp menu
 CLS
 ECHO.%yellow%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2356,15 +2375,16 @@ ECHO. && ECHO   ENTER YOUR SELECTION && ECHO      %green% 'DOWNLOAD' - Download 
 
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
 ECHO. && ECHO   %yellow% MiniUPnP PROGRAM %blue% - %green% INSTALLED / DOWNLOADED %blue%
-IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue% -      %red% NOT ACTIVATED %blue% && ECHO. && ECHO.
-IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue% - %green% ACTIVE - FORWARDING PORT %PORT% %blue% && ECHO. && ECHO.
-)
-
-
-
-IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
-ECHO. && ECHO.
-ECHO   %green% CHECK - Check for a network router with UPnP enabled %blue% && ECHO.
+IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue% -      %red% NOT ACTIVATED %blue% && ECHO.
+IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue% - %green% ACTIVE - FORWARDING PORT %PORT% %blue% && ECHO.
+IF !SHOWIP!==Y ECHO                                                               %yellow% Local IP:port  %blue% - !LOCALIP!:%PORT%
+IF !SHOWIP!==Y ECHO                                                               %yellow% Public IP:port %blue% - !PUBLICIP!:%PORT%
+IF !SHOWIP!==N ECHO.
+IF !SHOWIP!==N ECHO.
+ECHO.
+ECHO   %green% CHECK - Check for a network router with UPnP enabled %blue% 
+IF !SHOWIP!==N ECHO   %green% SHOW  - Show your Local and Public IP addresses %blue% && ECHO.
+IF !SHOWIP!==Y ECHO   %green% HIDE  - Hide your Local and Public IP addresses %blue% && ECHO.
 ECHO   %green%                                       %blue%
 ECHO   %green% A - Activate UPnP Port Forwarding     %blue%
 ECHO   %green%                                       %blue%
@@ -2384,6 +2404,14 @@ IF /I !ASKUPNPMENU!==CHECK GOTO :upnpvalid
 IF /I !ASKUPNPMENU!==A GOTO :upnpactivate
 IF /I !ASKUPNPMENU!==D GOTO :upnpdeactivate
 IF /I !ASKUPNPMENU!==S GOTO :upnpstatus
+IF /I !ASKUPNPMENU!==SHOW (
+  SET SHOWIP=Y
+  GOTO :upnpmenu
+)
+IF /I !ASKUPNPMENU!==HIDE (
+  SET SHOWIP=N
+  GOTO :upnpmenu
+)
 IF /I !ASKUPNPMENU! NEQ M IF /I !ASKUPNPMENU! NEQ CHECK IF /I !ASKUPNPMENU! NEQ A IF /I !ASKUPNPMENU! NEQ D IF /I !ASKUPNPMENU! NEQ S GOTO :upnpmenu
 )
 
@@ -2446,11 +2474,30 @@ ECHO.
 SET /P "ENABLEUPNP="
 IF /I !ENABLEUPNP! NEQ N IF /I !ENABLEUPNP! NEQ Y GOTO :upnpactivate
 IF /I !ENABLEUPNP!==N GOTO :upnpmenu
-IF /I !ENABLEUPNP!==Y (
-  univ-utils\miniupnp\upnpc-static.exe -a %PUBLICIP% %PORT% %PORT%% TCP
-  univ-utils\miniupnp\upnpc-static.exe -r %PORT% TCP
-  GOTO :upnpstatus
+SET /a CYCLE=1
+SET ACTIVATING=Y
+:activatecycle
+
+IF !CYCLE!==1 (
+  univ-utils\miniupnp\upnpc-static.exe -a !LOCALIP! %PORT% %PORT% TCP
+  SET /a CYCLE+=1
+  GOTO :activatestatus
 )
+IF !CYCLE!==2 (
+  univ-utils\miniupnp\upnpc-static.exe -r %PORT% TCP
+  SET /a CYCLE+=1
+  GOTO :activatestatus
+)
+IF !CYCLE!==3 (
+  univ-utils\miniupnp\upnpc-static.exe -a %PUBLICIP% %PORT% %PORT% TCP
+  SET /a CYCLE+=1
+  GOTO :activatestatus
+)
+SET ACTIVATING=N
+ECHO   %red% SORRY - The activation of UPnP port forwarding was not detected to have worked. %blue%
+PAUSE
+GOTO :upnpmenu
+
 :: END UPNP ENABLE  PORT FORWARD
 
 
@@ -2459,18 +2506,30 @@ IF /I !ENABLEUPNP!==Y (
 :: Loops through the lines in the -l flag to list MiniUPNP active ports - looks for a line that is different with itself compated to itself but
 :: trying to replace any string inside that matches the port number with a random different string - in this case 'PORT' for no real reason.
 :: Neat huh?  Is proabably faster than piping an echo of the variables to findstr and then checking errorlevels (other method to do this).
-ECHO   %red% Checking Status of UPnP Port Forward ... ... ... %blue%
+ECHO   %red% Checking Status of UPnP Port Forward ... ... ... %blue% && ECHO.
+:activatestatus
 SET ISUPNPACTIVE=N
 FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
     SET UPNPSTATUS=%%E
     IF "!UPNPSTATUS!" NEQ "!UPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
 )
+IF !ISUPNPACTIVE!==Y (
+  IF DEFINED ACTIVATING SET ACTIVATING=N
+  ECHO   %green% ACTIVE - Port forwarding using UPnP is active for port %PORT% %blue%
+  PAUSE
+  GOTO :upnpmenu
+)
+IF !ISUPNPACTIVE!==N IF DEFINED ACTIVATING IF !ACTIVATING!==Y GOTO :activatecycle
+IF !ISUPNPACTIVE!==N ECHO   %red% NOT ACTIVE - Port forwarding using UPnP is not active for port %PORT% %blue%
+PAUSE
 GOTO :upnpmenu
 :: END UPNP CHECK STATUS
 
 
 :: BEGIN UPNP DEACTIVATE AND CHECK STATUS AFTER
 :upnpdeactivate
+IF NOT DEFINED ISUPNPACTIVE GOTO :upnpmenu
+IF !ISUPNPACTIVE!==N GOTO :upnpmenu
 IF !ISUPNPACTIVE!==Y (
     CLS
     ECHO. && ECHO. && ECHO.
@@ -2494,8 +2553,8 @@ IF /I !DEACTIVATEUPNP!==Y (
     )
     IF !ISUPNPACTIVE!==N (
         CLS
-        ECHO. && ECHO.
-        ECHO      UPNP SUCCESSFULLY DEACTIVATED
+        ECHO.
+        ECHO     UPNP SUCCESSFULLY DEACTIVATED
         ECHO.
         PAUSE
         GOTO :upnpmenu
@@ -2544,8 +2603,16 @@ IF /I !ASKUPNPDOWNLOAD!==Y IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static
   )
   IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
     SET FOUNDUPNPEXE=Y
-    ECHO. && ECHO   %green% MINIUPNP FILE upnpc-static.exe SUCCESSFULLY EXTRACTED FROM ZIP %blue% && ECHO. && ECHO.
+    SET ISUPNPACTIVE=N
+    ECHO. && ECHO   %green% MINIUPNP FILE upnpc-static.exe SUCCESSFULLY EXTRACTED FROM ZIP %blue% && ECHO.
+    ECHO   %yellow% Checking current UPnP status ... ... ... %blue% && ECHO.
+    FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
+        SET UPNPSTATUS=%%E
+        IF "!UPNPSTATUS!" NEQ "!UPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
+    )
+    ECHO       Going back to UPnP menu ... ... ... && ECHO.
     PAUSE
+    GOTO :upnpmenu
   ) ELSE (
     SET FOUNDUPNPEXE=N
     ECHO. && ECHO   %green% MINIUPNP BINARY ZIP FILE WAS FOUND TO BE DOWNLOADED %blue% && ECHO   %red% BUT FOR SOME REASON EXTRACTING THE upnpc-static.exe FILE FROM THE ZIP FAILED %blue%
