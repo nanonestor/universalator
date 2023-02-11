@@ -1442,7 +1442,6 @@ IF !MCMAJOR! GEQ 17 IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-
 
 IF EXIST "%HERE%\forge-installer.jar" GOTO :useforgeinstaller
 CLS
-ECHO  !MCMAJOR!
 ECHO forge-installer.jar not found. Maybe the Forge servers are having trouble.
 ECHO Please try again in a couple of minutes.
 ECHO.
