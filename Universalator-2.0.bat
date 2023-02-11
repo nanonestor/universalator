@@ -1595,7 +1595,7 @@ IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   SET SERVCOUNT=0
   IF EXIST mods.toml DEL mods.toml >nul
   :: START SCANNING MODS
-  IF !MINECRAFT! LEQ 12 GOTO :scanmcmodinfo
+  IF !MCMAJOR! LEQ 12 GOTO :scanmcmodinfo
   REM Get total number of mods currently in mods folder
   SET rawmodstotal=0
   FOR /F "usebackq delims=" %%J IN (servermods.txt) DO (
