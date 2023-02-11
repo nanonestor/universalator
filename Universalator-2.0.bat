@@ -205,6 +205,8 @@ WHERE NETSTAT >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 WHERE PING >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
+WHERE CURL >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 
 IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y (
   ECHO.
@@ -297,8 +299,8 @@ IF NOT EXIST %ZIP7% (
 )
 IF EXIST settings-universalator.txt (
   RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
-  IF DEFINED MAXRAMGIGS SET MAXRAM=-Xmx!MAXRAMGIGS!G
 )
+IF DEFINED MAXRAMGIGS SET MAXRAM=-Xmx!MAXRAMGIGS!G
 SET OVERRIDE=N
 :: END GENERAL PRE-RUN ITEMS
 
@@ -506,6 +508,16 @@ IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
 IF DEFINED LANLINE (
   FOR /F "tokens=5 delims=: " %%T IN ("!LANLINE!") DO SET LOCALIP=%%T
 )
+
+IF NOT DEFINED LOCALIP (
+  FOR /F "delims=" %%G IN ('ipconfig') DO (
+      SET LOOKFORIPV4=%%G
+      IF "!LOOKFORIPV4!" NEQ "!LOOKFORIPV4:IPv4 Address=replace!" (
+        FOR /F "tokens=13 delims=: " %%T IN ("!LOOKFORIPV4!") DO SET LOCALIP=%%T
+      )
+  )
+)
+
 
 :: Sets ASKMODSCHECK to use as default if no settings file exists yet.
 SET ASKMODSCHECK=Y
@@ -1152,9 +1164,6 @@ IF EXIST settings-universalator.txt DEL settings-universalator.txt
 IF /I !MAINMENU!==J GOTO :mainmenu
 IF /I !MAINMENU!==R GOTO :mainmenu
 
-::IF EXIST settings-universalator.txt (
-::RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
-::)
 SET MAXRAM=-Xmx!MAXRAMGIGS!G
 
 :: Returns to main menu if asking to scan mods is flagged as done previously once before
@@ -1282,6 +1291,10 @@ IF EXIST %JAVAFOLDER% (
   PAUSE && EXIT [\B]
 )
 
+FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
+    SET /a MCMAJOR=%%E
+    SET /a MCMINOR=%%F
+)
 
 :: BEGIN SPLIT BETWEEN FABRIC AND FORGE SETUP AND LAUNCH - If MODLOADER is FABRIC skips the Forge installation and launch section
 IF /I !MODLOADER!==FABRIC GOTO :launchfabric
@@ -1345,7 +1358,7 @@ IF !MINECRAFT!==1.6.4 IF NOT EXIST minecraftforge-universal-1.6.4-!FORGE!.jar (
   ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
   ECHO   Any existing JAR files and 'libaries' folder deleted.
   ECHO   Downloading installer... && ECHO.
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
 )
 
 :: 1.7.10
@@ -1356,7 +1369,11 @@ IF !MINECRAFT!==1.7.10 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univer
   ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
   ECHO   Any existing JAR files and 'libaries' folder deleted.
   ECHO   Downloading installer... && ECHO.
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
+
+  curl -sLfo forge-installer.jar https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar >nul 2>&1
+  IF NOT EXIST forge-installer.jar (
+    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul 2>&1
+  )
 )
 
 :: 1.8.9
@@ -1367,7 +1384,7 @@ IF !MINECRAFT!==1.8.9 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univers
   ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
   ECHO   Any existing JAR files and 'libaries' folder deleted.
   ECHO   Downloading installer... && ECHO.
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul 2>&1
 )
 
 :: 1.9.4
@@ -1378,7 +1395,7 @@ IF !MINECRAFT!==1.9.4 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-univers
   ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
   ECHO   Any existing JAR files and 'libaries' folder deleted.
   ECHO   Downloading installer... && ECHO.
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul 2>&1
 )
 
 :: 1.10.2
@@ -1389,7 +1406,7 @@ IF !MINECRAFT!==1.10.2 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
   ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
   ECHO   Any existing JAR files and 'libaries' folder deleted.
   ECHO   Downloading installer... && ECHO.
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
 )
 
 :: Versions of MC newer than 1.10.2 but older than 17
@@ -1400,7 +1417,11 @@ IF !MCMAJOR! GEQ 11 IF !MCMAJOR! LEQ 16 IF NOT EXIST forge-!MINECRAFT!-!FORGE!.j
   ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
   ECHO   Any existing JAR files and 'libaries' folder deleted.
   ECHO   Downloading installer... && ECHO.
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
+
+  curl -sLfo forge-installer.jar https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar >nul 2>&1
+  IF NOT EXIST forge-installer.jar (
+    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
+  )
 )
 
 :skipolddownload
@@ -1412,12 +1433,16 @@ IF !MCMAJOR! GEQ 17 IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-
   ECHO. && ECHO   Forge !FORGE! Server JAR-file not found.
   ECHO   Any existing JAR files and 'libaries' folder deleted.
   ECHO   Downloading installer... && ECHO.
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul
+
+  curl -sLfo forge-installer.jar https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar >nul 2>&1
+  IF NOT EXIST forge-installer.jar (
+    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
+  )
 )
 
 IF EXIST "%HERE%\forge-installer.jar" GOTO :useforgeinstaller
 CLS
-ECHO.
+ECHO  !MCMAJOR!
 ECHO forge-installer.jar not found. Maybe the Forge servers are having trouble.
 ECHO Please try again in a couple of minutes.
 ECHO.
@@ -1814,11 +1839,14 @@ ECHO.
 ECHO       %yellow% PUBLIC IPv4 %blue% AND PORT ADDRESS - %green% %PUBLICIP%:%PORT% %blue%
 ECHO            --CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE THIS ADDRESS TO CONNECT
 IF NOT DEFINED UPNPSTATUS ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER OR HAVE UPNP FORWARDING ENABLED
-IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==OFF ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER OR HAVE UPNP FORWARDING ENABLED
+IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==OFF ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER %yellow% OR %blue% HAVE UPNP FORWARDING ENABLED
 IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==ON ECHO.
 ECHO.
+IF DEFINED LOCALIP ECHO       %yellow% INTERNAL IPv4 %blue% AND PORT ADDRESS - %green% !LOCALIP! %blue%
+IF NOT DEFINED LOCALIP (
 ECHO       %yellow% INTERNAL IPv4 %blue% AND PORT ADDRESS 
 ECHO            --ENTER 'ipconfig' FROM A COMMAND PROMPT TO FIND
+)
 ECHO            --CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE THIS ADDRESS TO CONNECT
 ECHO.
 ECHO       %yellow% SAME COMPUTER %blue%
@@ -2289,9 +2317,11 @@ ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO.
 ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS %blue% - %green% %PUBLICIP%:%PORT% %blue%
 ECHO        --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
-ECHO        --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER
 ECHO.
-ECHO   INTERNAL IPv4 ADDRESS - ENTER 'ipconfig' FROM A COMMAND PROMPT
+IF DEFINED LOCALIP ECHO   %yellow% INTERNAL IPv4 ADDRESS %blue% - %green% !LOCALIP! %blue%
+IF NOT DEFINED LOCALIP (
+ECHO   %yellow% INTERNAL IPv4 ADDRESS %blue% - ENTER 'ipconfig' FROM A COMMAND PROMPT
+)
 ECHO        --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
 ECHO.
 ECHO        --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
