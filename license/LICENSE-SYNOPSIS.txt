@@ -11,3 +11,5 @@ Comments on the GNU GPL 3 that the Universalator is licensed with
 7. Any modifications of this code base MUST be distributed with the same license, GPLv3.
 8. This software is provided without warranty.
 9. The software author or license can not be held liable for any damages inflicted by the software.
+
+
