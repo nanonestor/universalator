@@ -193,7 +193,6 @@ IF %LASTCHAR%==")" (
 )
 
 :: The below SET PATH only applies to this command window launch and isn't permanent to the system's PATH.
-SET PATH=%PATH%;"C:\WINDOWS\System32\"
 SET PATH=%PATH%;"C:\Windows\Syswow64\"
 
 :: Checks to see if CMD is working by checking WHERE for some commands
@@ -255,20 +254,27 @@ ECHO "%LOC%" | FINDSTR /C:"Program Files" >nul 2>&1 && SET FOLDER=BAD
 IF "%cd%"=="C:\" SET FOLDER=BAD
 
 IF !FOLDER!==BAD (
+    CLS
     ECHO.
-    ECHO   %yellow% %LOC% %blue%
+    ECHO   %red% %LOC% %blue%
     ECHO.
-    ECHO   THE FOLDER THIS SCRIPT PROGRAM IS BEING RUN FROM - shown above - WAS DETECTED TO BE
-    ECHO   %yellow% INSIDE A FOLDER OF 'ONEDRIVE', 'DOCUMENTS', 'DESKTOP', 'PROGRAM FILES', OR 'DOWNLOADS'. %blue%
-    ECHO   SERVERS SHOULD NOT RUN IN THESE FOLDERS BECAUSE IT CAN CAUSE ISSUES WITH SYSTEM PERMISSIONS OR FUNCTIONS.
-    ECHO       or
-    ECHO   The %yellow% .minecraft %blue% folder.
+    ECHO   %yellow% THE SERVER FOLDER THIS IS BEING RUN FROM ^(shown above^) WAS DETECTED TO BE %blue%
+    ECHO   %yellow% INSIDE A FOLDER OR SUBFOLDER CONTAINING THE NAME: %blue% && ECHO.
+    ECHO       %red%'ONEDRIVE'%blue%
+    ECHO       %red%'DOCUMENTS'%blue%
+    ECHO       %red%'DESKTOP'%blue%
+    ECHO       %red%'PROGRAM FILES'%blue%
+    ECHO       %red%'DOWNLOADS'%blue%
+    ECHO       %red%'.minecraft'%blue% && ECHO.
+    ECHO   %yellow% SERVERS SHOULD NOT RUN IN THESE FOLDERS BECAUSE IT CAN CAUSE ISSUES WITH SYSTEM PERMISSIONS OR FUNCTIONS. %blue%
     ECHO.
-    ECHO   USE A FILE BROWSER TO RELOCATE THIS
-    ECHO   SERVER FOLDER TO A NEW LOCATION OUTSIDE OF ANY OF THESE SYSTEM FOLDERS.
     ECHO.
-    ECHO   EXAMPLES THAT WORK- C:\MYSERVER\    D:\MYSERVERS\MODDEDSERVERNAME\
+    ECHO         --USE FILE EXPLORER TO MAKE A NEW FOLDER OUTSIDE OF ANY OF THE ABOVE FOLDERS
+    ECHO           PLACE THE SERVER FILES - OR - THIS ENTIRE FOLDER IN THIS NEW LOCATION
     ECHO.
+    ECHO         --EXAMPLES THAT WORK - ANY NEW OR EXISTING FOLDER NOT INSIDE ONE OF THE ABOVE FOLDERS:
+    ECHO           %green% C:\MYNEWSERVER\ %blue%   %green% D:\MYSERVERS\MODDEDSERVERNAME\ %blue%
+    ECHO. && ECHO.
     PAUSE && EXIT [\B]
 )
 
@@ -543,31 +549,32 @@ ECHO   %yellow% CURRENT SETTINGS %blue%
 ECHO.
 ECHO.
 IF DEFINED MINECRAFT ECHO   %yellow% MINECRAFT VERSION %blue% !MINECRAFT!
-IF NOT DEFINED MINECRAFT ECHO   %yellow% MINECRAFT VERSION %blue% NEEDS SETTING
+IF NOT DEFINED MINECRAFT ECHO   %yellow% MINECRAFT VERSION %blue% %red% ENTER SETTINGS - 'S' %blue%
 IF DEFINED  MODLOADER ECHO   %yellow% MODLOADER %blue%         !MODLOADER!
-IF NOT DEFINED MODLOADER ECHO   %yellow% MODLOADER %blue%         NEEDS SETTING
+IF NOT DEFINED MODLOADER ECHO   %yellow% MODLOADER %blue%         %red% ENTER SETTINGS - 'S' %blue%
 IF DEFINED MODLOADER IF DEFINED FORGE IF /I !MODLOADER!==FORGE ECHO   %yellow% FORGE VERSION %blue%     !FORGE!
 IF DEFINED MODLOADER IF DEFINED FABRICLOADER IF /I !MODLOADER!==FABRIC ECHO   %yellow% FABRIC LOADER %blue%     !FABRICLOADER!
 IF DEFINED MODLOADER IF DEFINED FABRICINSTALLER IF /I !MODLOADER!==FABRIC ECHO   %yellow% FABRIC INSTALLER %blue%  !FABRICINSTALLER!
 IF DEFINED JAVAVERSION ECHO   %yellow% JAVA VERSION %blue%      !JAVAVERSION!
-IF NOT DEFINED JAVAVERSION ECHO   %yellow% JAVA VERSION %blue%      NEEDS SETTING
-IF NOT DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  NEEDS SETTING
+IF NOT DEFINED JAVAVERSION ECHO   %yellow% JAVA VERSION %blue%      %red% ENTER SETTINGS - 'S' %blue%
+IF NOT DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  %red% ENTER SETTINGS - 'S' %blue%
 ECHO. && ECHO.
 IF DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  !MAXRAMGIGS!
 ECHO.
 ECHO.
-IF DEFINED PORT ECHO   %yellow% CURRENT PORT SET %blue%           !PORT!
+IF DEFINED PORT ECHO   %yellow% CURRENT PORT SET %blue%          !PORT!
 IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue% NOT LOADED
-IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue%  %green% LOADED %blue%
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue%   LOADED
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue%       %red% NOT ACTIVATED %blue%
-IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue%              %green% ACTIVE %blue%
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue%  %green% ACTIVE - FORWARDING PORT %PORT% %blue%
 IF EXIST settings-universalator.txt ECHO                                                           %green% L %blue% = LAUNCH SERVER
-ECHO                                                           %green% S %blue% = SETTINGS ENTRY
+IF NOT EXIST settings-universalator.txt ECHO                                                           %green% 'S' %blue% = SETTINGS ENTRY
+IF EXIST settings-universalator.txt ECHO                                                           %green% 'S' %blue% = RE-ENTER ALL SETTINGS
 ECHO.
-ECHO                                                           %green% UPNP %blue% = UPNP PORT FORWARDING MENU
-IF DEFINED MODLOADER ECHO                                                           %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT MODS && ECHO.
-IF EXIST settings-universalator.txt ECHO   %green% ENTER YOUR ANSWER BELOW - L,  S,  UPNP, SCAN, J-(JAVA), R-(RAM), or Q-(quit) %blue%
-IF NOT DEFINED MODLOADER ECHO. && ECHO   %green% ENTER YOUR ANSWER BELOW - S-(settings),  UPNP-(menu), or  Q-(quit) %blue%
+ECHO                                                           %green% 'UPNP' %blue% = UPNP PORT FORWARDING MENU
+IF DEFINED MODLOADER ECHO                                                           %green% 'SCAN' %blue% = SCAN MOD FILES FOR CLIENT MODS && ECHO.
+IF EXIST settings-universalator.txt ECHO   %green% ENTRY CHOICES: %blue% %green% 'L',  'S',  'UPNP', 'SCAN', 'J'-(JAVA), 'R'-(RAM), or 'Q'-(quit) %blue%
+IF NOT DEFINED MODLOADER ECHO. && ECHO   %green% ENTRY CHOICES: %blue%   %green% 'S'-(settings),  'UPNP'-(menu), or  'Q'-(quit) %blue%
 set /P "MAINMENU="
 IF DEFINED MODLOADER IF DEFINED MINECRAFT (
   IF /I !MAINMENU! NEQ L IF /I !MAINMENU! NEQ S IF /I !MAINMENU! NEQ R IF /I !MAINMENU! NEQ J IF /I !MAINMENU! NEQ UPNP IF /I !MAINMENU! NEQ Q IF /I !MAINMENU! NEQ SCAN IF /I !MAINMENU! NEQ OVERRIDE IF /I !MAINMENU! NEQ MCREATOR GOTO :mainmenu
@@ -578,12 +585,12 @@ IF NOT DEFINED MODLOADER (
 IF /I !MAINMENU!==Q (
   EXIT [\B]
 )
-IF /I !MAINMENU!==J GOTO :gojava
+IF /I !MAINMENU!==J GOTO :getmcmajor
 IF /I !MAINMENU!==UPNP GOTO :upnpmenu
 IF /I !MAINMENU!==R GOTO :justsetram
 IF /I !MAINMENU!==S GOTO :startover
 IF /I !MAINMENU!==L IF EXIST settings-universalator.txt IF DEFINED MINECRAFT IF DEFINED MODLOADER IF DEFINED JAVAVERSION GOTO :actuallylaunch
-IF /I !MAINMENU!==SCAN IF EXIST "%HERE%\mods" GOTO :scanmods
+IF /I !MAINMENU!==SCAN IF EXIST "%HERE%\mods" GOTO :getmcmajor
 IF /I !MAINMENU!==SCAN IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
 IF /I !MAINMENU!==OVERRIDE GOTO :override
 IF /I !MAINMENU!==MCREATOR IF EXIST "%HERE%\mods" GOTO :mcreator
@@ -607,7 +614,7 @@ ECHO. && ECHO.
 SET /P MINECRAFT=
 
 :: IF running SCAN from main menu it gets placed here first to get values for MC major and minor versions.
-:scanmods
+:getmcmajor
 
 :: Stores the major and minor Minecraft version numbers in their own variables as integers.
 FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
@@ -617,6 +624,7 @@ FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
 
 :: IF running SCAN from main menu now goto actual scan section
 IF /I !MAINMENU!==SCAN GOTO :actuallyscanmods
+IF /I !MAINMENU!==J GOTO :gojava
 
 :reentermodloader
 :: User entry for Modloader version
@@ -648,36 +656,55 @@ IF /I !MODLOADER!==FORGE IF !MCMAJOR! LSS 10 IF !MINECRAFT! NEQ 1.6.4 IF !MINECR
   PAUSE
   GOTO :startover
 )
+IF /I !MODLOADER!==FORGE GOTO :usedefaulttryagain
 
 :: If Fabric modloader ask user to enter Fabric Installer and Fabric Loader
+:redofabricinstaller
 IF /I !MODLOADER!==FABRIC (
   CLS
   ECHO.
-  ECHO    %yellow% ENTER THE VERSION OF FABRIC --INSTALLER-- %blue%
+  ECHO    %yellow% FABRIC INSTALLER - FABRIC INSTALLER %blue%
   ECHO.
-  ECHO    THIS IS THE VERSION OF THE FILE WHICH INSTALLS FABRIC MODLOADER FILES
-  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS %green% 0.11.1 %blue%
+  ECHO    DO YOU WANT TO USE THE RECOMMENDED DEFAULT VERSION OF THE FABRIC %yellow% INSTALLER %blue% FILE?
+  ECHO    AS OF FEBRUARY 2023 THIS VERSION WAS %green% 0.11.1 %blue%
   ECHO.
-  ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER %green% 0.11.1 %blue%
+  ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER %green% 'Y' %blue%
   ECHO.
-  ECHO    %yellow% ENTER THE VERSION OF FABRIC --INSTALLER-- %blue%
+  ECHO    %yellow% FABRIC INSTALLER - FABRIC INSTALLER %blue%
   ECHO.
+  ECHO    ENTER %green% 'Y' %blue% OR %red% 'N' %blue% && ECHO.
+  SET /P "ASKFABRICINSTALLER="
+)
+IF /I !ASKFABRICINSTALLER! NEQ Y IF /I !ASKFABRICINSTALLER! NEQ N GOTO :redofabricinstaller
+IF /I !ASKFABRICINSTALLER!==Y SET FABRICINSTALLER=0.11.1
+IF /I !ASKFABRICINSTALLER!==N (
+  ECHO   %yellow% ENTER A CUSTOM SET FABRIC INSTALLER VERSION: %blue% && ECHO.
   SET /P FABRICINSTALLER=
+)
+:redofabricloader
+IF /I !MODLOADER!==FABRIC (
   CLS
   ECHO.
-  ECHO   %yellow% ENTER THE VERSION OF FABRIC --LOADER-- %blue%
+  ECHO   %yellow% FABRIC LOADER - FABRIC LOADER %blue%
   ECHO.
-  ECHO    THIS IS THE FABRIC MODLOADER VERSION
-  ECHO    AS OF JANUARY 2023 THE LATEST VERSION WAS %green% 0.14.13 %blue%
+  ECHO    DO YOU WANT TO USE THE RECOMMENDED DEFAULT VERSION OF THE FABRIC %yellow% LOADER %blue% FILE?
+  ECHO    AS OF FEBRUARY 2023 THE LATEST VERSION WAS %green% 0.14.14 %blue%
   ECHO.
-  ECHO    GENERALLY IT IS A GOOD IDEA TO USE THE SAME VERSION THAT THE CLIENT MODPACK IS KNOWN TO LOAD WITH
+  ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER %green% 'Y' %blue%
   ECHO.
-  ECHO   %yellow% ENTER THE VERSION OF FABRIC --LOADER-- %blue%
+  ECHO   %yellow% FABRIC LOADER - FABRIC LOADER %blue%
   ECHO.
-  SET /P FABRICLOADER=
-  ECHO.
-  ECHO.
+  ECHO    ENTER %green% 'Y' %blue% OR %red% 'N' %blue% && ECHO.
+  SET /P "ASKFABRICLOADER="
 )
+IF /I !ASKFABRICLOADER! NEQ Y IF /I !ASKFABRICLOADER! NEQ N GOTO :redofabricloader
+IF /I !ASKFABRICLOADER!==Y SET ASKFABRICLOADER=0.14.14
+IF /I !ASKFABRICLOADER!==N (
+  ECHO   %yellow% ENTER A CUSTOM SET FABRIC LOADER VERSION: %blue% && ECHO.
+  SET /P FABRICLOADER=
+)
+
+
 
 IF /I !MODLOADER!==FABRIC GOTO :gojava
 :usedefaulttryagain
@@ -690,13 +717,13 @@ IF !MINECRAFT!==1.6.4 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 9.11.1.1345 %blue%
+  ECHO    FORGE = %green% 9.11.1.1345 %blue% && ECHO.
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.6.4 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   ECHO.
   SET /P "USEDEFAULT="
@@ -713,13 +740,13 @@ IF !MINECRAFT!==1.7.10 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 10.13.4.1614 %blue%
+  ECHO    FORGE = %green% 10.13.4.1614 %blue% && ECHO.
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.7.10 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   ECHO.
   SET /P "USEDEFAULT="
@@ -736,13 +763,13 @@ IF !MINECRAFT!==1.8.9 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 11.15.1.2318 %blue%
+  ECHO    FORGE = %green% 11.15.1.2318 %blue% && ECHO.
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHo.
   ECHO   %yellow% YOU HAVE ENTERED 1.8.9 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -758,13 +785,13 @@ IF !MINECRAFT!==1.9.4 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 12.17.0.2317 %blue%
+  ECHO    FORGE = %green% 12.17.0.2317 %blue% && ECHO.
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHo.
   ECHO   %yellow% YOU HAVE ENTERED 1.9.4 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -780,13 +807,13 @@ IF !MINECRAFT!==1.10.2 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 12.18.3.2511 %blue%
+  ECHO    FORGE = %green% 12.18.3.2511 %blue% && ECHO.
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.10.2 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -802,13 +829,13 @@ IF !MINECRAFT!==1.12.2 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 14.23.5.2860 %blue%
+  ECHO    FORGE = %green% 14.23.5.2860 %blue% && ECHO.
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.12.2 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -824,13 +851,13 @@ IF !MINECRAFT!==1.14.4 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 28.2.26 %blue%
+  ECHO    FORGE = %green% 28.2.26 %blue% && ECHO.
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.14.4 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -846,13 +873,13 @@ IF !MINECRAFT!==1.15.2 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 31.2.57 %blue%
+  ECHO    FORGE = %green% 31.2.57 %blue% && ECHO.
   ECHO    JAVA = 8  **JAVA MUST BE 8**
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.15.2 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
   IF /I !USEDEFAULT!==Y (
@@ -872,8 +899,8 @@ IF !MINECRAFT!==1.16.5 (
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.16.5 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
   IF /I !USEDEFAULT!==Y (
@@ -888,13 +915,13 @@ IF !MINECRAFT!==1.17.1 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE?
   ECHO.
-  ECHO    FORGE = %green% 37.1.1 %blue%
+  ECHO    FORGE = %green% 37.1.1 %blue% && ECHO.
   ECHO    JAVA = 16  **JAVA MUST BE 16**
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.17.1 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -910,14 +937,13 @@ IF !MINECRAFT!==1.18.2 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 40.2.1 %blue%
-  ECHO    JAVA = %green% 17 %blue%  **JAVA CAN BE 17, 18, 19**
-  ECHO                 **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
+  ECHO    FORGE = %green% 40.2.1 %blue% && ECHO.
+  ECHO    JAVA =  %green% 17 %blue%
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.18.2 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -933,14 +959,13 @@ IF !MINECRAFT!==1.19.2 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 43.2.4 %blue%
-  ECHO    JAVA = %green% 17 %blue%  **JAVA CAN BE 17, 18, 19**
-  ECHO            **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
+  ECHO    FORGE = %green% 43.2.4 %blue% && ECHO.
+  ECHO    JAVA =  %green% 17 %blue%
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.19.2 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -956,14 +981,13 @@ IF !MINECRAFT!==1.19.3 (
   ECHO.
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO.
-  ECHO    FORGE = %green% 44.1.16 %blue%
-  ECHO    JAVA = %green% 17 %blue%  **JAVA CAN BE 17, 18, 19**
-  ECHO            **JAVA NEWER THAN 17 MAY NOT WORK DEPENDING ON MODS BEING LOADED*
+  ECHO    FORGE = %green% 44.1.16 %blue% && ECHO.
+  ECHO    JAVA =  %green% 17 %blue%
   ECHO.
   ECHO   %yellow% YOU HAVE ENTERED 1.19.3 WHICH IS A POPULAR VERSION %blue%
   ECHO. && ECHO.
-  ECHO    ENTER 'Y' TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER 'N' TO SELECT DIFFERENT VALUES
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
   ECHO.
   SET /P "USEDEFAULT="
 )
@@ -978,10 +1002,11 @@ IF /I !USEDEFAULT!==Y GOTO :justsetram
 :enterforge
   CLS
   ECHO. && ECHO. 
-  ECHO  %yellow% ENTER FORGE VERSION %blue%
-  ECHO      example: 14.23.5.2860
-  ECHO      example: 40.1.84
-  ECHO.
+  ECHO  %yellow% ENTER FORGE VERSION %blue% && ECHO.
+  ECHO      example: 14.23.5.2860 && ECHO.
+  ECHO      example: 36.2.39 && ECHO.
+  ECHO      example: 43.2.4
+  ECHO. && ECHO  %yellow% ENTER FORGE VERSION %blue% && ECHO.
   SET /P FORGE=
 
 
@@ -998,10 +1023,12 @@ IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! GEQ 17 (
   ECHO   -JAVA VERSION FOR 1.17/1.17.1 %green% MUST BE %blue% 16
   ECHO. && ECHO. && ECHO.
   ) ELSE (
-  ECHO   JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer: - %green% 17, 18, 19 %blue%
+  ECHO   JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer -- %green% 17 %blue% *Target version* / RECOMMENDED && ECHO.
+  ECHO                                                        -- %green% 18 %blue% && ECHO.
+  ECHO                                                        -- %green% 19 %blue%
   ECHO.
-  ECHO.  --JAVA 18/19 %green% MAY %blue% WORK OR %red% MAY NOT %blue% DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
-  ECHO.  --IF THE SERVER LAUNCH FAILS AND YOU HAVE ENTERED JAVA 18 OR 19 - TRY USING 17 INSTEAD
+  ECHO.  JAVA 18 OR 19 %green% MAY %blue% OR %red% MAY NOT %blue% WORK - DEPENDING ON MODS BEING LOADED OR CHANGES IN THE FABRIC LOADER
+  ECHO   IF YOU TRY JAVA NEWER THAN 17 AND CRASHES HAPPEN -- EDIT SETTINGS TO TRY 17
   )
   ECHO.
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
@@ -1028,7 +1055,7 @@ IF /I !MODLOADER!==FORGE IF !MINECRAFT!==1.16.5 (
   IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
 )
 
-IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 17 IF !MINECRAFT! NEQ 1.16.5 (
+IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 (
   CLS
   ECHO.
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
@@ -1045,6 +1072,7 @@ IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 17 IF !MINECRAFT! NEQ 1.16.5 (
 )
 
 :: IF Fabric ask for Java verison entry
+:fabricram
 IF !MODLOADER!==FABRIC (
   CLS
   ECHO.
@@ -1052,20 +1080,25 @@ IF !MODLOADER!==FABRIC (
   ECHO.
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
   ECHO.
-  ECHO   AVAILABLE VERSIONS - 8, 11, 17, 18, 19
   ECHO.
-  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 -- *MUST BE* 8
-  ECHO   -JAVA VERSION FOR 1.17/1.17.1 -- *MUST BE* 16
-  ECHO   -JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer -- 17 *Target version* / 18 / 19
+  IF !MCMAJOR! LEQ 16 ECHO  THE ONLY JAVA VERSION FOR MINECRAFT EQUAL TO AND OLDER THAN 1.16.5 -- *MUST BE* %green% 8 %blue%
+  IF !MCMAJOR!==17 ECHO   JAVA VERSION FOR 1.17/1.17.1 -- *MUST BE* %green% 16 %blue%
+  IF !MCMAJOR! GEQ 18 (
+  ECHO   JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer -- %green% 17 %blue% *Target version* / RECOMMENDED && ECHO.
+  ECHO                                                        -- %green% 18 %blue% && ECHO.
+  ECHO                                                        -- %green% 19 %blue%
   ECHO.
-  ECHO.  JAVA 18/19 MAY WORK OR MAY NOT DEPENDING ON MODS BEING LOADED OR CHANGES IN FORGE VERSIONS
+  ECHO.  JAVA 18 OR 19 %green% MAY %blue% OR %red% MAY NOT %blue% WORK - DEPENDING ON MODS BEING LOADED OR CHANGES IN THE FABRIC LOADER
   ECHO   IF YOU TRY JAVA NEWER THAN 17 AND CRASHES HAPPEN -- EDIT SETTINGS TO TRY 17
+  )
   ECHO.
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO.
   SET /P JAVAVERSION=
-  IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 IF !JAVAVERSION! NEQ 16 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :gojava
 )
+IF /I !MODLOADER!==FABRIC IF !MCMAJOR! LEQ 16 IF !JAVAVERSION! NEQ 8 GOTO :fabricram
+IF /I !MODLOADER!==FABRIC IF !MCMAJOR!==17 IF !JAVAVERSION! NEQ 16 GOTO :fabricram
+IF /I !MODLOADER!==FABRIC IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :fabricram
 
 IF /I !MAINMENU!==J GOTO :actuallylaunch
 
@@ -1442,6 +1475,7 @@ IF !MCMAJOR! GEQ 17 IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-
 
 IF EXIST "%HERE%\forge-installer.jar" GOTO :useforgeinstaller
 CLS
+ECHO  !MCMAJOR!
 ECHO forge-installer.jar not found. Maybe the Forge servers are having trouble.
 ECHO Please try again in a couple of minutes.
 ECHO.
@@ -1835,27 +1869,31 @@ IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO.
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==ON ECHO       %yellow% UPNP STATUS %blue% - %green% ENABLED %blue%
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==OFF ECHO       %yellow% UPNP STATUS %blue% ------------------ %red% NOT ACTIVE %blue%
 ECHO.
-ECHO       %yellow% PUBLIC IPv4 %blue% AND PORT ADDRESS - %green% %PUBLICIP%:%PORT% %blue%
-ECHO            --CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE THIS ADDRESS TO CONNECT
-IF NOT DEFINED UPNPSTATUS ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER OR HAVE UPNP FORWARDING ENABLED
+ECHO        PUBLIC IPv4 AND PORT ADDRESS - %green% %PUBLICIP%:%PORT% %blue%
+ECHO            --%green% CLIENTS OUTSIDE %blue% THE CURRENT ROUTER NETWORK USE THIS ADDRESS TO CONNECT
+IF NOT DEFINED UPNPSTATUS ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER %yellow% OR %blue% HAVE UPNP FORWARDING ENABLED
 IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==OFF ECHO            --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER %yellow% OR %blue% HAVE UPNP FORWARDING ENABLED
 IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==ON ECHO.
 ECHO.
-IF DEFINED LOCALIP ECHO       %yellow% INTERNAL IPv4 %blue% AND PORT ADDRESS - %green% !LOCALIP!:%PORT% %blue%
+IF DEFINED LOCALIP ECHO        INTERNAL IPv4 AND PORT ADDRESS - %green% !LOCALIP!:%PORT% %blue%
 IF NOT DEFINED LOCALIP (
-ECHO       %yellow% INTERNAL IPv4 %blue% AND PORT ADDRESS 
+ECHO        LOCAL IPv4 AND PORT ADDRESS 
 ECHO            --ENTER 'ipconfig' FROM A COMMAND PROMPT TO FIND
 )
-ECHO            --CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE THIS ADDRESS TO CONNECT
+ECHO            --%green% CLIENTS INSIDE %blue% THE CURRENT ROUTER NETWORK USE THIS ADDRESS TO CONNECT
 ECHO.
-ECHO       %yellow% SAME COMPUTER %blue%
-ECHO            --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER INSTEAD OF ENTERING AN IP ADDRESS
+ECHO        SAME COMPUTER
+ECHO            --THE WORD '%green%localhost%blue%' WORKS FOR CLIENTS ON SAME COMPUTER INSTEAD OF ENTERING AN IP ADDRESS && ECHO.
 ECHO ============================================
-ECHO.
 ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
-ECHO    PRESS ANY KEY TO START SERVER LAUNCH
 ECHO.
-PAUSE
+ECHO            %yellow% ENTER 'M' FOR MAIN MENU %blue%
+ECHO            %yellow% ENTER ANY OTHER KEY TO START SERVER LAUNCH %blue%
+ECHO.
+SET /P "FORGELAUNCH="
+IF /I !FORGELAUNCH!==M GOTO :mainmenu
+
+
 ECHO. && ECHO   Launching... && ping -n 2 127.0.0.1 > nul && ECHO   Launching.. && ping -n 2 127.0.0.1 > nul && ECHO   Launching. && ECHO.
 :: Starts forge depending on what java version is set.  Only correct combinations will launch - others will crash.
 
@@ -2304,8 +2342,8 @@ ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO.
 ECHO   %yellow% READY TO LAUNCH FABRIC SERVER! %blue%
 ECHO.
-ECHO        CURRENT SERVER SETTINGS:
-ECHO        MINECRAFT - !MINECRAFT!
+ECHO      CURRENT SERVER SETTINGS:
+ECHO        MINECRAFT ----- !MINECRAFT!
 ECHO        FABRIC LOADER - !FABRICLOADER!
 IF !OVERRIDE!==N ECHO        JAVA - !JAVAVERSION!
 IF !OVERRIDE!==Y ECHO        JAVA - CUSTOM OVERRIDE
@@ -2314,22 +2352,29 @@ ECHO.
 ECHO ============================================
 ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO.
-ECHO   %yellow% PUBLIC IPv4 AND PORT ADDRESS %blue% - %green% %PUBLICIP%:%PORT% %blue%
+ECHO    PUBLIC IPv4 AND PORT ADDRESS  - %green% %PUBLICIP%:%PORT% %blue%
 ECHO        --THIS IS WHAT CLIENTS OUTSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
+IF NOT DEFINED UPNPSTATUS ECHO        --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER OR HAVE UPNP FORWARDING ENABLED
+IF DEFINED UPNPSTATUS IF /I !UPNPSTATUS!==OFF ECHO        --PORT FORWARDING MUST BE SET UP IN YOUR NETWORK ROUTER %yellow% OR %blue% HAVE UPNP FORWARDING ENABLED
 ECHO.
-IF DEFINED LOCALIP ECHO   %yellow% INTERNAL IPv4 ADDRESS %blue% - %green% !LOCALIP!:%PORT% %blue%
+IF DEFINED LOCALIP ECHO    INTERNAL IPv4 ADDRESS  - %green% !LOCALIP!:%PORT% %blue%
 IF NOT DEFINED LOCALIP (
-ECHO   %yellow% INTERNAL IPv4 ADDRESS %blue% - ENTER 'ipconfig' FROM A COMMAND PROMPT
+ECHO    INTERNAL IPv4 ADDRESS  - ENTER 'ipconfig' FROM A COMMAND PROMPT
 )
 ECHO        --THIS IS WHAT CLIENTS INSIDE THE CURRENT ROUTER NETWORK USE TO CONNECT
 ECHO.
-ECHO        --THE WORD 'localhost' WORKS FOR CLIENTS ON SAME COMPUTER
+ECHO    THE WORD '%green%localhost%blue%' INSTEAD OF AN IP ADDRESS WORKS FOR CLIENTS ON SAME COMPUTER
 ECHO.
 ECHO ============================================
+ECHO   %yellow% READY TO LAUNCH FABRIC SERVER! %blue%
 ECHO.
-ECHO   %yellow% PRESS ANY KEY TO START SERVER LAUNCH %blue%
+ECHO            ENTER %green% 'M' %blue% FOR MAIN MENU
+ECHO            ENTER %green% ANY OTHER %blue% KEY TO START SERVER LAUNCH 
 ECHO.
-PAUSE
+SET /P "FABRICLAUNCH="
+IF /I !FABRICLAUNCH!==M GOTO :mainmenu
+
+
 ECHO. && ECHO   Launching... && ping -n 2 127.0.0.1 > nul && ECHO   Launching.. && ping -n 2 127.0.0.1 > nul && ECHO   Launching. && ECHO.
 
 IF !OVERRIDE!==Y SET "JAVAFILE=java"
@@ -2409,8 +2454,8 @@ ECHO. && ECHO   ENTER YOUR SELECTION && ECHO      %green% 'DOWNLOAD' - Download 
 )
 
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
-ECHO. && ECHO   %yellow% MiniUPnP PROGRAM %blue% - %green% INSTALLED / DOWNLOADED %blue%
-IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue% -      %red% NOT ACTIVATED %blue% && ECHO.
+ECHO. && ECHO   %yellow% MiniUPnP PROGRAM %blue% - %green% DOWNLOADED %blue%
+IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue% -      %red% NOT ACTIVATED: %blue% && ECHO                        %red% 'A' - ACTIVATE %yellow% OR %red% SET UP AND USE MANUAL NETWORK ROUTER PORT FORWARDING %blue% && ECHO.
 IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue% - %green% ACTIVE - FORWARDING PORT %PORT% %blue% && ECHO.
 IF !SHOWIP!==Y ECHO                                                               %yellow% Local IP:port  %blue% - !LOCALIP!:%PORT%
 IF !SHOWIP!==Y ECHO                                                               %yellow% Public IP:port %blue% - !PUBLICIP!:%PORT%
@@ -2514,7 +2559,7 @@ SET ACTIVATING=Y
 :activatecycle
 :: Tries several different command methods to activate the port forward using miniUPnP.  Each attempt then goes to get checked for success in the upnpstatus section.
 IF !CYCLE!==1 (
-  univ-utils\miniupnp\upnpc-static.exe -a !LOCALIP! %PORT% %PORT% TCP
+  univ-utils\miniupnp\upnpc-static.exe -a !LOCALIP! %PORT% %PORT% TCP 0
   SET /a CYCLE+=1
   GOTO :activatestatus
 )
