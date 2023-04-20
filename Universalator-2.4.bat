@@ -995,8 +995,9 @@ IF /I !USEDEFAULT!==Y (
   SET JAVAVERSION=17
   GOTO :goramentry
 )
-IF /I !USEDEFAULT! NEQ Y IF /I !USEDEFAULT! NEQ N GOTO :usedefaulttryagain
-IF /I !USEDEFAULT!==Y GOTO :justsetram
+IF /I !USEDEFAULT!==BLANK GOTO :enterforge
+IF /I !USEDEFAULT! NEQ Y IF /I !USEDEFAULT! NEQ N IF /I !USEDEFAULT! NEQ  BLANK GOTO :usedefaulttryagain
+
 
 :enterforge
   CLS
@@ -1739,7 +1740,7 @@ FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
   ECHO !SERVERMODS[%%b].id!;!SERVERMODS[%%b].file! >>univ-utils\allmodidsandfiles.txt
 )
 :: FINDSTR compares each line of the client only mods list to the list containing all found modIds and returns only lines with matches.
-FINDSTR /b /g:univ-utils\clientonlymods.txt univ-utils\allmodidsandfiles.txt>univ-utils\foundclients.txt
+FINDSTR /g:univ-utils\clientonlymods.txt univ-utils\allmodidsandfiles.txt>univ-utils\foundclients.txt
 
 
 :: If foundclients.txt isn't found then assume none were found and GOTO section stating none found.
@@ -1891,6 +1892,7 @@ ECHO: && ECHO   Launching... && ping -n 2 127.0.0.1 > nul && ECHO   Launching.. 
 IF !OVERRIDE!==Y SET "JAVAFILE=java"
 TITLE Universalator - !MINECRAFT! Forge
 ver >nul
+
 :: Special case forge.jar filenames for older OLD versions
 IF !MINECRAFT!==1.6.4 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar minecraftforge-universal-1.6.4-!FORGE!.jar nogui
@@ -1920,7 +1922,7 @@ IF !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINEC
 :: General case for NEW (1.17 and newer) Minecraft versions.  This remains unchanged at least until 1.19.3.
 IF !MCMAJOR! GEQ 17 (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/win_args.txt nogui %*
-) 
+)
 
 :: Complaints to report in console output if launch attempt crashes
 
