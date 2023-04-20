@@ -1740,7 +1740,7 @@ FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
   ECHO !SERVERMODS[%%b].id!;!SERVERMODS[%%b].file! >>univ-utils\allmodidsandfiles.txt
 )
 :: FINDSTR compares each line of the client only mods list to the list containing all found modIds and returns only lines with matches.
-FINDSTR /g:univ-utils\clientonlymods.txt univ-utils\allmodidsandfiles.txt>univ-utils\foundclients.txt
+FINDSTR /b /g:univ-utils\clientonlymods.txt univ-utils\allmodidsandfiles.txt>univ-utils\foundclients.txt
 
 
 :: If foundclients.txt isn't found then assume none were found and GOTO section stating none found.
