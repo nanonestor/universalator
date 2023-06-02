@@ -936,7 +936,7 @@ IF !MINECRAFT!==1.18.2 (
   ECHO:
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO:
-  ECHO    FORGE = %green% 40.2.1 %blue% && ECHO:
+  ECHO    FORGE = %green% 40.2.9 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
   ECHO:
   ECHO   %yellow% YOU HAVE ENTERED 1.18.2 WHICH IS A POPULAR VERSION %blue%
@@ -947,7 +947,7 @@ IF !MINECRAFT!==1.18.2 (
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=40.2.1
+  SET FORGE=40.2.9
   SET JAVAVERSION=17
   GOTO :goramentry
 )
@@ -958,7 +958,7 @@ IF !MINECRAFT!==1.19.2 (
   ECHO:
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO:
-  ECHO    FORGE = %green% 43.2.6 %blue% && ECHO:
+  ECHO    FORGE = %green% 43.2.13 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
   ECHO:
   ECHO   %yellow% YOU HAVE ENTERED 1.19.2 WHICH IS A POPULAR VERSION %blue%
@@ -969,7 +969,7 @@ IF !MINECRAFT!==1.19.2 (
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=43.2.6
+  SET FORGE=43.2.13
   SET JAVAVERSION=17
   GOTO :goramentry
 )
@@ -980,7 +980,7 @@ IF !MINECRAFT!==1.19.3 (
   ECHO:
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO:
-  ECHO    FORGE = %green% 44.1.21 %blue% && ECHO:
+  ECHO    FORGE = %green% 44.1.23 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
   ECHO:
   ECHO   %yellow% YOU HAVE ENTERED 1.19.3 WHICH IS A POPULAR VERSION %blue%
@@ -991,7 +991,7 @@ IF !MINECRAFT!==1.19.3 (
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=44.1.21
+  SET FORGE=44.1.23
   SET JAVAVERSION=17
   GOTO :goramentry
 )
