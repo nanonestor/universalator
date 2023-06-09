@@ -80,6 +80,7 @@ PUSHD "%~dp0" >nul 2>&1
 :: Sets the title and backgound color of the command window
 TITLE Universalator
 color 1E
+prompt [universalator]:
 :: Additional JVM arguments that will always be applied
 SET OTHERARGS=-Dlog4j2.formatMsgNoLookups=true
 :: These variables set to exist as blank in case windows is older than 10 and they aren't assigned otherwise
@@ -280,28 +281,52 @@ IF !FOLDER!==BAD (
 :: The following line is purely done to guarantee the current ERRORLEVEL is reset
 ver >nul
 
+:: Checks to see if 7-Zip is installed to the OS in the default location
+IF NOT EXIST "C:\Program Files\7-Zip\7z.exe" (
+  SET "ZIP7=7z.exe"
+  SET OS7ZIP=Y
+  GOTO :has7zip
+) ELSE SET OS7ZIP=N
+
 :: Checks if standalone command line version of 7-zip is present.  If not downloads it.
 IF NOT EXIST "%HERE%\univ-utils\7-zip" (
   MD univ-utils\7-zip
 )
-SET ZIP7="%HERE%\univ-utils\7-zip\7za.exe"
-:try7zipagain
+SET "ZIP7=%HERE%\univ-utils\7-zip\7za.exe"
+:tryget7zipagain
+IF NOT EXIST %ZIP7% (
+  curl -sLfo univ-utils\7-zip\7za.exe https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe >nul 2>&1
+  curl -sLfo univ-utils\7-zip\license.txt https://raw.githubusercontent.com/nanonestor/utilities/main/7zipfiles/license.txt >nul 2>&1
+  IF EXIST univ-utils\7-Zip\7za.exe GOTO :has7zip
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe', 'univ-utils\7-zip\7za.exe')" >nul 2>&1
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/utilities/main/7zipfiles/license.txt', 'univ-utils\7-zip\license.txt')" >nul 2>&1
+)
 IF NOT EXIST %ZIP7% (
   CLS
-  ECHO Downloading and installing 7-Zip...
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe', 'univ-utils\7-zip\7za.exe')" >nul
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/utilities/main/7zipfiles/license.txt', 'univ-utils\7-zip\license.txt')" >nul
-)
-IF NOT EXIST %ZIP7% (
+  ECHO: && ECHO: && ECHO: && ECHO:
+  ECHO    %yellow% DOWNLOADING THE 7-ZIP COMMAND LINE PROGRAM FILE HAS FAILED %blue%
+  ECHO    %yellow% THIS FILE IS REQUIRED FOR THE UNIVERSALATOR SCRIPT FUNCTION %blue%
   ECHO:
-  ECHO   DOWNLOADING THE 7-ZIP COMMAND LINE PROGRAM FILE HAS FAILED
-  ECHO   THIS FILE IS REQUIRED FOR THE UNIVERSALATOR SCRIPT FUNCTION
+  ECHO         PRESS ANY KEY TO RETRY DOWNLOAD OF STANDALONE PROGRAM FILE
   ECHO:
-  ECHO   PRESS ANY KEY TO RETRY DOWNLOAD
+  ECHO               %green% --- OR --- %blue%
+  ECHO               %green% --- OR --- %blue%
+  ECHO               %green% --- OR --- %blue%
+
+  ECHO: && ECHO:
+  ECHO         GO TO THE 7-ZIP WEBSITE AND INSTALL THE 64-bit VERSION FOR WINDOWS TO THE && ECHO:
+  ECHO         DEFAULT INSTALLATION FOLDER LOCATION C:\Program Files\7-Zip\
+  ECHO:
+  ECHO            %green% https://7-zip.org/ %blue% && ECHO: && ECHO: && ECHO: && ECHO:
   PAUSE
   ECHO     Attempting to download again...
-  GOTO :try7zipagain
+  GOTO :tryget7zipagain
 )
+
+:has7zip
+CLS
+ECHO: && ECHO: && ECHO   Loading ... ... ...
+
 IF EXIST settings-universalator.txt (
   RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
 )
@@ -494,7 +519,11 @@ ver > nul
 :: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
 
 :: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-FOR /F %%B IN ('powershell -Command "Invoke-RestMethod api.ipify.org"') DO SET PUBLICIP=%%B
+FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
+
+REM Another different method to return the public IP from the same website
+REM FOR /F %%B IN ('curl -w "\n" -s https://api.ipify.org') DO SET PUBLICIP=%%B
+
 FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
 IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
 IF NOT DEFINED PORT SET PORT=25565
@@ -958,7 +987,7 @@ IF !MINECRAFT!==1.19.2 (
   ECHO:
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO:
-  ECHO    FORGE = %green% 43.2.13 %blue% && ECHO:
+  ECHO    FORGE = %green% 43.2.14 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
   ECHO:
   ECHO   %yellow% YOU HAVE ENTERED 1.19.2 WHICH IS A POPULAR VERSION %blue%
@@ -969,21 +998,21 @@ IF !MINECRAFT!==1.19.2 (
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=43.2.13
+  SET FORGE=43.2.14
   SET JAVAVERSION=17
   GOTO :goramentry
 )
 IF !MINECRAFT!==1.19.3 (
   CLS
   ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.19.3 WHICH IS A POPULAR VERSION %blue%
+  ECHO   %yellow% YOU HAVE ENTERED 1.19.4 WHICH IS A POPULAR VERSION %blue%
   ECHO:
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO:
-  ECHO    FORGE = %green% 44.1.23 %blue% && ECHO:
+  ECHO    FORGE = %green% 45.1.0 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
   ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.19.3 WHICH IS A POPULAR VERSION %blue%
+  ECHO   %yellow% YOU HAVE ENTERED 1.19.4 WHICH IS A POPULAR VERSION %blue%
   ECHO: && ECHO:
   ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
   ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
@@ -991,7 +1020,7 @@ IF !MINECRAFT!==1.19.3 (
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=44.1.23
+  SET FORGE=45.1.0
   SET JAVAVERSION=17
   GOTO :goramentry
 )
@@ -1210,16 +1239,16 @@ IF /I !MAINMENU!==S IF /I !ASKMODSCHECK!==Y (
 
 ::Stores values in variables depending on Java version entered
 IF !JAVAVERSION!==8 (
-    SET JAVAFILENAME="jdk8u362-b09/OpenJDK8U-jre_x64_windows_hotspot_8u362b09.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk8u362-b09-jre\."
-    SET checksumeight=3569dcac27e080e93722ace6ed7a1e2f16d44a61c61bae652c4050af58d12d8b
-    SET JAVAFILE="univ-utils\java\jdk8u362-b09-jre\bin\java.exe"
+    SET JAVAFILENAME="jdk8u372-b07/OpenJDK8U-jre_x64_windows_hotspot_8u372b07.zip"
+    SET JAVAFOLDER="univ-utils\java\jdk8u372-b07-jre\."
+    SET checksumeight=106a38b8d1c33cef43832e58b9678de41d8cccbefc40b8926846de4f3c357290
+    SET JAVAFILE="univ-utils\java\jdk8u372-b07-jre\bin\java.exe"
 )
 IF !JAVAVERSION!==11 (
-    SET JAVAFILENAME="jdk-11.0.18%%2B10/OpenJDK11U-jre_x64_windows_hotspot_11.0.18_10.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-11.0.18+10-jre\."
-    SET checksumeight=dea0fe7fd5fc52cf5e1d3db08846b6a26238cfcc36d5527d1da6e3cb059071b3
-    SET JAVAFILE="univ-utils\java\jdk-11.0.18+10-jre\bin\java.exe"
+    SET JAVAFILENAME="jdk-11.0.19%%2B7/OpenJDK11U-jre_x64_windows_hotspot_11.0.19_7.zip"
+    SET JAVAFOLDER="univ-utils\java\jdk-11.0.19+7-jre\."
+    SET checksumeight=285fc36b709d24b5976ee89fdc4ffbeb9e258bc905e7737a42efccfd2d725b59
+    SET JAVAFILE="univ-utils\java\jdk-11.0.19+7-jre\bin\java.exe"
 )
 IF !JAVAVERSION!==16 (
     SET JAVAFILENAME="jdk-16.0.2%%2B7/OpenJDK16U-jdk_x64_windows_hotspot_16.0.2_7.zip"
@@ -1228,10 +1257,10 @@ IF !JAVAVERSION!==16 (
     SET JAVAFILE="univ-utils\java\jdk-16.0.2+7\bin\java.exe"
 )
 IF !JAVAVERSION!==17 (
-    SET JAVAFILENAME="jdk-17.0.6%%2B10/OpenJDK17U-jre_x64_windows_hotspot_17.0.6_10.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-17.0.6+10-jre\."
-    SET checksumeight=85ce690a348977e3739fde3fd729b36c61e86c33da6628bc7ceeba9974a3480b
-    SET JAVAFILE="univ-utils\java\jdk-17.0.6+10-jre\bin\java.exe"
+    SET JAVAFILENAME="jdk-17.0.7%%2B7/OpenJDK17U-jre_x64_windows_hotspot_17.0.7_7.zip"
+    SET JAVAFOLDER="univ-utils\java\jdk-17.0.7+7-jre\."
+    SET checksumeight=62e82c1afa7509424813e9cb22d8becfec4346d7505e6d2fc8770af4dcd5b9a0
+    SET JAVAFILE="univ-utils\java\jdk-17.0.7+7-jre\bin\java.exe"
 )
 IF !JAVAVERSION!==18 (
     SET JAVAFILENAME="jdk-18.0.2.1%%2B1/OpenJDK18U-jre_x64_windows_hotspot_18.0.2.1_1.zip"
@@ -1305,7 +1334,7 @@ set filechecksum=%out1%
 :: Checks to see if the calculated checksum hash is the same as stored value above - unzips file if valid
 IF EXIST java.zip (
     IF /i %checksumeight%==%filechecksum% (
-    "%HERE%\univ-utils\7-zip\7za.exe" x java.zip -ouniv-utils\java
+    %ZIP7% x java.zip -ouniv-utils\java
     ) && DEL java.zip && ECHO Downloaded Java binary and stored hashfile match values - file is valid
 )
 IF EXIST java.zip IF %checksumeight% NEQ %filechecksum% (
@@ -1655,6 +1684,10 @@ IF !MCMAJOR! LEQ 12 GOTO :scanmcmodinfo
 :: the script scans to find the modID line.  A fancy function replaces the = sign with _ for easier string comparison to determine if the modID= line was found.
 :: This should ensure that no false positives are recorded.
 
+:: If OS has 7-zip installed then set working directory to it's directory.  This is necessary because of esoteric problems running commands that aren't batch native 
+:: with spaces in the command/folder location path through the FOR loop later.
+IF %OS7ZIP%==Y PUSHD "C:\Program Files\7-zip"
+
 FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    SET COUNT=%%T
    SET /a COUNT+=1
@@ -1662,7 +1695,9 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    SET /a MODIDLINE=0
    SET MODID[0]=x
    SET FOUNDMODPLACE=N
-   FOR /F "delims=" %%X IN ('univ-utils\7-zip\7za.exe e -so "mods\!SERVERMODS[%%T].file!" "META-INF\mods.toml"') DO (
+  
+   FOR /F "delims=" %%X IN ('%ZIP7% e -so "%HERE%\mods\!SERVERMODS[%%T].file!" META-INF\mods.toml') DO (
+    
       SET "TEMP=%%X"
       IF !FOUNDMODPLACE!==Y (
          SET "TEMP=!TEMP: =!"
@@ -1682,6 +1717,7 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    )
    SET SERVERMODS[%%T].id=!MODID[0]!
 )
+POPD
 :: Below skips to finishedscan label skipping the next section which is file scanning for old MC versions (1.12.2 and older).
 IF !MCMAJOR! GEQ 13 GOTO :finishedscan
 
@@ -1706,11 +1742,12 @@ GOTO :l_replaceloop
 :: the script scans to find the modID line.  A fancy function replaces the = sign with _ for easier string comparison to determine if the modID= line was found.
 :: This should ensure that no false positives are recorded.
 SET "TABCHAR=	"
+IF %OS7ZIP%==Y PUSHD "C:\Program Files\7-zip"
 FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
   SET COUNT=%%t
   SET /a COUNT+=1
   ECHO SCANNING !COUNT!/!ACTUALMODSCOUNT! - !SERVERMODS[%%t].file!
-  FOR /F "delims=" %%X IN ('univ-utils\7-zip\7za.exe e -so "%HERE%\mods\!SERVERMODS[%%t].file!" "mcmod.info"') DO (
+  FOR /F "delims=" %%X IN ('%ZIP7% e -so "%HERE%\mods\!SERVERMODS[%%t].file!" "mcmod.info"') DO (
     :: Sets ID to undefined if it was previously defined
     SET "ID="
     :: Sets a temp variable equal to the current line for processing, and replaces " with ; for easier loop delimiting later.
@@ -1723,17 +1760,17 @@ FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
       SET "TEMP=!TEMP::=!"
       FOR /F "tokens=2 delims=;" %%Y IN ("!TEMP!") DO (
         SET SERVERMODS[%%t].id=%%Y
-        REM ECHO %%Y
       )
     )
   )
   :: If ID was found record it to the array entry of the current mod number, otherwise set the ID of that mod equal to a dummy string x.
   IF NOT DEFINED SERVERMODS[%%t].id SET SERVERMODS[%%t].id=x
 )
+POPD
 :: END SCANNING OLD STYLE MCMOD.INFO
 :finishedscan
 
-IF EXIST allmodidsandfiles.txt DEL allmodidsandfiles.txt >nul 2>&1
+IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
 
 :: Enters all modIds and corresponding file names to a single txt file for FINDSTR comparison with client mod list.
 FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
@@ -1741,7 +1778,6 @@ FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
 )
 :: FINDSTR compares each line of the client only mods list to the list containing all found modIds and returns only lines with matches.
 FINDSTR /b /g:univ-utils\clientonlymods.txt univ-utils\allmodidsandfiles.txt>univ-utils\foundclients.txt
-
 
 :: If foundclients.txt isn't found then assume none were found and GOTO section stating none found.
 IF NOT EXIST univ-utils\foundclients.txt (
@@ -2077,6 +2113,8 @@ SET "TABCHAR=	"
 :: This variable is for a trigger to determine at the end if any client mods at all were found.
 SET FOUNDFABRICCLIENTS=N
 
+IF %OS7ZIP%==Y PUSHD "C:\Program Files\7-zip"
+
 :: Loops through each number up to the total mods count to enter that filename into the next loop.
 FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
   SET /a JSONLINE=0
@@ -2088,7 +2126,7 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
 
   REM Uses STDOUT from 7zip to loop through each line in the fabric.mod.json file of each mod file.
 
-  FOR /F "delims=" %%I IN ('univ-utils\7-zip\7za.exe e -so "%HERE%\mods\!SERVERMODS[%%f].file!" "fabric.mod.json"') DO (
+  FOR /F "delims=" %%I IN ('%ZIP7% e -so "%HERE%\mods\!SERVERMODS[%%f].file!" "fabric.mod.json"') DO (
     
     REM Sets a temp variable equal to the current line for processing, and replaces " with ; for easier loop delimiting later.
     SET "TEMP=%%I"
@@ -2102,19 +2140,33 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
       FOR /F "tokens=2 delims=;" %%Q IN ("!TEMP!") DO (
         SET SERVERMODS[%%f].id=%%Q
       )
+
       REM Delims detection for cases when JSON files are formatted to all be on one line instead of multiple lines.  hopefully the rest of the format is regular - otherwise incorrect entry will be recorded for the id.
       REM This could be made fancier by adding more tokens and comparing them to see which one equals id and then recording the next token as the id entry.
       IF !JSONLINE!==0 FOR /F "tokens=5 delims=;" %%Q IN ("!TEMP!") DO (
+        REM Assumes that JSON is formatted normally so that the 5th token is the mod ID and records it.
         SET SERVERMODS[%%f].id=%%Q
+        REM Outputs the fabric.mod.json file to an actual unzipped file so that powershell can read it.
+        %ZIP7% e -aoa "%HERE%\mods\!SERVERMODS[%%f].file!" "fabric.mod.json" -o%HERE%\univ-utils >nul 2>&1
+        REM Uses powershell to output the dependency values in fabric.mod.json
+        powershell -Command "$json=Get-Content -Raw -Path '%HERE%\univ-utils\fabric.mod.json' | Out-String | ConvertFrom-Json; $json.depends.psobject.properties.name | Out-File -FilePath %HERE%\univ-utils\single-line-mod-deps.txt"
+        REM Scans the dependency values just dumped and prints them to the master file to compile them - filters out commonly added values to ignore.
+        FOR /F "delims=" %%D IN (%HERE%\univ-utils\single-line-mod-deps.txt) DO (
+          IF %%D NEQ fabricloader IF %%D NEQ minecraft IF %%D NEQ fabric IF %%D NEQ java IF %%D NEQ cloth-config IF %%D NEQ cloth-config2 IF %%D NEQ fabric-language-kotlin IF %%D NEQ iceberg IF %%D NEQ fabric-resource-loader-v0 IF %%D NEQ creativecore IF %%D NEQ architectury ECHO %%D>>%HERE%univ-utils\allfabricdeps.txt
+        )
       )
+
+      
     )
     REM Detects with the string replacement method if the enviroment value is present, and then if found whether the client entry is present.  Otherwise if environment is found but client not - mark mod as not client.
     IF "!TEMP!" NEQ "!TEMP:;environment;=x!" (
-      IF "!TEMP!" NEQ "!TEMP:;client;=x!" (
+      SET "TEMP=!TEMP: =!"
+      SET "TEMP=!TEMP::=!"
+      IF "!TEMP!" NEQ "!TEMP:;environment;;client;,=x!" (
         SET SERVERMODS[%%f].environ=C
         SET FOUNDFABRICCLIENTS=Y
       ) ELSE ( 
-        SET SERVERMODS[%%f].environ=N
+        IF NOT DEFINED SERVERMODS[%%f].environ SET SERVERMODS[%%f].environ=N
       )
     )
     REM If the depends value was found in a previous loop but the }, string is found - set the FOUDNDEPENDS variable back equal to N to stop recording entries.
@@ -2125,7 +2177,7 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
       SET "TEMP=!TEMP: =!"
       SET "TEMP=!TEMP::=!"
       IF !FOUNDDEPENDS!==Y FOR /F "delims=;" %%g IN ("!TEMP!") DO (
-        IF %%g NEQ fabricloader IF %%g NEQ minecraft IF %%g NEQ fabric IF %%g NEQ java IF %%g NEQ cloth-config IF %%g NEQ cloth-config2 IF %%g NEQ fabric-language-kotlin IF %%g NEQ iceberg IF %%g NEQ fabric-resource-loader-v0 IF %%g NEQ creativecore IF %%g NEQ architectury ECHO %%g>>univ-utils\allfabricdeps.txt
+        IF %%g NEQ fabricloader IF %%g NEQ minecraft IF %%g NEQ fabric IF %%g NEQ java IF %%g NEQ cloth-config IF %%g NEQ cloth-config2 IF %%g NEQ fabric-language-kotlin IF %%g NEQ iceberg IF %%g NEQ fabric-resource-loader-v0 IF %%g NEQ creativecore IF %%g NEQ architectury ECHO %%g>>%HERE%\univ-utils\allfabricdeps.txt
         REM Below is a different way to do the above line - however it's slower.  If FINDSTR does not find one of the string values then it echos the entry to the txt file.
         REM ECHO %%g | FINDSTR "fabricloader minecraft fabric java cloth-config cloth-config2 fabric-language-kotlin iceberg fabric-resource-loader-v0 creativecore architectury" >nul 2>&1 || ECHO %%g>>univ-utils\allfabricdeps.txt
       )
@@ -2136,6 +2188,7 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
     SET /a JSONLINE+=1
   ) 
 )
+POPD
 REM Goes to the no clients found message.  If any environment client mods were found this trigger variable will be Y instead.
 IF !FOUNDFABRICCLIENTS!==N GOTO :noclientsfabric
 
@@ -2151,6 +2204,9 @@ FOR /L %%r IN (0,1,!SERVERMODSCOUNT!) DO (
     )
   )
 )
+
+IF EXIST univ-utils\fabric.mod.json DEL univ-utils\fabric.mod.json >nul
+IF EXIST univ-utils\single-line-mod-deps.txt DEL univ-utils\single-line-mod-deps.txt >nul
 IF EXIST univ-utils\allfabricdeps.txt DEL univ-utils\allfabricdeps.txt >nul
 
 
@@ -2572,7 +2628,7 @@ IF /I !ASKUPNPDOWNLOAD!==Y IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/miniupnp/miniupnp/master/LICENSE', 'univ-utils\miniupnp\LICENSE.txt')"
   IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" (
     ECHO   %green% SUCCESSFULLY DOWNLOADED MINIUPNP BINARAIES ZIP FILE %blue%
-    "%HERE%\univ-utils\7-zip\7za.exe" e -aoa "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" "upnpc-static.exe" -ouniv-utils\miniupnp >nul
+    %ZIP7% e -aoa "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" "upnpc-static.exe" -ouniv-utils\miniupnp >nul
     DEL "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" >nul 2>&1
   ) ELSE (
       ECHO: && ECHO  %red% DOWNLOAD OF MINIUPNP FILES ZIP FAILED %blue%
