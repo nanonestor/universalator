@@ -281,52 +281,6 @@ IF !FOLDER!==BAD (
 :: The following line is purely done to guarantee the current ERRORLEVEL is reset
 ver >nul
 
-:: Checks to see if 7-Zip is installed to the OS in the default location
-IF EXIST "C:\Program Files\7-Zip\7z.exe" (
-  SET "ZIP7=7z.exe"
-  SET OS7ZIP=Y
-  GOTO :has7zip
-) ELSE SET OS7ZIP=N
-
-:: Checks if standalone command line version of 7-zip is present.  If not downloads it.
-IF NOT EXIST "%HERE%\univ-utils\7-zip" (
-  MD univ-utils\7-zip
-)
-SET "ZIP7=%HERE%\univ-utils\7-zip\7za.exe"
-:tryget7zipagain
-IF NOT EXIST %ZIP7% (
-  curl -sLfo univ-utils\7-zip\7za.exe https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe >nul 2>&1
-  curl -sLfo univ-utils\7-zip\license.txt https://raw.githubusercontent.com/nanonestor/utilities/main/7zipfiles/license.txt >nul 2>&1
-  IF EXIST univ-utils\7-Zip\7za.exe GOTO :has7zip
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/nanonestor/utilities/raw/main/7zipfiles/7za.exe', 'univ-utils\7-zip\7za.exe')" >nul 2>&1
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/utilities/main/7zipfiles/license.txt', 'univ-utils\7-zip\license.txt')" >nul 2>&1
-)
-IF NOT EXIST %ZIP7% (
-  CLS
-  ECHO: && ECHO: && ECHO: && ECHO:
-  ECHO    %yellow% DOWNLOADING THE 7-ZIP COMMAND LINE PROGRAM FILE HAS FAILED %blue%
-  ECHO    %yellow% THIS FILE IS REQUIRED FOR THE UNIVERSALATOR SCRIPT FUNCTION %blue%
-  ECHO:
-  ECHO         PRESS ANY KEY TO RETRY DOWNLOAD OF STANDALONE PROGRAM FILE
-  ECHO:
-  ECHO               %green% --- OR --- %blue%
-  ECHO               %green% --- OR --- %blue%
-  ECHO               %green% --- OR --- %blue%
-
-  ECHO: && ECHO:
-  ECHO         GO TO THE 7-ZIP WEBSITE AND INSTALL THE 64-bit VERSION FOR WINDOWS TO THE && ECHO:
-  ECHO         DEFAULT INSTALLATION FOLDER LOCATION C:\Program Files\7-Zip\
-  ECHO:
-  ECHO            %green% https://7-zip.org/ %blue% && ECHO: && ECHO: && ECHO: && ECHO:
-  PAUSE
-  ECHO     Attempting to download again...
-  GOTO :tryget7zipagain
-)
-
-:has7zip
-CLS
-ECHO: && ECHO: && ECHO   Loading ... ... ...
-
 IF EXIST settings-universalator.txt (
   RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
 )
@@ -1301,23 +1255,24 @@ IF NOT EXIST "%HERE%\mods" (
 
 :: Downloads java binary file
 :javaretry
-IF NOT EXIST java.zip IF NOT EXIST %JAVAFOLDER% (
+IF NOT EXIST %HERE%\univ-utils\java\java.zip IF NOT EXIST %JAVAFOLDER% (
   ECHO:
   ECHO: Java installation not detected - Downloading Java files!...
   ECHO:
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/adoptium/temurin!JAVAVERSION!-binaries/releases/download/%JAVAFILENAME%', 'java.zip')" >nul
+  IF NOT EXIST univ-utils\java MD univ-utils\java
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/adoptium/temurin!JAVAVERSION!-binaries/releases/download/%JAVAFILENAME%', 'univ-utils\java\java.zip')" >nul
 
 )
 
 :: Gets the checksum hash of the downloaded java binary file
 set idx=0 
-IF EXIST java.zip (
-  for /f %%F  in ('certutil -hashfile java.zip SHA256') do (
+IF EXIST univ-utils\java\java.zip (
+  for /f %%F  in ('certutil -hashfile univ-utils\java\java.zip SHA256') do (
       set "out!idx!=%%F"
       set /a idx += 1
   )
 
-  IF NOT EXIST java.zip IF NOT EXIST %JAVAFOLDER% (
+  IF NOT EXIST univ-utils\java\java.zip IF NOT EXIST %JAVAFOLDER% (
     ECHO:
     ECHO   !yellow! Something went wrong downloading the Java files. !blue!
     ECHO    Press any key to try again.
@@ -1326,21 +1281,23 @@ IF EXIST java.zip (
   )
 
 )
-IF EXIST java.zip (
+IF EXIST univ-utils\java\java.zip (
 set filechecksum=%out1%
 ) ELSE (
     set filechecksum=0a
   )
 :: Checks to see if the calculated checksum hash is the same as stored value above - unzips file if valid
-IF EXIST java.zip (
+IF EXIST univ-utils\java\java.zip (
+    PUSHD univ-utils\java
     IF /i %checksumeight%==%filechecksum% (
-    %ZIP7% x java.zip -ouniv-utils\java
+    tar -xf java.zip
     ) && DEL java.zip && ECHO Downloaded Java binary and stored hashfile match values - file is valid
+    POPD
 )
-IF EXIST java.zip IF %checksumeight% NEQ %filechecksum% (
+IF EXIST univ-utils\java\java.zip IF %checksumeight% NEQ %filechecksum% (
   ECHO:
   ECHO %yellow% THE JAVA INSTALLATION FILE DID NOT DOWNLOAD CORRECTLY - PLEASE TRY AGAIN %blue%
-  DEL java.zip && PAUSE && EXIT [\B]
+  DEL univ-utils\java\java.zip && PAUSE && EXIT [\B]
 )
 :: Sends console message if Java found
 IF EXIST %JAVAFOLDER% (
@@ -1679,14 +1636,13 @@ IF !MCMAJOR! LEQ 12 GOTO :scanmcmodinfo
 
 :: BEGIN SCANNING NEW STYLE (MC >1.12.2) mods.toml FILES IN MODS
 
-:: For each found jar file - uses 7zip to output using STDOUT the contents of the mods.toml.  For each line in the STDOUT output the line is checked.
+:: For each found jar file - uses tar command to output using STDOUT the contents of the mods.toml.  For each line in the STDOUT output the line is checked.
 :: First a trigger is needed to determine if the [mods] section has been detected yet in the JSON.  Once that trigger variable has been set to Y then 
 :: the script scans to find the modID line.  A fancy function replaces the = sign with _ for easier string comparison to determine if the modID= line was found.
 :: This should ensure that no false positives are recorded.
 
 :: If OS has 7-zip installed then set working directory to it's directory.  This is necessary because of esoteric problems running commands that aren't batch native 
 :: with spaces in the command/folder location path through the FOR loop later.
-IF %OS7ZIP%==Y PUSHD "C:\Program Files\7-zip"
 
 FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    SET COUNT=%%T
@@ -1695,8 +1651,11 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    SET /a MODIDLINE=0
    SET MODID[0]=x
    SET FOUNDMODPLACE=N
-  
-   FOR /F "delims=" %%X IN ('%ZIP7% e -so "%HERE%\mods\!SERVERMODS[%%T].file!" META-INF\mods.toml') DO (
+
+   REM Sends the mcmod.info to standard output using the tar command in order to set the ERRORLEVEL - actual output and error output silenced
+   tar -xOf "%HERE%\mods\!SERVERMODS[%%T].file!" *\mods.toml >nul 2>&1
+
+   IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf "%HERE%\mods\!SERVERMODS[%%T].file!" *\mods.toml') DO (
     
       SET "TEMP=%%X"
       IF !FOUNDMODPLACE!==Y (
@@ -1717,7 +1676,6 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    )
    SET SERVERMODS[%%T].id=!MODID[0]!
 )
-IF %OS7ZIP%==Y POPD
 :: Below skips to finishedscan label skipping the next section which is file scanning for old MC versions (1.12.2 and older).
 IF !MCMAJOR! GEQ 13 GOTO :finishedscan
 
@@ -1737,17 +1695,20 @@ GOTO :l_replaceloop
 :: BEGIN SCANNING OLD STYLE MCMOD.INFO
 
 :scanmcmodinfo
-:: For each found jar file - uses 7zip to output using STDOUT the contents of the mods.toml.  For each line in the STDOUT output the line is checked.
+:: For each found jar file - uses tar command to output using STDOUT the contents of the mods.toml.  For each line in the STDOUT output the line is checked.
 :: First a trigger is needed to determine if the [mods] section has been detected yet in the JSON.  Once that trigger variable has been set to Y then 
 :: the script scans to find the modID line.  A fancy function replaces the = sign with _ for easier string comparison to determine if the modID= line was found.
 :: This should ensure that no false positives are recorded.
 SET "TABCHAR=	"
-IF %OS7ZIP%==Y PUSHD "C:\Program Files\7-zip"
 FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
   SET COUNT=%%t
   SET /a COUNT+=1
   ECHO SCANNING !COUNT!/!ACTUALMODSCOUNT! - !SERVERMODS[%%t].file!
-  FOR /F "delims=" %%X IN ('%ZIP7% e -so "%HERE%\mods\!SERVERMODS[%%t].file!" "mcmod.info"') DO (
+
+  REM Sends the mcmod.info to standard output using the tar command in order to set the ERRORLEVEL - actual output and error output silenced
+  tar -xOf "%HERE%\mods\!SERVERMODS[%%t].file!" mcmod.info >nul 2>&1
+
+  IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf "%HERE%\mods\!SERVERMODS[%%t].file!" mcmod.info') DO (
     :: Sets ID to undefined if it was previously defined
     SET "ID="
     :: Sets a temp variable equal to the current line for processing, and replaces " with ; for easier loop delimiting later.
@@ -1766,7 +1727,6 @@ FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
   :: If ID was found record it to the array entry of the current mod number, otherwise set the ID of that mod equal to a dummy string x.
   IF NOT DEFINED SERVERMODS[%%t].id SET SERVERMODS[%%t].id=x
 )
-IF %OS7ZIP%==Y POPD
 :: END SCANNING OLD STYLE MCMOD.INFO
 :finishedscan
 
@@ -1810,6 +1770,10 @@ FOR /L %%c IN (0,1,%NUMCLIENTS%) DO (
   IF "!FOUNDCLIENTS[%%c].file!" NEQ "" (
     ECHO        !FOUNDCLIENTS[%%c].file! - !FOUNDCLIENTS[%%c].id!
 ) )
+  DEL univ-utils\foundclients.txt >nul 2>&1
+  DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
+  DEL univ-utils\foundclients.txt >nul 2>&1
+
   ECHO    ------------------------------------------------------
   ECHO:
   ECHO:
@@ -1832,8 +1796,6 @@ FOR /L %%c IN (0,1,%NUMCLIENTS%) DO (
   ECHO:
   SET /P MOVEMODS=
   IF /I !MOVEMODS!==N (
-    DEL univ-utils\foundclients.txt >nul
-    DEL univ-utils\allmodidsandfiles.txt >nul
     GOTO :mainmenu
   )
   IF /I !MOVEMODS!==Y (
@@ -2113,8 +2075,6 @@ SET "TABCHAR=	"
 :: This variable is for a trigger to determine at the end if any client mods at all were found.
 SET FOUNDFABRICCLIENTS=N
 
-IF %OS7ZIP%==Y PUSHD "C:\Program Files\7-zip"
-
 :: Loops through each number up to the total mods count to enter that filename into the next loop.
 FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
   SET /a JSONLINE=0
@@ -2124,9 +2084,11 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
   SET /a COUNT+=1
   ECHO SCANNING !COUNT!/%ACTUALMODSCOUNT% - !SERVERMODS[%%f].file!
 
-  REM Uses STDOUT from 7zip to loop through each line in the fabric.mod.json file of each mod file.
 
-  FOR /F "delims=" %%I IN ('%ZIP7% e -so "%HERE%\mods\!SERVERMODS[%%f].file!" "fabric.mod.json"') DO (
+
+
+  REM Uses STDOUT from tar command to loop through each line in the fabric.mod.json file of each mod file.
+  FOR /F "delims=" %%I IN ('tar -xOf "%HERE%\mods\!SERVERMODS[%%f].file!" fabric.mod.json') DO (
     
     REM Sets a temp variable equal to the current line for processing, and replaces " with ; for easier loop delimiting later.
     SET "TEMP=%%I"
@@ -2147,7 +2109,9 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
         REM Assumes that JSON is formatted normally so that the 5th token is the mod ID and records it.
         SET SERVERMODS[%%f].id=%%Q
         REM Outputs the fabric.mod.json file to an actual unzipped file so that powershell can read it.
-        %ZIP7% e -aoa "%HERE%\mods\!SERVERMODS[%%f].file!" "fabric.mod.json" -o%HERE%\univ-utils >nul 2>&1
+        PUSHD univ-utils
+        tar -xf "%HERE%\mods\!SERVERMODS[%%f].file!" "fabric.mod.json" >nul 2>&1
+        POPD
         REM Uses powershell to output the dependency values in fabric.mod.json
         powershell -Command "$json=Get-Content -Raw -Path '%HERE%\univ-utils\fabric.mod.json' | Out-String | ConvertFrom-Json; $json.depends.psobject.properties.name | Out-File -FilePath %HERE%\univ-utils\single-line-mod-deps.txt"
         REM Scans the dependency values just dumped and prints them to the master file to compile them - filters out commonly added values to ignore.
@@ -2188,7 +2152,6 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
     SET /a JSONLINE+=1
   ) 
 )
-IF %OS7ZIP%==Y POPD
 REM Goes to the no clients found message.  If any environment client mods were found this trigger variable will be Y instead.
 IF !FOUNDFABRICCLIENTS!==N GOTO :noclientsfabric
 
@@ -2628,8 +2591,10 @@ IF /I !ASKUPNPDOWNLOAD!==Y IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/miniupnp/miniupnp/master/LICENSE', 'univ-utils\miniupnp\LICENSE.txt')"
   IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" (
     ECHO   %green% SUCCESSFULLY DOWNLOADED MINIUPNP BINARAIES ZIP FILE %blue%
-    %ZIP7% e -aoa "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" "upnpc-static.exe" -ouniv-utils\miniupnp >nul
-    DEL "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" >nul 2>&1
+    PUSHD %HERE%\univ-utils\miniupnp
+    tar -xf upnpc-exe-win32-20220515.zip upnpc-static.exe >nul
+    DEL upnpc-exe-win32-20220515.zip >nul 2>&1
+    POPD
   ) ELSE (
       ECHO: && ECHO  %red% DOWNLOAD OF MINIUPNP FILES ZIP FAILED %blue%
       PAUSE
