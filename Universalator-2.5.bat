@@ -282,7 +282,7 @@ IF !FOLDER!==BAD (
 ver >nul
 
 :: Checks to see if 7-Zip is installed to the OS in the default location
-IF NOT EXIST "C:\Program Files\7-Zip\7z.exe" (
+IF EXIST "C:\Program Files\7-Zip\7z.exe" (
   SET "ZIP7=7z.exe"
   SET OS7ZIP=Y
   GOTO :has7zip
@@ -1717,7 +1717,7 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    )
    SET SERVERMODS[%%T].id=!MODID[0]!
 )
-POPD
+IF %OS7ZIP%==Y POPD
 :: Below skips to finishedscan label skipping the next section which is file scanning for old MC versions (1.12.2 and older).
 IF !MCMAJOR! GEQ 13 GOTO :finishedscan
 
@@ -1766,7 +1766,7 @@ FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
   :: If ID was found record it to the array entry of the current mod number, otherwise set the ID of that mod equal to a dummy string x.
   IF NOT DEFINED SERVERMODS[%%t].id SET SERVERMODS[%%t].id=x
 )
-POPD
+IF %OS7ZIP%==Y POPD
 :: END SCANNING OLD STYLE MCMOD.INFO
 :finishedscan
 
@@ -2188,7 +2188,7 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
     SET /a JSONLINE+=1
   ) 
 )
-POPD
+IF %OS7ZIP%==Y POPD
 REM Goes to the no clients found message.  If any environment client mods were found this trigger variable will be Y instead.
 IF !FOUNDFABRICCLIENTS!==N GOTO :noclientsfabric
 
