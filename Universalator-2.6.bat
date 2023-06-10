@@ -1629,6 +1629,7 @@ SET /a ACTUALMODSCOUNT+=1
 IF /I !MODLOADER!==FABRIC GOTO :scanfabric
 
 :: BEGIN CLIENT MOD SCANNING FORGE
+IF NOT EXIST "%HERE%\univ-utils" MD univ-utils
 IF EXIST univ-utils\foundclients.txt DEL univ-utils\foundclients.txt
 IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt
 
