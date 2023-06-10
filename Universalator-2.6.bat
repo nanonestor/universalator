@@ -206,6 +206,8 @@ WHERE PING >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 WHERE CURL >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
+WHERE TAR >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 
 IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y (
   ECHO:
@@ -473,7 +475,8 @@ ver > nul
 :: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
 
 :: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
+REM FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
+PUBLICIP=0.0.0.0
 
 REM Another different method to return the public IP from the same website
 REM FOR /F %%B IN ('curl -w "\n" -s https://api.ipify.org') DO SET PUBLICIP=%%B
@@ -956,7 +959,7 @@ IF /I !USEDEFAULT!==Y (
   SET JAVAVERSION=17
   GOTO :goramentry
 )
-IF !MINECRAFT!==1.19.3 (
+IF !MINECRAFT!==1.19.4 (
   CLS
   ECHO:
   ECHO   %yellow% YOU HAVE ENTERED 1.19.4 WHICH IS A POPULAR VERSION %blue%
@@ -975,6 +978,28 @@ IF !MINECRAFT!==1.19.3 (
 )
 IF /I !USEDEFAULT!==Y (
   SET FORGE=45.1.0
+  SET JAVAVERSION=17
+  GOTO :goramentry
+)
+IF !MINECRAFT!==1.20 (
+  CLS
+  ECHO:
+  ECHO   %yellow% YOU HAVE ENTERED 1.20 WHICH IS A POPULAR VERSION %blue%
+  ECHO:
+  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
+  ECHO:
+  ECHO    FORGE = %green% 46.0.10 %blue% && ECHO:
+  ECHO    JAVA =  %green% 17 %blue%
+  ECHO:
+  ECHO   %yellow% YOU HAVE ENTERED 1.20 WHICH IS A POPULAR VERSION %blue%
+  ECHO: && ECHO:
+  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
+  ECHO:
+  SET /P "USEDEFAULT="
+)
+IF /I !USEDEFAULT!==Y (
+  SET FORGE=46.0.10
   SET JAVAVERSION=17
   GOTO :goramentry
 )
@@ -1255,7 +1280,7 @@ IF NOT EXIST "%HERE%\mods" (
 
 :: Downloads java binary file
 :javaretry
-IF NOT EXIST %HERE%\univ-utils\java\java.zip IF NOT EXIST %JAVAFOLDER% (
+IF NOT EXIST "%HERE%\univ-utils\java\java.zip" IF NOT EXIST %JAVAFOLDER% (
   ECHO:
   ECHO: Java installation not detected - Downloading Java files!...
   ECHO:
@@ -1641,9 +1666,6 @@ IF !MCMAJOR! LEQ 12 GOTO :scanmcmodinfo
 :: the script scans to find the modID line.  A fancy function replaces the = sign with _ for easier string comparison to determine if the modID= line was found.
 :: This should ensure that no false positives are recorded.
 
-:: If OS has 7-zip installed then set working directory to it's directory.  This is necessary because of esoteric problems running commands that aren't batch native 
-:: with spaces in the command/folder location path through the FOR loop later.
-
 FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    SET COUNT=%%T
    SET /a COUNT+=1
@@ -1653,9 +1675,9 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    SET FOUNDMODPLACE=N
 
    REM Sends the mcmod.info to standard output using the tar command in order to set the ERRORLEVEL - actual output and error output silenced
-   tar -xOf "%HERE%\mods\!SERVERMODS[%%T].file!" *\mods.toml >nul 2>&1
+   tar -xOf mods\!SERVERMODS[%%T].file! *\mods.toml >nul 2>&1
 
-   IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf "%HERE%\mods\!SERVERMODS[%%T].file!" *\mods.toml') DO (
+   IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf mods\!SERVERMODS[%%T].file! *\mods.toml') DO (
     
       SET "TEMP=%%X"
       IF !FOUNDMODPLACE!==Y (
@@ -1706,9 +1728,9 @@ FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
   ECHO SCANNING !COUNT!/!ACTUALMODSCOUNT! - !SERVERMODS[%%t].file!
 
   REM Sends the mcmod.info to standard output using the tar command in order to set the ERRORLEVEL - actual output and error output silenced
-  tar -xOf "%HERE%\mods\!SERVERMODS[%%t].file!" mcmod.info >nul 2>&1
+  tar -xOf mods\!SERVERMODS[%%t].file! mcmod.info >nul 2>&1
 
-  IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf "%HERE%\mods\!SERVERMODS[%%t].file!" mcmod.info') DO (
+  IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf mods\!SERVERMODS[%%t].file! mcmod.info') DO (
     :: Sets ID to undefined if it was previously defined
     SET "ID="
     :: Sets a temp variable equal to the current line for processing, and replaces " with ; for easier loop delimiting later.
@@ -2085,10 +2107,10 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
   ECHO SCANNING !COUNT!/%ACTUALMODSCOUNT% - !SERVERMODS[%%f].file!
 
 
-
+  tar -xOf mods\!SERVERMODS[%%f].file! fabric.mod.json >nul 2>&1
 
   REM Uses STDOUT from tar command to loop through each line in the fabric.mod.json file of each mod file.
-  FOR /F "delims=" %%I IN ('tar -xOf "%HERE%\mods\!SERVERMODS[%%f].file!" fabric.mod.json') DO (
+  IF !ERRORLEVEL!==0 FOR /F "delims=" %%I IN ('tar -xOf mods\!SERVERMODS[%%f].file! fabric.mod.json') DO (
     
     REM Sets a temp variable equal to the current line for processing, and replaces " with ; for easier loop delimiting later.
     SET "TEMP=%%I"
@@ -2110,13 +2132,16 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
         SET SERVERMODS[%%f].id=%%Q
         REM Outputs the fabric.mod.json file to an actual unzipped file so that powershell can read it.
         PUSHD univ-utils
-        tar -xf "%HERE%\mods\!SERVERMODS[%%f].file!" "fabric.mod.json" >nul 2>&1
+
+        tar -xf "%HERE%\mods\!SERVERMODS[%%f].file!" fabric.mod.json >nul 2>&1
+
         POPD
         REM Uses powershell to output the dependency values in fabric.mod.json
-        powershell -Command "$json=Get-Content -Raw -Path '%HERE%\univ-utils\fabric.mod.json' | Out-String | ConvertFrom-Json; $json.depends.psobject.properties.name | Out-File -FilePath %HERE%\univ-utils\single-line-mod-deps.txt"
+        powershell -Command "$json=Get-Content -Raw -Path 'univ-utils\fabric.mod.json' | Out-String | ConvertFrom-Json; $json.depends.psobject.properties.name | Out-File -FilePath univ-utils\single-line-mod-deps.txt"
+         
         REM Scans the dependency values just dumped and prints them to the master file to compile them - filters out commonly added values to ignore.
-        FOR /F "delims=" %%D IN (%HERE%\univ-utils\single-line-mod-deps.txt) DO (
-          IF %%D NEQ fabricloader IF %%D NEQ minecraft IF %%D NEQ fabric IF %%D NEQ java IF %%D NEQ cloth-config IF %%D NEQ cloth-config2 IF %%D NEQ fabric-language-kotlin IF %%D NEQ iceberg IF %%D NEQ fabric-resource-loader-v0 IF %%D NEQ creativecore IF %%D NEQ architectury ECHO %%D>>%HERE%univ-utils\allfabricdeps.txt
+        FOR /F "delims=" %%D IN (univ-utils\single-line-mod-deps.txt) DO (
+          IF %%D NEQ fabricloader IF %%D NEQ minecraft IF %%D NEQ fabric IF %%D NEQ java IF %%D NEQ cloth-config IF %%D NEQ cloth-config2 IF %%D NEQ fabric-language-kotlin IF %%D NEQ iceberg IF %%D NEQ fabric-resource-loader-v0 IF %%D NEQ creativecore IF %%D NEQ architectury ECHO %%D>>univ-utils\allfabricdeps.txt
         )
       )
 
@@ -2141,7 +2166,7 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
       SET "TEMP=!TEMP: =!"
       SET "TEMP=!TEMP::=!"
       IF !FOUNDDEPENDS!==Y FOR /F "delims=;" %%g IN ("!TEMP!") DO (
-        IF %%g NEQ fabricloader IF %%g NEQ minecraft IF %%g NEQ fabric IF %%g NEQ java IF %%g NEQ cloth-config IF %%g NEQ cloth-config2 IF %%g NEQ fabric-language-kotlin IF %%g NEQ iceberg IF %%g NEQ fabric-resource-loader-v0 IF %%g NEQ creativecore IF %%g NEQ architectury ECHO %%g>>%HERE%\univ-utils\allfabricdeps.txt
+        IF %%g NEQ fabricloader IF %%g NEQ minecraft IF %%g NEQ fabric IF %%g NEQ java IF %%g NEQ cloth-config IF %%g NEQ cloth-config2 IF %%g NEQ fabric-language-kotlin IF %%g NEQ iceberg IF %%g NEQ fabric-resource-loader-v0 IF %%g NEQ creativecore IF %%g NEQ architectury ECHO %%g>>univ-utils\allfabricdeps.txt"
         REM Below is a different way to do the above line - however it's slower.  If FINDSTR does not find one of the string values then it echos the entry to the txt file.
         REM ECHO %%g | FINDSTR "fabricloader minecraft fabric java cloth-config cloth-config2 fabric-language-kotlin iceberg fabric-resource-loader-v0 creativecore architectury" >nul 2>&1 || ECHO %%g>>univ-utils\allfabricdeps.txt
       )
@@ -2591,7 +2616,7 @@ IF /I !ASKUPNPDOWNLOAD!==Y IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/miniupnp/miniupnp/master/LICENSE', 'univ-utils\miniupnp\LICENSE.txt')"
   IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-exe-win32-20220515.zip" (
     ECHO   %green% SUCCESSFULLY DOWNLOADED MINIUPNP BINARAIES ZIP FILE %blue%
-    PUSHD %HERE%\univ-utils\miniupnp
+    PUSHD "%HERE%\univ-utils\miniupnp"
     tar -xf upnpc-exe-win32-20220515.zip upnpc-static.exe >nul
     DEL upnpc-exe-win32-20220515.zip >nul 2>&1
     POPD
