@@ -987,7 +987,7 @@ IF !MINECRAFT!==1.20 (
   ECHO:
   ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
   ECHO:
-  ECHO    FORGE = %green% 46.0.10 %blue% && ECHO:
+  ECHO    FORGE = %green% 46.0.14 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
   ECHO:
   ECHO   %yellow% YOU HAVE ENTERED 1.20 WHICH IS A POPULAR VERSION %blue%
@@ -998,7 +998,7 @@ IF !MINECRAFT!==1.20 (
   SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=46.0.10
+  SET FORGE=46.0.14
   SET JAVAVERSION=17
   GOTO :goramentry
 )
