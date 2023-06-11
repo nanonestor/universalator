@@ -475,7 +475,8 @@ ver > nul
 :: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
 
 :: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
+REM FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
+PUBLICIP=0.0.0.0
 
 REM Another different method to return the public IP from the same website
 REM FOR /F %%B IN ('curl -w "\n" -s https://api.ipify.org') DO SET PUBLICIP=%%B
@@ -1599,12 +1600,12 @@ IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
 :: Creates list of all mod file names.  Sends the working dir to the mods folder and uses a loop and the 'dir' command to create an array list of file names.
 :: A For loop is used with delayedexpansion turned off with a funciton called to record each filename because this allows capturing
 :: filenames with exclamation marks in the name.  eol=| ensures that filenames with some weird characters aren't ignored.
-SET SERVERMODSCOUNT=0
+SET /a SERVERMODSCOUNT=0
 PUSHD mods
 setlocal enableextensions
 setlocal disabledelayedexpansion
  FOR /F "eol=| delims=" %%J IN ('"dir *.jar /b /a-d"') DO (
-  SET "FILENAME=%%J"
+  IF %%J NEQ [] SET "FILENAME=%%J"
     CALL :functionfilenames
 
     )
@@ -1629,7 +1630,6 @@ SET /a ACTUALMODSCOUNT+=1
 IF /I !MODLOADER!==FABRIC GOTO :scanfabric
 
 :: BEGIN CLIENT MOD SCANNING FORGE
-IF NOT EXIST "%HERE%\univ-utils" MD univ-utils
 IF EXIST univ-utils\foundclients.txt DEL univ-utils\foundclients.txt
 IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt
 
@@ -1674,7 +1674,7 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    SET MODID[0]=x
    SET FOUNDMODPLACE=N
 
-   REM Sends the mcmod.info to standard output using the tar command in order to set the ERRORLEVEL - actual output and error output silenced
+   REM Sends the mods.toml to standard output using the tar command in order to set the ERRORLEVEL - actual output and error output silenced
    tar -xOf mods\!SERVERMODS[%%T].file! *\mods.toml >nul 2>&1
 
    IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf mods\!SERVERMODS[%%T].file! *\mods.toml') DO (
@@ -1755,17 +1755,18 @@ FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
 IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
 
 :: Enters all modIds and corresponding file names to a single txt file for FINDSTR comparison with client mod list.
+
 FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
   ECHO !SERVERMODS[%%b].id!;!SERVERMODS[%%b].file! >>univ-utils\allmodidsandfiles.txt
 )
 :: FINDSTR compares each line of the client only mods list to the list containing all found modIds and returns only lines with matches.
+ver >nul
+
 FINDSTR /b /g:univ-utils\clientonlymods.txt univ-utils\allmodidsandfiles.txt>univ-utils\foundclients.txt
 
 :: If foundclients.txt isn't found then assume none were found and GOTO section stating none found.
-IF NOT EXIST univ-utils\foundclients.txt (
-  DEL univ-utils\allmodidsandfiles.txt >nul
-  GOTO :noclients
-)
+IF NOT EXIST univ-utils\foundclients.txt GOTO :noclients
+IF !ERRORLEVEL!==1 GOTO :noclients
 
 :: Loops/Reads through the foundclients.txt and enters values into an array.
 SET /a NUMCLIENTS=0
@@ -1794,7 +1795,6 @@ FOR /L %%c IN (0,1,%NUMCLIENTS%) DO (
 ) )
   DEL univ-utils\foundclients.txt >nul 2>&1
   DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
-  DEL univ-utils\foundclients.txt >nul 2>&1
 
   ECHO    ------------------------------------------------------
   ECHO:
@@ -1831,19 +1831,19 @@ FOR /L %%c IN (0,1,%NUMCLIENTS%) DO (
   ECHO:
   FOR /L %%L IN (0,1,%NUMCLIENTS%) DO (
     IF DEFINED FOUNDCLIENTS[%%L].file (
-      MOVE "%HERE%\mods\!FOUNDCLIENTS[%%L].file!" "%HERE%\CLIENTMODS\!FOUNDCLIENTS[%%L].file!" >nul
+      MOVE "%HERE%\mods\!FOUNDCLIENTS[%%L].file!" "%HERE%\CLIENTMODS\!FOUNDCLIENTS[%%L].file!" >nul 2>&1
       ECHO   MOVED - !FOUNDCLIENTS[%%L].file!
   ) ) 
   
   ECHO:
   ECHO      %yellow%   CLIENT MODS MOVED TO THIS FOLDER AS STORAGE:     %blue%
-  ECHO      %yellow%   "%HERE%\CLIENTMODS"
+  ECHO      %yellow%   "%HERE%\CLIENTMODS"    %blue%
   ECHO:
   ECHO:
   ECHO      %yellow% -PRESS ANY KEY TO CONTINUE- %blue%
   ECHO:
-  DEL univ-utils\foundclients.txt >nul
-  DEL univ-utils\allmodidsandfiles.txt >nul
+  DEL univ-utils\foundclients.txt >nul 2>&1
+  DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
   PAUSE
   
 GOTO :mainmenu
@@ -1858,6 +1858,8 @@ ECHO   %yellow% ----------------------------------------- %blue%
 ECHO:
 ECHO    PRESS ANY KEY TO CONTINUE...
 ECHO:
+DEL univ-utils\foundclients.txt >nul 2>&1
+DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
 PAUSE
 GOTO :mainmenu
 
