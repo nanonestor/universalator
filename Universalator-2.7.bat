@@ -508,12 +508,10 @@ IF NOT DEFINED LOCALIP (
   )
 )
 
-
-:: Sets ASKMODSCHECK to use as default if no settings file exists yet.
-SET ASKMODSCHECK=Y
+:: If no settings file exists yet then go directly to entering settings (first setting being Minecraft version)
+IF NOT EXIST settings-universalator.txt GOTO :startover
 
 :: BEGIN MAIN MENU
-
 
 :mainmenu
 
@@ -522,6 +520,7 @@ IF EXIST settings-universalator.txt (
   RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
   IF DEFINED MAXRAMGIGS IF !MAXRAMGIGS! NEQ "" SET MAXRAM=-Xmx!MAXRAMGIGS!G
 )
+IF NOT EXIST univ-utils MD univ-utils
 
 CLS
 ECHO:%yellow%
@@ -546,29 +545,24 @@ ECHO: && ECHO:
 IF DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  !MAXRAMGIGS!
 ECHO:
 ECHO:
-IF DEFINED PORT ECHO   %yellow% CURRENT PORT SET %blue%          !PORT!
+IF DEFINED PORT ECHO   %yellow% CURRENT PORT SET %blue%          !PORT!                            %green% MENU OPTIONS %blue%
 IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue% NOT LOADED
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue%   LOADED
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue%       %red% NOT ACTIVATED %blue%
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue%  %green% ACTIVE - FORWARDING PORT %PORT% %blue%
 IF EXIST settings-universalator.txt ECHO                                                           %green% L %blue% = LAUNCH SERVER
-IF NOT EXIST settings-universalator.txt ECHO                                                           %green% 'S' %blue% = SETTINGS ENTRY
-IF EXIST settings-universalator.txt ECHO                                                           %green% 'S' %blue% = RE-ENTER ALL SETTINGS
-ECHO:
-ECHO                                                           %green% 'UPNP' %blue% = UPNP PORT FORWARDING MENU
-IF DEFINED MODLOADER ECHO                                                           %green% 'SCAN' %blue% = SCAN MOD FILES FOR CLIENT MODS && ECHO:
-IF EXIST settings-universalator.txt ECHO   %green% ENTRY CHOICES: %blue% %green% 'L',  'S',  'UPNP', 'SCAN', 'J'-(JAVA), 'R'-(RAM), or 'Q'-(quit) %blue%
-IF NOT DEFINED MODLOADER ECHO: && ECHO   %green% ENTRY CHOICES: %blue%   %green% 'S'-(settings),  'UPNP'-(menu), or  'Q'-(quit) %blue%
+IF NOT EXIST settings-universalator.txt ECHO                                                           %green% S %blue% = SETTINGS ENTRY
+IF EXIST settings-universalator.txt ECHO                                                           %green% S %blue% = RE-ENTER ALL SETTINGS
+ECHO                                                           %green% R %blue% = SET (ONLY)RAM MAXIMUM
+ECHO                                                           %green% J %blue% = SET (ONLY) JAVA VERSION
+ECHO                                                           %green% UPNP %blue% = UPNP PORT FORWARDING MENU
+ECHO                                                           %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT mods
+ECHO                                                           %green% A %blue% = LIST ALL POSSIBLE MENU OPTIONS
+
+IF EXIST settings-universalator.txt ECHO   %green% ENTER A MENU OPTION: %blue%
 set /P "MAINMENU="
-IF DEFINED MODLOADER IF DEFINED MINECRAFT (
-  IF /I !MAINMENU! NEQ L IF /I !MAINMENU! NEQ S IF /I !MAINMENU! NEQ R IF /I !MAINMENU! NEQ J IF /I !MAINMENU! NEQ UPNP IF /I !MAINMENU! NEQ Q IF /I !MAINMENU! NEQ SCAN IF /I !MAINMENU! NEQ OVERRIDE IF /I !MAINMENU! NEQ MCREATOR GOTO :mainmenu
-)
-IF NOT DEFINED MODLOADER (
-  IF /I !MAINMENU! NEQ S IF /I !MAINMENU! NEQ UPNP IF /I !MAINMENU! NEQ Q IF /I !MAINMENU! NEQ OVERRIDE IF /I !MAINMENU! NEQ MCREATOR GOTO :mainmenu
-)
-IF /I !MAINMENU!==Q (
-  EXIT [\B]
-)
+
+IF /I !MAINMENU!==Q EXIT [\B]
 IF /I !MAINMENU!==J GOTO :getmcmajor
 IF /I !MAINMENU!==UPNP GOTO :upnpmenu
 IF /I !MAINMENU!==R GOTO :justsetram
@@ -579,6 +573,34 @@ IF /I !MAINMENU!==SCAN IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
 IF /I !MAINMENU!==OVERRIDE GOTO :override
 IF /I !MAINMENU!==MCREATOR IF EXIST "%HERE%\mods" GOTO :mcreator
 IF /I !MAINMENU!==MCREATOR IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
+IF /I !MAINMENU!==A GOTO :allcommands
+
+:: If no recognized entries were made then go back to main menu
+GOTO :mainmenu
+
+:allcommands
+CLS
+ECHO:%yellow%
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
+ECHO: && ECHO: && ECHO:
+ECHO:    %green% S %blue% = RE-ENTER ALL SETTINGS
+ECHO:    %green% L %blue% = LAUNCH SERVER
+ECHO:    %green% R %blue% = SET RAM MAXIMUM AMOUNT
+ECHO:    %green% J %blue% = SET JAVA VERSION
+ECHO:    %green% UPNP %blue% = UPNP PORT FORWARDING MENU
+ECHO:    %green% Q %blue% = QUIT
+ECHO:
+ECHO:    %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT ONLY MODS
+ECHO:
+ECHO:    %green% MCREATOR %blue% = SCAN MOD FILES FOR MCREATOR MADE MODS
+ECHO:
+ECHO:    %green% OVERRIDE %blue% = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA
+ECHO: && ECHO: && ECHO: && ECHO:
+PAUSE
+GOTO :mainmenu
+
 
 :: END MAIN MENU
 
@@ -586,7 +608,17 @@ IF /I !MAINMENU!==MCREATOR IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
 :startover
 :: User entry for Minecraft version
 CLS
+IF NOT EXIST settings-universalator.txt (
+ECHO:%yellow%
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
 ECHO: && ECHO:
+ECHO    %green% Settings can be changed from main menu once all initial settings have been entered %blue%
+) ELSE (
+  ECHO: && ECHO:
+)
+ECHO: && ECHO: && ECHO: && ECHO:
 ECHO   %yellow% ENTER THE MINECRAFT VERSION %blue%
 ECHO:
 ECHO    example: 1.7.10
@@ -613,7 +645,17 @@ IF /I !MAINMENU!==J GOTO :gojava
 :reentermodloader
 :: User entry for Modloader version
 CLS
+IF NOT EXIST settings-universalator.txt (
+ECHO:%yellow%
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
 ECHO: && ECHO:
+ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
+) ELSE (
+  ECHO: && ECHO: && ECHO:
+)
+ECHO: && ECHO: && ECHO: && ECHO:
 ECHO   %yellow% ENTER THE MODLOADER TYPE %blue%
 ECHO:
 ECHO    Valid entries - %green% FORGE %blue% or %green% FABRIC %blue%
@@ -630,12 +672,13 @@ IF /I !MODLOADER! NEQ FORGE IF /I !MODLOADER! NEQ FABRIC (
 :: Detects if settings are trying to use some weird old Minecraft Forge version that isn't supported.
 :: This is done again later after the settings-universalator.txt is present and this is section is skipped.
 IF /I !MODLOADER!==FORGE IF !MCMAJOR! LSS 10 IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 (
+  CLS
+  ECHO: && ECHO: && ECHO: && ECHO:
+  ECHO    %yellow% SORRY - YOUR ENTERED MINECRAFT VERSION - FORGE FOR MINECRAFT !MINECRAFT! - IS NOT SUPPORTED. %blue%
   ECHO:
-  ECHO  SORRY - YOUR ENTERED MINECRAFT VERSION - FORGE FOR MINECRAFT !MINECRAFT! - IS NOT SUPPORTED.
-  ECHO:
-  ECHO  FIND A MODPACK WITH A MORE POPULARLY USED VERSION.
-  ECHO  OR
-  ECHO  PRESS ANY KEY TO START OVER AND ENTER NEW VERSION NUMBERS
+  ECHO    %yellow% FIND A MODPACK WITH A MORE POPULARLY USED VERSION. %blue%
+  ECHO    OR
+  ECHO    PRESS ANY KEY TO START OVER AND ENTER NEW VERSION NUMBERS
   ECHO:
   PAUSE
   GOTO :startover
@@ -646,7 +689,17 @@ IF /I !MODLOADER!==FORGE GOTO :usedefaulttryagain
 :redofabricinstaller
 IF /I !MODLOADER!==FABRIC (
   CLS
-  ECHO:
+  IF NOT EXIST settings-universalator.txt (
+    ECHO:%yellow%
+    ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+    ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
+    ECHO: && ECHO:
+    ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
+    ) ELSE (
+        ECHO: && ECHO: && ECHO:
+      )
+  ECHO: && ECHO: && ECHO: && ECHO:
   ECHO    %yellow% FABRIC INSTALLER - FABRIC INSTALLER %blue%
   ECHO:
   ECHO    DO YOU WANT TO USE THE RECOMMENDED DEFAULT VERSION OF THE FABRIC %yellow% INSTALLER %blue% FILE?
@@ -655,7 +708,7 @@ IF /I !MODLOADER!==FABRIC (
   ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER %green% 'Y' %blue%
   ECHO:
   ECHO    %yellow% FABRIC INSTALLER - FABRIC INSTALLER %blue%
-  ECHO:
+  ECHO: && ECHO: && ECHO: && ECHO:
   ECHO    ENTER %green% 'Y' %blue% OR %red% 'N' %blue% && ECHO:
   SET /P "ASKFABRICINSTALLER="
 )
@@ -668,7 +721,17 @@ IF /I !ASKFABRICINSTALLER!==N (
 :redofabricloader
 IF /I !MODLOADER!==FABRIC (
   CLS
-  ECHO:
+  IF NOT EXIST settings-universalator.txt (
+  ECHO:%yellow%
+  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
+  ECHO: && ECHO:
+  ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
+    ) ELSE (
+        ECHO: && ECHO:
+      )
+  ECHO: && ECHO: && ECHO: && ECHO:
   ECHO   %yellow% FABRIC LOADER - FABRIC LOADER %blue%
   ECHO:
   ECHO    DO YOU WANT TO USE THE RECOMMENDED DEFAULT VERSION OF THE FABRIC %yellow% LOADER %blue% FILE?
@@ -677,7 +740,7 @@ IF /I !MODLOADER!==FABRIC (
   ECHO    UNLESS YOU KNOW OF A NEWER VERSION OR HAVE A PREFERENCE - ENTER %green% 'Y' %blue%
   ECHO:
   ECHO   %yellow% FABRIC LOADER - FABRIC LOADER %blue%
-  ECHO:
+  ECHO: && ECHO: && ECHO: && ECHO:
   ECHO    ENTER %green% 'Y' %blue% OR %red% 'N' %blue% && ECHO:
   SET /P "ASKFABRICLOADER="
 )
@@ -688,340 +751,157 @@ IF /I !ASKFABRICLOADER!==N (
   SET /P FABRICLOADER=
 )
 
-
-
 IF /I !MODLOADER!==FABRIC GOTO :gojava
 :usedefaulttryagain
 :: If modloader is Forge present user with option to select recommended versions of Forge and Java.
 SET USEDEFAULT=BLANK
-IF !MINECRAFT!==1.6.4 (
-  CLS
+CLS
+IF NOT EXIST settings-universalator.txt (
+  ECHO:%yellow%
+  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
   ECHO: && ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.6.4 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
-  ECHO:
+  ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
+  ) ELSE (
+      ECHO: && ECHO: && ECHO:
+    )
+  SET "POPULARS=;1.6.4;1.7.10;1.8.9;1.9.4;1.10.2;1.12.2;1.14.4;1.15.2;1.16.5;1.17.1;1.18.2;1.19.2;1.19.4;1.20;"
+
+  IF "!POPULARS!" NEQ "!POPULARS:;%MINECRAFT%;=x!" (
+    ECHO: && ECHO: && ECHO: && ECHO:
+    ECHO   %yellow% YOU HAVE ENTERED !MINECRAFT! WHICH IS A POPULAR MINECRAFT VERSION %blue%
+    ECHO:
+    ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
+    ECHO:
+  )
+IF !MINECRAFT!==1.6.4 (
   ECHO    FORGE = %green% 9.11.1.1345 %blue% && ECHO:
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.6.4 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=9.11.1.1345
-  SET JAVAVERSION=8
-  GOTO :goramentry
+  SET TEMPFORGE=9.11.1.1345
 )
 IF !MINECRAFT!==1.7.10 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.7.10 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 10.13.4.1614 %blue% && ECHO:
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.7.10 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=10.13.4.1614
-  SET JAVAVERSION=8
-  GOTO :goramentry
+  SET TEMPFORGE=10.13.4.1614
 )
 IF !MINECRAFT!==1.8.9 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.8.9 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 11.15.1.2318 %blue% && ECHO:
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.8.9 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=11.15.1.2318
-  SET JAVAVERSION=8
-  GOTO :goramentry
+  SET TEMPFORGE=11.15.1.2318
 )
 IF !MINECRAFT!==1.9.4 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.9.4 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 12.17.0.2317 %blue% && ECHO:
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.9.4 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=12.17.0.2317
-  SET JAVAVERSION=8
-  GOTO :goramentry
+  SET TEMPFORGE=12.17.0.2317
 )
 IF !MINECRAFT!==1.10.2 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.10.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 12.18.3.2511 %blue% && ECHO:
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.10.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=12.18.3.2511
-  SET JAVAVERSION=8
-  GOTO :goramentry
+  SET TEMPFORGE=12.18.3.2511
 )
 IF !MINECRAFT!==1.12.2 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.12.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 14.23.5.2860 %blue% && ECHO:
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.12.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=14.23.5.2860
-  SET JAVAVERSION=8
-  GOTO :goramentry
+  SET TEMPFORGE=14.23.5.2860
 )
 IF !MINECRAFT!==1.14.4 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.14.4 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 28.2.26 %blue% && ECHO:
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.14.4 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=28.2.26
-  SET JAVAVERSION=8
-  GOTO :goramentry
+  SET TEMPFORGE=28.2.26
 )
 IF !MINECRAFT!==1.15.2 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.15.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 31.2.57 %blue% && ECHO:
   ECHO    JAVA = 8  **JAVA MUST BE 8**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.15.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-  IF /I !USEDEFAULT!==Y (
-    SET FORGE=31.2.57
-    SET JAVAVERSION=8
-    GOTO :goramentry
-  )
+  SET TEMPFORGE=31.2.57
 )
 IF !MINECRAFT!==1.16.5 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.16.5 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSION %blue% OF FORGE?
-  ECHO:
   ECHO    FORGE = %green% 36.2.39 %blue%
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.16.5 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-  IF /I !USEDEFAULT!==Y (
-    SET FORGE=36.2.39
-    GOTO :gojava
-  )
+  SET TEMPFORGE=36.2.39
 )
 IF !MINECRAFT!==1.17.1 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.17.1 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE?
-  ECHO:
   ECHO    FORGE = %green% 37.1.1 %blue% && ECHO:
   ECHO    JAVA = 16  **JAVA MUST BE 16**
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.17.1 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=37.1.1
-  SET JAVAVERSION=16
-  GOTO :goramentry
+  SET TEMPFORGE=37.1.1
+  SET TEMPJAVA=16
 )
 IF !MINECRAFT!==1.18.2 (
-  CLS
-  ECHO: && ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.18.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 40.2.9 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.18.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=40.2.9
-  SET JAVAVERSION=17
-  GOTO :goramentry
+  SET TEMPFORGE=40.2.9
 )
 IF !MINECRAFT!==1.19.2 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.19.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 43.2.14 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.19.2 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=43.2.14
-  SET JAVAVERSION=17
-  GOTO :goramentry
+  SET TEMPFORGE=43.2.14
 )
 IF !MINECRAFT!==1.19.4 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.19.4 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 45.1.0 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.19.4 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
-)
-IF /I !USEDEFAULT!==Y (
-  SET FORGE=45.1.0
-  SET JAVAVERSION=17
-  GOTO :goramentry
+  SET TEMPFORGE=45.1.0
 )
 IF !MINECRAFT!==1.20 (
-  CLS
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.20 WHICH IS A POPULAR VERSION %blue%
-  ECHO:
-  ECHO    WOULD YOU LIKE TO USE THE DEFAULT %green% RECOMMENDED VERSIONS %blue% OF FORGE AND JAVA?
-  ECHO:
   ECHO    FORGE = %green% 46.0.14 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
-  ECHO:
-  ECHO   %yellow% YOU HAVE ENTERED 1.20 WHICH IS A POPULAR VERSION %blue%
-  ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
-  ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
-  ECHO:
-  SET /P "USEDEFAULT="
+  SET TEMPFORGE=46.0.14
+)
+IF "!POPULARS!" NEQ "!POPULARS:;%MINECRAFT%;=x!" (
+ECHO:
+ECHO   %yellow% YOU HAVE ENTERED %MINECRAFT% WHICH IS A POPULAR MINECRAFT VERSION %blue%
+ECHO: && ECHO:
+ECHO    ENTER %green% 'Y' %blue% TO USE ABOVE RECOMMENDED VERSIONS
+ECHO    ENTER %red% 'N' %blue% TO SELECT DIFFERENT VALUES
+ECHO:
+SET /P "USEDEFAULT="
 )
 IF /I !USEDEFAULT!==Y (
-  SET FORGE=46.0.14
-  SET JAVAVERSION=17
-  GOTO :goramentry
+  SET FORGE=%TEMPFORGE%
+  IF %MCMAJOR% LEQ 16 SET JAVAVERSION=8
+  IF %MCMAJOR%==17 SET JAVAVERSION=16
+  IF %MCMAJOR% GEQ 18 SET JAVAVERSION=17
+  IF !MINECRAFT! NEQ 1.16.5 GOTO :goramentry
+  IF !MINECRAFT!==1.16.5 GOTO :gojava
 )
 IF /I !USEDEFAULT!==BLANK GOTO :enterforge
 IF /I !USEDEFAULT! NEQ Y IF /I !USEDEFAULT! NEQ N IF /I !USEDEFAULT! NEQ  BLANK GOTO :usedefaulttryagain
 
 
 :enterforge
-  CLS
-  ECHO: && ECHO: 
-  ECHO  %yellow% ENTER FORGE VERSION %blue% && ECHO:
-  ECHO      example: 14.23.5.2860 && ECHO:
-  ECHO      example: 36.2.39 && ECHO:
-  ECHO      example: 43.2.4
-  ECHO: && ECHO  %yellow% ENTER FORGE VERSION %blue% && ECHO:
-  SET /P FORGE=
+CLS
+IF NOT EXIST settings-universalator.txt (
+  ECHO:%yellow%
+  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
+  ECHO: && ECHO:
+  ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
+  ) ELSE (
+      ECHO: && ECHO: && ECHO:
+    )
+ECHO: && ECHO: && ECHO: && ECHO:
+ECHO    %yellow% ENTER FORGE VERSION %blue% && ECHO:
+ECHO      example: 14.23.5.2860 && ECHO:
+ECHO      example: 36.2.39 && ECHO:
+ECHO      example: 43.2.4
+ECHO: && ECHO    %yellow% ENTER FORGE VERSION %blue% && ECHO:
+SET /P FORGE=
 
 
 :gojava
+CLS
+IF NOT EXIST settings-universalator.txt (
+  ECHO:%yellow%
+  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
+  ECHO: && ECHO:
+  ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
+) ELSE (
+     ECHO: && ECHO:
+  )
 
-IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! GEQ 17 (
-  CLS
-  ECHO:
+IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! GEQ 17 IF /I !USEDEFAULT! NEQ Y (
+  ECHO: && ECHO: && ECHO: && ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
@@ -1046,15 +926,15 @@ IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! GEQ 17 (
 )
 
 IF /I !MODLOADER!==FORGE IF !MINECRAFT!==1.16.5 (
-  CLS
-  ECHO:
+  ECHO: && ECHO: && ECHO: && ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
   ECHO:
-  ECHO   THE ONLY VERSIONS AVAILABLE THAT WORK WITH MINECRAFT / FORGE 1.16.5 ARE %green% 8 AND 11 %blue%
+  ECHO   THE ONLY VERSIONS AVAILABLE THAT WORK WITH MINECRAFT / FORGE 1.16.5 ARE %green% 8 %blue% AND %green% 11 %blue%
   ECHO:
   ECHO   USING JAVA 11 %green% MAY %blue% OR %red% MAY NOT %blue% WORK DEPENDING ON MODS BEING LOADED
+  ECHO   %green% BUT IT PROBABLY WILL %blue%
   ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
@@ -1062,8 +942,7 @@ IF /I !MODLOADER!==FORGE IF !MINECRAFT!==1.16.5 (
   IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
 )
 
-IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 (
-  CLS
+IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 IF /I !USEDEFAULT! NEQ Y (
   ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
@@ -1077,12 +956,23 @@ IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 (
   SET /P JAVAVERSION=
   IF !JAVAVERSION! NEQ 8 GOTO :gojava
 )
+SET USEDEFAULT=BLANK
 
 :: IF Fabric ask for Java verison entry
 :fabricram
 IF !MODLOADER!==FABRIC (
   CLS
-  ECHO:
+  IF NOT EXIST settings-universalator.txt (
+    ECHO:%yellow%
+    ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
+    ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
+    ECHO: && ECHO:
+    ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
+    ) ELSE (
+        ECHO: && ECHO:
+      )
+  ECHO: && ECHO: && ECHO: && ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
@@ -1130,7 +1020,7 @@ FOR /F "tokens=4,5 delims=, " %%E IN ("!RAWFREERAM!") DO (
 )
 :: Ram / Memory setting amount entry menu
   CLS
-  ECHO:
+  ECHO: && ECHO:
   ECHO %yellow%    Computer Total Total Memory/RAM     %blue% = %yellow% !TOTALRAM!.!DECIMALTOTAL! Gigabytes (GB) %blue%
   ECHO %yellow%    Current Available (Free) Memory/RAM %blue% = %yellow% !FREERAM!.!DECIMALFREE! Gigabytes (GB) %blue%
   ECHO:
@@ -1165,9 +1055,11 @@ IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 IF !JAVAVERSION! NEQ 16 IF !JAVAV
   GOTO :gojava
 )
 
-
-
 IF /I !MAINMENU!==L SET ASKMODSCHECK=N
+IF NOT EXIST settings-universalator.txt (
+  SET MAINMENU=S
+  SET ASKMODSCHECK=Y
+)
 :: Generates settings-universalator.txt file if settings-universalator.txt does not exist
 IF EXIST settings-universalator.txt DEL settings-universalator.txt
 
@@ -1573,17 +1465,17 @@ IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   ECHO:
   ECHO:
   ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% && ECHO:
-  ECHO      %green% WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? %blue%
-  ECHO      %green% FOUND CLIENT MODS CAN BE AUTOMATICALLY MOVED TO A DIFFERENT FOLDER FOR STORAGE. %blue%
   ECHO:
-  ECHO       --MANY CLIENT MODS ARE NOT CODED TO SELF DISABLE ON SERVERS AND MAY CRASH THEM
-  ECHO: && ECHO: && ECHO:
+  ECHO       --MANY CLIENT MODS ARE NOT CODED TO SELF DISABLE ON SERVERS AND MAY CRASH THEM && ECHO:
   ECHO       --THE UNIVERSALATOR SCRIPT CAN SCAN THE MODS FOLDER AND SEE IF ANY ARE PRESENT && ECHO:
   ECHO         For an explanation of how the script scans files - visit the official wiki at:
   ECHO         https://github.com/nanonestor/universalator/wiki
   ECHO:
-  ECHO:
   ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% && ECHO:
+  ECHO:
+  ECHO      %green% WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? %blue%
+  ECHO      %green% FOUND CLIENT MODS CAN BE AUTOMATICALLY MOVED TO A DIFFERENT FOLDER FOR STORAGE. %blue%
+  ECHO:
   ECHO:
   ECHO:
   ECHO             %yellow% Please choose 'Y' or 'N' %blue%
