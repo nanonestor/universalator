@@ -474,8 +474,8 @@ ver > nul
 :: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
 
 :: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-REM FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
-SET PUBLICIP=0.0.0.0
+FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
+
 REM Another different method to return the public IP from the same website
 REM FOR /F %%B IN ('curl -w "\n" -s https://api.ipify.org') DO SET PUBLICIP=%%B
 
