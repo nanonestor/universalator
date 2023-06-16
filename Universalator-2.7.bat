@@ -258,24 +258,23 @@ IF "%cd%"=="C:\" SET FOLDER=BAD
 IF !FOLDER!==BAD (
     CLS
     ECHO:
+    ECHO         %yellow% WARNING WARNING WARNING %blue%
+    ECHO         %red% DO NOT PUT SERVER FOLDERS INSIDE OF SYSTEM FOLDERS %blue%
+    ECHO         %yellow% WARNING WARNING WARNING %blue%
+    ECHO:
     ECHO   %red% %LOC% %blue%
+    ECHO   %yellow% The folder this is being run from ^(shown above^) was detected to be %blue%
+    ECHO   %yellow% inside a folder or subfolder containing one of the names: %blue% && ECHO:
+    ECHO   %red%'DESKTOP'%blue%  %red%'DOCUMENTS'%blue% %red%'ONEDRIVE'%blue% %red%'PROGRAM FILES'%blue% %red%'DOWNLOADS'%blue% %red%'.minecraft'%blue%
+ECHO: && ECHO ------------------------------------------------------------------------- && ECHO:
+    ECHO   %yellow% Servers should not run in these folders because it can cause issues with file access by games, system permissions, %blue%
+    ECHO   %yellow% and could be set as cloud storage. %blue%
+    ECHO: && ECHO: && ECHO:
+    ECHO         %green% USE FILE EXPLORER TO MAKE A NEW FOLDER OR MOVE THIS FOLDER TO A NON-SYSTEM FOLDER LOCATION. %blue%
     ECHO:
-    ECHO   %yellow% THE SERVER FOLDER THIS IS BEING RUN FROM ^(shown above^) WAS DETECTED TO BE %blue%
-    ECHO   %yellow% INSIDE A FOLDER OR SUBFOLDER CONTAINING THE NAME: %blue% && ECHO:
-    ECHO       %red%'ONEDRIVE'%blue%
-    ECHO       %red%'DOCUMENTS'%blue%
-    ECHO       %red%'DESKTOP'%blue%
-    ECHO       %red%'PROGRAM FILES'%blue%
-    ECHO       %red%'DOWNLOADS'%blue%
-    ECHO       %red%'.minecraft'%blue% && ECHO:
-    ECHO   %yellow% SERVERS SHOULD NOT RUN IN THESE FOLDERS BECAUSE IT CAN CAUSE ISSUES WITH SYSTEM PERMISSIONS OR FUNCTIONS. %blue%
+    ECHO         %green% --EXAMPLES THAT WORK -- %blue%
     ECHO:
-    ECHO:
-    ECHO         --USE FILE EXPLORER TO MAKE A NEW FOLDER OUTSIDE OF ANY OF THE ABOVE FOLDERS
-    ECHO           PLACE THE SERVER FILES - OR - THIS ENTIRE FOLDER IN THIS NEW LOCATION
-    ECHO:
-    ECHO         --EXAMPLES THAT WORK - ANY NEW OR EXISTING FOLDER NOT INSIDE ONE OF THE ABOVE FOLDERS:
-    ECHO           %green% C:\MYNEWSERVER\ %blue%   %green% D:\MYSERVERS\MODDEDSERVERNAME\ %blue%
+    ECHO         %green% C:\MYNEWSERVER\ %blue%   %green% D:\MYSERVERS\MODDEDSERVERNAME\ %blue%
     ECHO: && ECHO:
     PAUSE && EXIT [\B]
 )
@@ -475,8 +474,8 @@ ver > nul
 :: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
 
 :: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
-
+REM FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
+SET PUBLICIP=0.0.0.0
 REM Another different method to return the public IP from the same website
 REM FOR /F %%B IN ('curl -w "\n" -s https://api.ipify.org') DO SET PUBLICIP=%%B
 
@@ -1652,12 +1651,9 @@ FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
 )
 :: FINDSTR compares each line of the client only mods list to the list containing all found modIds and returns only lines with matches.
 ver >nul
-
 FINDSTR /b /g:univ-utils\clientonlymods.txt univ-utils\allmodidsandfiles.txt>univ-utils\foundclients.txt
-
-:: If foundclients.txt isn't found then assume none were found and GOTO section stating none found.
-IF NOT EXIST univ-utils\foundclients.txt GOTO :noclients
-IF !ERRORLEVEL!==1 GOTO :noclients
+SORT univ-utils\foundclients.txt
+ECHO zzdummyzz>>univ-utils\foundclients.txt
 
 :: Loops/Reads through the foundclients.txt and enters values into an array.
 SET /a NUMCLIENTS=0
@@ -1667,13 +1663,17 @@ FOR /F "tokens=1,2 delims=;" %%b IN (univ-utils\foundclients.txt) DO (
    SET /a NUMCLIENTS+=1
 )
 
+:: If foundclients.txt isn't found then assume none were found and GOTO section stating none found.
+REM IF NOT EXIST univ-utils\foundclients.txt GOTO :noclients
+IF !FOUNDCLIENTS[0].id!==zzdummyzz GOTO :noclients
+
   :: Prints report to user - showing client mod file names and corresponding modid's.
   CLS
   ECHO:
   ECHO:
   ECHO   %yellow% THE FOLLOWING CLIENT ONLY MODS WERE FOUND %blue%
   ECHO:
-  IF !HOWOLD!==SUPEROLD (
+  IF !MCMAJOR! LEQ 12 (
   ECHO    *NOTE - IT IS DETECTED THAT YOUR MINECRAFT VERSION STORES ITS ID NUMBER IN THE OLD WAY*
   ECHO     SOME CLIENT ONLY MODS MAY NOT BE DETECTED BY THE SCAN - I.E. MODS THAT DO NOT USE A MCMOD.INFO FILE
   )
@@ -1684,8 +1684,8 @@ FOR /L %%c IN (0,1,%NUMCLIENTS%) DO (
   IF "!FOUNDCLIENTS[%%c].file!" NEQ "" (
     ECHO        !FOUNDCLIENTS[%%c].file! - !FOUNDCLIENTS[%%c].id!
 ) )
-  DEL univ-utils\foundclients.txt >nul 2>&1
-  DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
+  REM DEL univ-utils\foundclients.txt >nul 2>&1
+  REM DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
 
   ECHO    ------------------------------------------------------
   ECHO:
