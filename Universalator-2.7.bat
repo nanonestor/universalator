@@ -120,6 +120,20 @@ IF %major% LEQ 9 (
 )
 :skipwin
 
+:: Checks the last character of the folder name the script was run from.  If that last character is found in a FINDSTR of the string of bad characters then prompt user to change the folder name or move the server files and pause/exit.
+:: Handling the character needs to be done carefully because it will be null in some cases without character escaping ^ or echo without entering variables as string.  Special characters at the end of the working folder breaks certain CMD commands.
+SET "LASTCHAR=%cd:~-1%"
+SET "BADS=& ( )"
+ECHO "%BADS%" | FINDSTR "%LASTCHAR%" >nul && (
+  CLS
+  ECHO. & ECHO. & ECHO. & ECHO   %yellow% PROBLEM DETECTED %blue% & ECHO. & ECHO  %red% "%cd%" %blue% & ECHO. & ECHO      THE ABOVE FOLDER LOCATION ENDS IN A SPECIAL CHARACTER - %red% ^%LASTCHAR% %blue% & ECHO.
+  ECHO      REMOVE THIS SPECIAL CHARACTER FROM THE END OF OF THE FOLDER NAME OR USE A DIFFERENT FOLDER
+  ECHO      SPECIAL CHARACTERS AT THE END OF FOLDER NAMES BREAKS CERTAIN COMMAND FUNCTIONS THE SCRIPT USES
+  ECHO. & ECHO      Example of good location:  C:\MYSERVERS\MYSERVER1
+  ECHO. & ECHO   %yellow% PROBLEM DETECTED %blue% & ECHO. & ECHO. & ECHO.
+  PAUSE && EXIT [\B]
+)
+
 :: Checks to see if there are environmental variables trying to set global ram allocation values!  This is a real thing!
 :: Check for _JAVA_OPTIONS
 IF NOT DEFINED _JAVA_OPTIONS GOTO :skipjavopts
@@ -193,6 +207,7 @@ IF %LASTCHAR%==")" (
 )
 
 :: The below SET PATH only applies to this command window launch and isn't permanent to the system's PATH.
+SET PATH=%PATH%;"C:\Windows\system32\"
 SET PATH=%PATH%;"C:\Windows\Syswow64\"
 
 :: Checks to see if CMD is working by checking WHERE for some commands
@@ -765,7 +780,7 @@ IF NOT EXIST settings-universalator.txt (
   ) ELSE (
       ECHO: && ECHO: && ECHO:
     )
-  SET "POPULARS=;1.6.4;1.7.10;1.8.9;1.9.4;1.10.2;1.12.2;1.14.4;1.15.2;1.16.5;1.17.1;1.18.2;1.19.2;1.19.4;1.20;"
+  SET "POPULARS=;1.6.4;1.7.10;1.8.9;1.9.4;1.10.2;1.12.2;1.14.4;1.15.2;1.16.5;1.17.1;1.18.2;1.19.2;1.19.4;1.20.1;"
 
   IF "!POPULARS!" NEQ "!POPULARS:;%MINECRAFT%;=x!" (
     ECHO: && ECHO: && ECHO: && ECHO:
@@ -835,14 +850,14 @@ IF !MINECRAFT!==1.19.2 (
   SET TEMPFORGE=43.2.14
 )
 IF !MINECRAFT!==1.19.4 (
-  ECHO    FORGE = %green% 45.1.0 %blue% && ECHO:
+  ECHO    FORGE = %green% 45.1.2 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
-  SET TEMPFORGE=45.1.0
+  SET TEMPFORGE=45.1.2
 )
-IF !MINECRAFT!==1.20 (
-  ECHO    FORGE = %green% 46.0.14 %blue% && ECHO:
+IF !MINECRAFT!==1.20.1 (
+  ECHO    FORGE = %green% 47.0.19 %blue% && ECHO:
   ECHO    JAVA =  %green% 17 %blue%
-  SET TEMPFORGE=46.0.14
+  SET TEMPFORGE=47.0.19
 )
 IF "!POPULARS!" NEQ "!POPULARS:;%MINECRAFT%;=x!" (
 ECHO:
