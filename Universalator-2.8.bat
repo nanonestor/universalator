@@ -1694,17 +1694,59 @@ IF !FOUNDCLIENTS[0].id!==zzdummyzz GOTO :noclients
   )
   ECHO:
   ECHO    ------------------------------------------------------
-  :: Prints to the screen all of the values in the array that are not equal to forge or null
-FOR /L %%c IN (0,1,%NUMCLIENTS%) DO (
-  IF "!FOUNDCLIENTS[%%c].file!" NEQ "" (
-    ECHO        !FOUNDCLIENTS[%%c].file! - !FOUNDCLIENTS[%%c].id!
-) )
-  REM DEL univ-utils\foundclients.txt >nul 2>&1
-  REM DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
+
+:: Corrects the number of found client mods to remove dummy entries
+SET NEWNUMCLIENTS=!NUMCLIENTS!
+FOR /L %%R IN (0,1,!NUMCLIENTS!) DO (
+	IF "!FOUNDCLIENTS[%%R].id!" NEQ "!FOUNDCLIENTS[%%R].id:zzdummyzz=z!" (
+    SET /a NEWNUMCLIENTS-=1
+  )
+)
+SET NUMCLIENTS=!NEWNUMCLIENTS!
+
+:: The purpose of the following code is to echo the modIDs and filenames to view but do so with auto-formatted columns depending on the maximum size of the modID.
+:: It determines this first entry column width with a funciton.
+
+:: First iterate through the list to find the length of the longest modID string
+SET COLUMNWIDTH=0
+FOR /L %%p IN (0,1,!NUMCLIENTS!) DO (
+	CALL :GetMaxStringLength COLUMNWIDTH "!FOUNDCLIENTS[%%p].id!"
+)
+:: The equal sign is followed by 80 spaces and a doublequote
+SET "EightySpaces=                                                                                "
+FOR /L %%D IN (0,1,!NUMCLIENTS!) DO (
+	:: Append 80 spaces after the modID value
+	SET "Column=!FOUNDCLIENTS[%%D].id!%EightySpaces%"
+	:: Chop at maximum column width, using a FOR loop as a kind of "super delayed" variable expansion
+	FOR %%W IN (!COLUMNWIDTH!) DO (
+    SET "Column=!Column:~0,%%W!"
+  )
+  :: Finally echo the actual line for display using the now-length-formatted modID which is now the Column variable.
+	ECHO   !Column!  -   !FOUNDCLIENTS[%%D].file!
+)
+
+GOTO :continue1
+:: Function used above for determining max character length of any of the modIDs.
+:GetMaxStringLength
+
+:: Usage : GetMaxStringLength OutVariableName StringToBeMeasured
+:: Note  : OutVariable may already have an initial value
+SET StrTest=%~2
+:: Just add zero, in case the initial value is empty
+SET /A %1+=0
+:: Maximum length we will allow, modify appended spaces accordingly
+SET MaxLength=80
+IF %MaxLength% GTR !%1! (
+	FOR /L %%e IN (!%1!,1,%MaxLength%) DO (
+		IF NOT "!StrTest:~%%e!"=="" (
+			SET /A %1=%%e+1
+		)
+	)
+)
+GOTO:EOF
+:continue1
 
   ECHO    ------------------------------------------------------
-  ECHO:
-  ECHO:
   ECHO:
   ECHO:
   ECHO   %green% *** DO YOU WANT TO MOVE THESE CLIENT MODS TO A DIFFERENT FOLDER FOR SAFE KEEPING? *** %blue%
@@ -2113,12 +2155,51 @@ IF EXIST univ-utils\allfabricdeps.txt DEL univ-utils\allfabricdeps.txt >nul
   ECHO   %yellow% THE FOLLOWING FABRIC - CLIENT MARKED MODS WERE FOUND %blue%
   ECHO:
   ECHO    ------------------------------------------------------
-  REM Prints to the screen all of the values in the array that are not equal to forge or null
-  FOR /L %%T IN (0,1,!CLIENTSCOUNT!) DO (
-    IF /I "!FABRICCLIENTS[%%T].file!" NEQ "" (
-      ECHO        !FABRICCLIENTS[%%T].file! - !FABRICCLIENTS[%%T].id!
-    )
+
+
+:: The purpose of the following code is to echo the modIDs and filenames to view but do so with auto-formatted columns depending on the maximum size of the modID.
+:: It determines this first entry column width with a funciton.
+
+:: First iterate through the list to find the length of the longest modID string
+SET COLUMNWIDTH=0
+FOR /L %%p IN (0,1,!CLIENTSCOUNT!) DO (
+  IF /I "!FABRICCLIENTS[%%p].file!" NEQ "" CALL :GetMaxStringLength COLUMNWIDTH "!FABRICCLIENTS[%%p].id!"
+)
+
+:: The equal sign is followed by 80 spaces and a doublequote
+SET "EightySpaces=                                                                                "
+FOR /L %%D IN (0,1,!CLIENTSCOUNT!) DO (
+	:: Append 80 spaces after the modID value
+	SET "Column=!FABRICCLIENTS[%%D].id!%EightySpaces%"
+	:: Chop at maximum column width, using a FOR loop as a kind of "super delayed" variable expansion
+	FOR %%W IN (!COLUMNWIDTH!) DO (
+    SET "Column=!Column:~0,%%W!"
   )
+  :: Finally echo the actual line for display using the now-length-formatted modID which is now the Column variable.
+	IF "!FABRICCLIENTS[%%D].file!" NEQ "" ECHO   !Column!  -   !FABRICCLIENTS[%%D].file!
+)
+
+GOTO :continue1
+:: Function used above for determining max character length of any of the modIDs.
+:GetMaxStringLength
+
+:: Usage : GetMaxStringLength OutVariableName StringToBeMeasured
+:: Note  : OutVariable may already have an initial value
+SET StrTest=%~2
+:: Just add zero, in case the initial value is empty
+SET /A %1+=0
+:: Maximum length we will allow, modify appended spaces accordingly
+SET MaxLength=80
+IF %MaxLength% GTR !%1! (
+	FOR /L %%e IN (!%1!,1,%MaxLength%) DO (
+		IF NOT "!StrTest:~%%e!"=="" (
+			SET /A %1=%%e+1
+		)
+	)
+)
+GOTO:EOF
+:continue1
+
   ECHO    ------------------------------------------------------
   ECHO:
   ECHO:
