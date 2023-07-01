@@ -1500,6 +1500,7 @@ IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   IF /I !DOSCAN!==N GOTO :mainmenu
 
   ECHO Searching for client only mods . . .
+IF NOT EXIST univ-utils MD univ-utils
   :: Goes to mods folder and gets file names lists.  FINDSTR prints only files with .jar found
   
 :: Creates list of all mod file names.  Sends the working dir to the mods folder and uses a loop and the 'dir' command to create an array list of file names.
