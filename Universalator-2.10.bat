@@ -1198,7 +1198,7 @@ IF EXIST univ-utils\java\java.zip (
     PUSHD univ-utils\java
     IF /i %checksumeight%==%filechecksum% (
     tar -xf java.zip
-    ) && DEL java.zip && ECHO Downloaded Java binary and stored hashfile match values - file is valid
+    ) && DEL java.zip && ECHO   Downloaded Java binary and stored hashfile match values - file is valid
     POPD
 )
 IF EXIST univ-utils\java\java.zip IF %checksumeight% NEQ %filechecksum% (
@@ -1228,43 +1228,22 @@ IF /I !MODLOADER!==QUILT GOTO :preparequilt
 :: BEGIN FORGE SPECIFIC SETUP AND LAUNCH
 :detectforge
 
-IF /I !MODLOADER!==NEOFORGE (
-    IF EXIST libraries/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/. (
-    ECHO Detected Installed Neoforge !NEOFORGE!. Moving on...
-    GOTO :foundforge
-  )
-)
+:: Checks to see if the specific JAR file or libraries folder exists for this modloader & version.  If found we'll assume it's installed correctly and move to the foundforge label.
+IF /I !MODLOADER!==NEOFORGE IF EXIST libraries/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/. GOTO :foundforge
 
 IF /I !MODLOADER!==FORGE (
-  IF EXIST libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/. (
-    ECHO Detected Installed Forge !FORGE!. Moving on...
-    GOTO :foundforge
-  )
-
-  IF EXIST forge-!MINECRAFT!-!FORGE!.jar (
-    ECHO Detected Installed Forge !FORGE!. Moving on...
-    GOTO :foundforge
-  )
-
-  IF EXIST minecraftforge-universal-!MINECRAFT!-!FORGE!.jar (
-    ECHO Detected Installed Forge !FORGE!. Moving on...
-    GOTO :foundforge
-  )
-
-  IF EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-    ECHO Detected Installed Forge !FORGE!. Moving on...
-    GOTO :foundforge
-  )
-
-  IF EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
-    ECHO Detected Installed Forge !FORGE!. Moving on...
-    GOTO :foundforge
-  )
+  IF EXIST libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/. GOTO :foundforge
+  IF EXIST forge-!MINECRAFT!-!FORGE!.jar GOTO :foundforge
+  IF EXIST minecraftforge-universal-!MINECRAFT!-!FORGE!.jar GOTO :foundforge
+  IF EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar GOTO :foundforge
+  IF EXIST forge-!MINECRAFT!-!FORGE!-universal.jar GOTO :foundforge
 )
+:: At this point assume the JAR file or libaries folder does not exist and installation is needed.
 IF /I !MODLOADER!==FORGE ECHO   Existing Forge !FORGE! files installation not detected.
 IF /I !MODLOADER!==NEOFORGE ECHO   Existing Neoforge !NEOFORGE! files installation not detected.
 ECHO: & ECHO   Beginning installation! & ECHO:
-:: Downloads the Minecraft server JAR if version is = OLD and does not exist.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets it first.
+
+:: Downloads the Minecraft server JAR if version is 1.16 and older.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets the vanilla server JAR first.
 IF !MCMAJOR! LEQ 16 IF NOT EXIST minecraft_server.!MINECRAFT!.jar (
   powershell -Command "(New-Object Net.WebClient).DownloadFile(((Invoke-RestMethod -Method Get -Uri ((Invoke-RestMethod -Method Get -Uri "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json").versions | Where-Object -Property id -Value !MINECRAFT! -EQ).url).downloads.server.url), 'minecraft_server.!MINECRAFT!.jar')"
 )
@@ -1284,115 +1263,44 @@ IF %ERRORLEVEL% NEQ 0 (
   GOTO :pingforgeagain
 )
 
-:: Forge installer file download
-:: Detects if installed files or folders exist - if not then deletes existing JAR files and libraries folder to prevent mash-up of various versions installing on top of each other, and then downloads installer JAR
-ECHO   Downloading installer file!
-IF !MCMAJOR! GEQ 17 GOTO :downloadnewforgeandneoforge
+:: Deletes existing JAR files and libraries folder to prevent mash-up of various versions installing on top of each other, and then downloads installer JAR
+DEL *.jar >nul 2>&1
+IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
+ECHO   Any existing JAR files and 'libaries' folder deleted.
+ECHO   Downloading installer... && ECHO:
 
-:: 1.6.4
-IF !MINECRAFT!==1.6.4 IF NOT EXIST minecraftforge-universal-1.6.4-!FORGE!.jar (
-  DEL *.jar >nul 2>&1
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
-  ECHO   Any existing JAR files and 'libaries' folder deleted.
-  ECHO   Downloading installer... && ECHO:
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
-)
+:: Skips ahead if Neoforge instead of Forge
+IF /I !MODLOADER!==NEOFORGE GOTO :downloadneoforge
 
-:: 1.7.10
-IF !MINECRAFT!==1.7.10 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-  DEL *.jar >nul 2>&1
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
-  ECHO   Any existing JAR files and 'libaries' folder deleted.
-  ECHO   Downloading installer... && ECHO:
+:: Sets variables for different file names that different versions of Forge have.
+IF !MINECRAFT!==1.6.4 IF NOT EXIST minecraftforge-universal-1.6.4-!FORGE!.jar SET "FORGEFILENAMEORDER=!MINECRAFT!-!FORGE!"
+IF !MCMAJOR! GEQ 7 IF !MCMAJOR! LEQ 9 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar SET "FORGEFILENAMEORDER=!MINECRAFT!-!FORGE!-!MINECRAFT!"
+IF !MCMAJOR!==10 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar SET "FORGEFILENAMEORDER=!MINECRAFT!-!FORGE!"
+IF !MCMAJOR! GEQ 11 IF !MCMAJOR! LEQ 16 IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar SET "FORGEFILENAMEORDER=!MINECRAFT!-!FORGE!"
+IF !MCMAJOR! GEQ 17 IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. SET "FORGEFILENAMEORDER=!MINECRAFT!-!FORGE!"
 
-  curl -sLfo forge-installer.jar https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar >nul 2>&1
+:: Forge detect if specific version folder is present - if not delete all JAR files and 'install' folder to guarantee no files of different versions conflicting on later install.  Then downloads installer file.
+IF /I !MODLOADER!==FORGE (
+  ECHO   Downloading !MINECRAFT! - Forge - !FORGE! installer file!
+  curl -sLfo forge-installer.jar https://maven.minecraftforge.net/net/minecraftforge/forge/!FORGEFILENAMEORDER!/forge-!FORGEFILENAMEORDER!-installer.jar >nul 2>&1
   IF NOT EXIST forge-installer.jar (
-    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul 2>&1
+    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!FORGEFILENAMEORDER!/forge-!FORGEFILENAMEORDER!-installer.jar', 'forge-installer.jar')" >nul 2>&1
   )
 )
 
-:: 1.8.9
-IF !MINECRAFT!==1.8.9 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-  DEL *.jar >nul 2>&1
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
-  ECHO   Any existing JAR files and 'libaries' folder deleted.
-  ECHO   Downloading installer... && ECHO:
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul 2>&1
-)
-
-:: 1.9.4
-IF !MINECRAFT!==1.9.4 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar (
-  DEL *.jar >nul 2>&1
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
-  ECHO   Any existing JAR files and 'libaries' folder deleted.
-  ECHO   Downloading installer... && ECHO:
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!-!MINECRAFT!/forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-installer.jar', 'forge-installer.jar')" >nul 2>&1
-)
-
-:: 1.10.2
-IF !MINECRAFT!==1.10.2 IF NOT EXIST forge-!MINECRAFT!-!FORGE!-universal.jar (
-  DEL *.jar >nul 2>&1
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
-  ECHO   Any existing JAR files and 'libaries' folder deleted.
-  ECHO   Downloading installer... && ECHO:
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
-)
-
-:: Versions of MC newer than 1.10.2 but older than 17
-IF !MCMAJOR! GEQ 11 IF !MCMAJOR! LEQ 16 IF NOT EXIST forge-!MINECRAFT!-!FORGE!.jar (
-  DEL *.jar >nul 2>&1
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
-  ECHO   Any existing JAR files and 'libaries' folder deleted.
-  ECHO   Downloading installer... && ECHO:
-
-  curl -sLfo forge-installer.jar https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar >nul 2>&1
-  IF NOT EXIST forge-installer.jar (
-    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
-  )
-)
-
-:downloadnewforgeandneoforge
-:: For NEW (1.17 and newer) Forge detect if specific version folder is present - if not delete all JAR files and 'install' folder to guarantee no files of different versions conflicting on later install.  Then downloads installer file.
-IF /I !MODLOADER!==FORGE IF !MCMAJOR! GEQ 17 IF NOT EXIST libraries\net\minecraftforge\forge\!MINECRAFT!-!FORGE!\. (
-  DEL *.jar >nul 2>&1
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
-  ECHO   Any existing JAR files and 'libaries' folder deleted.
-  ECHO   Downloading installer... && ECHO:
-
-  curl -sLfo forge-installer.jar https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar >nul 2>&1
-  IF NOT EXIST forge-installer.jar (
-    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/forge-!MINECRAFT!-!FORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
-  )
-)
-
-IF /I !MODLOADER!==NEOFORGE IF NOT EXIST libraries\net\neoforged\forge\!MINECRAFT!-!NEOFORGE!\. (
-  DEL *.jar >nul 2>&1
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  ECHO: && ECHO   Neoforge !NEOFORGE! Server JAR-file not found.
-  ECHO   Any existing JAR files and 'libaries' folder deleted.
-  ECHO   Downloading installer... && ECHO:
-
+:: Downloads the Neoforge installer file if modloader is Neoforge
+:downloadneoforge
+IF /I !MODLOADER!==NEOFORGE (
+  ECHO   Downloading !MINECRAFT! - Neoforge - !NEOFORGE! installer file!
   curl -sLfo forge-installer.jar https://maven.neoforged.net/releases/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/forge-!MINECRAFT!-!NEOFORGE!-installer.jar >nul 2>&1
   IF NOT EXIST forge-installer.jar (
     powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.neoforged.net/releases/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/forge-!MINECRAFT!-!NEOFORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
   )
 )
 
+:: Checks if installer file was successfully obtained.  If test not passed then error message and goes back to the pingforgeagain label to try downloading process again.
 IF EXIST "%HERE%\forge-installer.jar" GOTO :useforgeinstaller
 CLS
 ECHO:
@@ -1411,7 +1319,7 @@ ECHO   Close the program and enter new settings. & ECHO: & ECHO:
 PAUSE
 GOTO :pingforgeagain
 
-:: Installs forge, detects if successfully made the main JAR file, deletes extra new style files that this BAT replaces
+:: Runs the Forge/Neoforge installer file to attempt install, then goes to the detectforge label to check if the version JAR file / libaries foler exists.
 :useforgeinstaller
 IF EXIST forge-installer.jar (
   ECHO: && ECHO Installer downloaded. Installing...
@@ -1423,16 +1331,17 @@ IF EXIST forge-installer.jar (
 )
 
 :foundforge
+IF /I !MODLOADER!==FORGE ECHO   Detected Installed Forge !FORGE!. Moving on...
+IF /I !MODLOADER!==NEOFORGE ECHO   Detected Installed Neoforge !NEOFORGE!. Moving on...
 
-:: Forge was found to exist at this point - delete the files which Forge installs that this script replaces the functions of.
+:: Forge was found to exist at this point - delete the not needed script files that newer Forge/Neoforge installs that the Universalator BAT replaces.
 IF !MCMAJOR! GEQ 17 (
   DEL "%HERE%\run.*" >nul 2>&1
   IF EXIST "%HERE%\user_jvm_args.txt" DEL "%HERE%\user_jvm_args.txt"
 )
 
 :eula
-::If eula.txt doens't exist yet 
-SET RESPONSE=IDKYET
+::If eula.txt doens't exist yet user prompted to agree and sets the file automatically to eula=true.  The only entry that gets the user further is 'agree'.
 IF NOT EXIST eula.txt (
   CLS
   ECHO:
@@ -1445,20 +1354,15 @@ IF NOT EXIST eula.txt (
   ECHO     %yellow% ENTER YOUR RESPONSE %blue%
   ECHO:
   SET /P RESPONSE=
-)
-IF /I !RESPONSE!==AGREE (
-  ECHO:
-  ECHO User agreed to Mojang's EULA.
-  ECHO:
-  ECHO eula=true> eula.txt
-)
-IF /I !RESPONSE! NEQ AGREE IF NOT EXIST eula.txt (
-  GOTO :eula
-)
-IF EXIST eula.txt (
-  ECHO:
-  ECHO eula.txt file found! ..
-  ECHO:
+
+  IF /I !RESPONSE!==AGREE (
+    ECHO:
+    ECHO   User agreed to Mojang's EULA.
+    ECHO:
+    ECHO eula=true> eula.txt
+  ) ELSE (
+    GOTO :eula
+  )
 )
 
 :: Moves any nuisance client mods that should never be placed on a server - for every launch of any version.
@@ -1732,7 +1636,7 @@ FOR /L %%D IN (0,1,!NUMCLIENTS!) DO (
 	ECHO   !Column!  -   !FOUNDCLIENTS[%%D].file!
 )
 
-GOTO :continue1
+GOTO :continue2
 :: Function used above for determining max character length of any of the modIDs.
 :GetMaxStringLength
 
@@ -1751,7 +1655,7 @@ IF %MaxLength% GTR !%1! (
 	)
 )
 GOTO:EOF
-:continue1
+:continue2
 
   ECHO    ------------------------------------------------------
   ECHO:
@@ -1967,7 +1871,7 @@ IF %ERRORLEVEL% NEQ 0 (
 IF EXIST fabric-installer.jar DEL fabric-installer.jar
 IF EXIST fabric-installer.jar.sha256 DEL fabric-installer.jar.sha256
 
-FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/fabricmc/fabric-installer/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.release"') DO SET FABRICINSTALLER=%%A
+FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/net/fabricmc/fabric-installer/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.release"') DO SET FABRICINSTALLER=%%A
 powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabricmc.net/net/fabricmc/fabric-installer/!FABRICINSTALLER!/fabric-installer-!FABRICINSTALLER!.jar', 'fabric-installer.jar')" >nul
 powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabricmc.net/net/fabricmc/fabric-installer/!FABRICINSTALLER!/fabric-installer-!FABRICINSTALLER!.jar.sha256', 'fabric-installer.jar.sha256')" >nul
 
