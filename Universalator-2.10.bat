@@ -653,6 +653,9 @@ ECHO   %yellow% ENTER THE MINECRAFT VERSION %blue%
 ECHO: && ECHO:
 SET /P MINECRAFT=
 
+:: Checks to see if the MC just entered begins with 1. as a simple pass in case something else was entered.  Until Minecraft 2 happens this will be fine.
+IF "!MINECRAFT:~0,2!" NEQ "1." GOTO :startover
+
 :: IF running SCAN from main menu it gets placed here first to get values for MC major and minor versions.
 :getmcmajor
 
@@ -794,35 +797,39 @@ IF /I !MODLOADER!==QUILT GOTO :fabricandquiltram
 
 :: If Forge get newest Forge version available of the selected minecraft version.
 IF /I !MODLOADER!==FORGE (
-SET /a idx=0
-FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  SET /a idx=0
+  SET "ARRAY[!idx!]="
+  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
     IF %%A==%MINECRAFT% (
         SET ARRAY[!idx!]=%%B
         SET /a idx+=1
     )
-)
-SET NEWESTFORGE=!ARRAY[0]!
-IF "!ARRAY[0]!" EQU "" (
-  ECHO: & ECHO: & ECHO   OOPS - NO FORGE VERSIONS EXIST FOR THIS MINECRAFT VERSION & ECHO:
-  ECHO   PRESS ANY KEY TO TRY A DIFFERENT COMBINATION OF MINECRAFT VERSION AND MODLOADER TYPE & ECHO: & ECHO: & ECHO:
-  PAUSE
-  GOTO :startover
-)
+  )
+  SET NEWESTFORGE=!ARRAY[0]!
+  IF "!ARRAY[0]!" EQU "" (
+    CLS
+    ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% NO FORGE VERSIONS EXIST FOR THIS MINECRAFT VERSION %blue% - !MINECRAFT! & ECHO:
+    ECHO   %yellow% PRESS ANY KEY TO TRY A DIFFERENT COMBINATION OF MINECRAFT VERSION AND MODLOADER TYPE %blue% & ECHO: & ECHO: & ECHO:
+    PAUSE
+    GOTO :startover
+  )
 )
 
 :: If Neoforge get newest Forge version available of the selected minecraft version.
 IF /I !MODLOADER!==NEOFORGE (
-FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  SET "NEWESTNEOFORGE="
+  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
     IF %%A==%MINECRAFT% (
         SET NEWESTNEOFORGE=%%B
     )
-)
-IF "!NEWESTNEOFORGE!" EQU "" (
-  ECHO: & ECHO: & ECHO   OOPS - NO NEOFORGE VERSIONS EXIST FOR THIS MINECRAFT VERSION & ECHO:
-  ECHO   PRESS ANY KEY TO TRY A DIFFERENT COMBINATION OF MINECRAFT VERSION AND MODLOADER TYPE & ECHO: & ECHO: & ECHO:
-  PAUSE
-  GOTO :startover
-)
+  )
+  IF "!NEWESTNEOFORGE!" EQU "" (
+    CLS
+    ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% NO NEOFORGE VERSIONS EXIST FOR THIS MINECRAFT VERSION %blue% - !MINECRAFT! & ECHO:
+    ECHO   %yellow% PRESS ANY KEY TO TRY A DIFFERENT COMBINATION OF MINECRAFT VERSION AND MODLOADER TYPE %blue% & ECHO: & ECHO: & ECHO:
+    PAUSE
+    GOTO :startover
+  )
 )
 
 :redoenterforge
@@ -1491,9 +1498,9 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    SET FOUNDMODPLACE=N
 
    REM Sends the mods.toml to standard output using the tar command in order to set the ERRORLEVEL - actual output and error output silenced
-   tar -xOf mods\!SERVERMODS[%%T].file! *\mods.toml >nul 2>&1
+   tar -xOf "mods\!SERVERMODS[%%T].file!" *\mods.toml >nul 2>&1
 
-   IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf mods\!SERVERMODS[%%T].file! *\mods.toml') DO (
+   IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf "mods\!SERVERMODS[%%T].file!" *\mods.toml') DO (
     
       SET "TEMP=%%X"
       IF !FOUNDMODPLACE!==Y (
@@ -1537,6 +1544,7 @@ GOTO :l_replaceloop
 :: First a trigger is needed to determine if the [mods] section has been detected yet in the JSON.  Once that trigger variable has been set to Y then 
 :: the script scans to find the modID line.  A fancy function replaces the = sign with _ for easier string comparison to determine if the modID= line was found.
 :: This should ensure that no false positives are recorded.
+
 SET "TABCHAR=	"
 FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
   SET COUNT=%%t
@@ -1544,9 +1552,9 @@ FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
   ECHO SCANNING !COUNT!/!ACTUALMODSCOUNT! - !SERVERMODS[%%t].file!
 
   REM Sends the mcmod.info to standard output using the tar command in order to set the ERRORLEVEL - actual output and error output silenced
-  tar -xOf mods\!SERVERMODS[%%t].file! mcmod.info >nul 2>&1
+  tar -xOf "mods\!SERVERMODS[%%t].file!" mcmod.info >nul 2>&1
 
-  IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf mods\!SERVERMODS[%%t].file! mcmod.info') DO (
+  IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf "mods\!SERVERMODS[%%t].file!" mcmod.info') DO (
     :: Sets ID to undefined if it was previously defined
     SET "ID="
     :: Sets a temp variable equal to the current line for processing, and replaces " with ; for easier loop delimiting later.
@@ -1556,8 +1564,9 @@ FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
     IF "!TEMP!" NEQ "!TEMP:;modid;=x!" (
       SET "TEMP=!TEMP:%TABCHAR%=!"
       SET "TEMP=!TEMP: =!"
-      SET "TEMP=!TEMP::=!"
-      FOR /F "tokens=2 delims=;" %%Y IN ("!TEMP!") DO (
+      SET "TEMP=!TEMP:;=!"
+      SET "TEMP=!TEMP:,=!"
+      FOR /F "tokens=2 delims=:" %%Y IN ("!TEMP!") DO (
         SET SERVERMODS[%%t].id=%%Y
       )
     )
