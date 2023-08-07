@@ -2109,20 +2109,20 @@ FOR /L %%f IN (0,1,!SERVERMODSCOUNT!) DO (
   SET /a COUNT+=1
   ECHO SCANNING !COUNT!/%ACTUALMODSCOUNT% - !SERVERMODS[%%f].file!
 
-  tar -xOf mods\!SERVERMODS[%%f].file! quilt.mod.json >nul 2>&1
+  tar -xOf "mods\!SERVERMODS[%%f].file!" quilt.mod.json >nul 2>&1
   IF !ERRORLEVEL!==0 (
-    FOR /F %%A IN ('powershell -Command "$json=(tar xOf mods\!SERVERMODS[%%f].file! quilt.mod.json) | Out-String | ConvertFrom-Json; $json.quilt_loader.id"') DO SET SERVERMODS[%%f].id=%%A
-    FOR /F %%A IN ('powershell -Command "$json=(tar xOf mods\!SERVERMODS[%%f].file! quilt.mod.json) | Out-String | ConvertFrom-Json; $json.minecraft.environment"') DO (
+    FOR /F %%A IN ('powershell -Command "$json=(tar xOf "mods\!SERVERMODS[%%f].file!" quilt.mod.json) | Out-String | ConvertFrom-Json; $json.quilt_loader.id"') DO SET SERVERMODS[%%f].id=%%A
+    FOR /F %%A IN ('powershell -Command "$json=(tar xOf "mods\!SERVERMODS[%%f].file!" quilt.mod.json) | Out-String | ConvertFrom-Json; $json.minecraft.environment"') DO (
       IF %%A==client SET SERVERMODS[%%f].environ=C
     )
-    FOR /F %%B IN ('powershell -Command "$json=(tar xOf mods\!SERVERMODS[%%f].file! quilt.mod.json) | Out-String | ConvertFrom-Json; $json.quilt_loader.depends.id"') DO (
+    FOR /F %%B IN ('powershell -Command "$json=(tar xOf "mods\!SERVERMODS[%%f].file!" quilt.mod.json) | Out-String | ConvertFrom-Json; $json.quilt_loader.depends.id"') DO (
                 IF %%B NEQ quilt_loader IF %%B NEQ minecraft IF %%B NEQ quilt_base IF %%B NEQ java IF %%B NEQ cloth-config IF %%B NEQ cloth-config2 IF %%B NEQ fabric-language-kotlin IF %%B NEQ iceberg IF %%B NEQ quilted_fabric_api IF %%B NEQ creativecore IF %%B NEQ architectury ECHO %%B>>univ-utils\allfabricdeps.txt
     )
   ) ELSE (
-  tar -xOf mods\!SERVERMODS[%%f].file! fabric.mod.json >nul 2>&1
+  tar -xOf "mods\!SERVERMODS[%%f].file!" fabric.mod.json >nul 2>&1
 
   REM Uses STDOUT from tar command to loop through each line in the fabric.mod.json file of each mod file.
-  IF !ERRORLEVEL!==0 FOR /F "delims=" %%I IN ('tar -xOf mods\!SERVERMODS[%%f].file! fabric.mod.json') DO (
+  IF !ERRORLEVEL!==0 FOR /F "delims=" %%I IN ('tar -xOf "mods\!SERVERMODS[%%f].file!" fabric.mod.json') DO (
     
     REM Sets a temp variable equal to the current line for processing, and replaces " with ; for easier loop delimiting later.
     SET "TEMP=%%I"
@@ -2197,8 +2197,8 @@ FOR /L %%r IN (0,1,!SERVERMODSCOUNT!) DO (
   IF !SERVERMODS[%%r].environ!==C (
     FINDSTR "!SERVERMODS[%%r].id!" univ-utils\allfabricdeps.txt >nul
     IF !ERRORLEVEL! NEQ 0 (
-      SET FABRICCLIENTS[!CLIENTSCOUNT!].file=!SERVERMODS[%%r].file!
-      SET FABRICCLIENTS[!CLIENTSCOUNT!].id=!SERVERMODS[%%r].id!
+      SET "FABRICCLIENTS[!CLIENTSCOUNT!].file=!SERVERMODS[%%r].file!"
+      SET "FABRICCLIENTS[!CLIENTSCOUNT!].id=!SERVERMODS[%%r].id!"
       SET /a CLIENTSCOUNT+=1
     )
   )
@@ -2208,7 +2208,6 @@ IF EXIST univ-utils\fabric.mod.json DEL univ-utils\fabric.mod.json >nul
 IF EXIST univ-utils\single-line-mod-deps.txt DEL univ-utils\single-line-mod-deps.txt >nul
 IF EXIST univ-utils\allfabricdeps.txt DEL univ-utils\allfabricdeps.txt >nul
 
-
   :: Prints report to user - echos all entries without the modID name = forge
   CLS
   ECHO:
@@ -2216,7 +2215,6 @@ IF EXIST univ-utils\allfabricdeps.txt DEL univ-utils\allfabricdeps.txt >nul
   ECHO   %yellow% THE FOLLOWING FABRIC - CLIENT MARKED MODS WERE FOUND %blue%
   ECHO:
   ECHO    ------------------------------------------------------
-
 
 :: The purpose of the following code is to echo the modIDs and filenames to view but do so with auto-formatted columns depending on the maximum size of the modID.
 :: It determines this first entry column width with a funciton.
