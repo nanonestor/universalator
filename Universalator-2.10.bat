@@ -857,6 +857,7 @@ ECHO        example: 14.23.5.2860
 ECHO        example: 47.1.3
 ECHO: & ECHO   %yellow% FORGE VERSION - FORGE VERSION %blue% & ECHO:
 SET /P "FROGEENTRY="
+IF NOT DEFINED FROGEENTRY GOTO :redoenterforge
 IF /I "!FROGEENTRY!"=="Y" (
   IF !MODLOADER!==FORGE SET FORGE=!NEWESTFORGE!
   IF !MODLOADER!==NEOFORGE SET NEOFORGE=!NEWESTNEOFORGE!
@@ -1296,7 +1297,6 @@ IF /I !MODLOADER!==FORGE (
     powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/!FORGEFILENAMEORDER!/forge-!FORGEFILENAMEORDER!-installer.jar', 'forge-installer.jar')" >nul 2>&1
   )
 )
-
 :: Downloads the Neoforge installer file if modloader is Neoforge
 :downloadneoforge
 IF /I !MODLOADER!==NEOFORGE (
