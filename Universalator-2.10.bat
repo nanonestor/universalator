@@ -654,7 +654,10 @@ ECHO: && ECHO:
 SET /P MINECRAFT=
 
 :: Checks to see if the MC just entered begins with 1. as a simple pass in case something else was entered.  Until Minecraft 2 happens this will be fine.
+:: Also checks if an entry was even made, and if there are any spaces in the entry.
+IF NOT DEFINED MINECRAFT GOTO :startover
 IF "!MINECRAFT:~0,2!" NEQ "1." GOTO :startover
+IF "!MINECRAFT!" NEQ "!MINECRAFT: =!" GOTO :startover
 
 :: IF running SCAN from main menu it gets placed here first to get values for MC major and minor versions.
 :getmcmajor
@@ -863,12 +866,13 @@ IF /I "!FROGEENTRY!"=="Y" (
   IF !MODLOADER!==NEOFORGE SET NEOFORGE=!NEWESTNEOFORGE!
   GOTO :skipvalidcheck
 )
-:: Checks to see if the first string character is letter or number.  If it's not a number then go back to re-enter value.
+:: Checks to see if the first string character is letter or number.  If it's not a number then go back to re-enter value.  Also checks if any blank spaces were in the entry.
+IF "!FROGEENTRY!" NEQ "!FROGEENTRY: =!" GOTO :redoenterforge
 SET "TEST1=!FROGEENTRY:~0,1!"
-SET VALIDNUMER=IDK
-ECHO !TEST1! | FINDSTR "1 2 3 4 5 6 7 8 9" && SET VALIDNUMBER=Y
-
- IF !VALIDNUMBER!==Y (
+SET FORGEENTRYCHECK=IDK
+ECHO !TEST1! | FINDSTR "1 2 3 4 5 6 7 8 9" && SET FORGEENTRYCHECK=Y
+IF "!FROGEENTRY!" NEQ "!FROGEENTRY: =! " GOTO :redoenterforge
+ IF !FORGEENTRYCHECK!==Y (
     IF /I !MODLOADER!==FORGE SET FORGE=!FROGEENTRY!
     IF /I !MODLOADER!==NEOFORGE SET NEOFORGE=!FROGEENTRY!
 ) ELSE (
@@ -1036,12 +1040,18 @@ FOR /F "tokens=4,5 delims=, " %%E IN ("!RAWFREERAM!") DO (
   ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) %blue%
   ECHO: & ECHO:
   SET /P MAXRAMGIGS=
-  SET MAXRAM=-Xmx!MAXRAMGIGS!G
+
+:: Checks if there are any spaces or decimal points in the entry
+IF "!MAXRAMGIGS!" NEQ "!MAXRAMGIGS: =!" GOTO :badramentry
+IF "!MAXRAMGIGS!" NEQ "!MAXRAMGIGS:.=!" GOTO :badramentry
 
 :: Tests to see if the entered value is an integer or not.  If it is a string and not an integer (letters etc) - trying to set TEST1 as an integer with SET /a will fail.
 SET TEST1=w
 SET /a TEST1=!MAXRAMGIGS!
 IF !MAXRAMGIGS! NEQ !TEST1! GOTO :badramentry
+
+:: Sets the actual MAXRAM variable to launch the server with now that tests have passed.
+ SET MAXRAM=-Xmx!MAXRAMGIGS!G
 
   :: END RAM / MEMORY SETTING
 
