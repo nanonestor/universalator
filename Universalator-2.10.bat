@@ -658,6 +658,8 @@ SET /P MINECRAFT=
 IF NOT DEFINED MINECRAFT GOTO :startover
 IF "!MINECRAFT:~0,2!" NEQ "1." GOTO :startover
 IF "!MINECRAFT!" NEQ "!MINECRAFT: =!" GOTO :startover
+ECHO !MINECRAFT! | FINDSTR "[a-z] [A-Z]" && GOTO :startover
+
 
 :: IF running SCAN from main menu it gets placed here first to get values for MC major and minor versions.
 :getmcmajor
@@ -758,6 +760,9 @@ IF /I !ASKFABRICLOADER!==N (
   ECHO   %yellow% ENTER A CUSTOM SET FABRIC LOADER VERSION: %blue% && ECHO:
   SET /P FABRICLOADER=
 )
+:: Checks if any blank spaces were in the entry.
+IF "!FABRICLOADER!" NEQ "!FABRICLOADER: =!" GOTO :redofabricloader
+
 IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltram
 
 :: If Quilt modloader ask user to enter Fabric and Fabric Loader
@@ -793,6 +798,10 @@ IF /I !ASKQUILTLOADER!==N (
   ECHO   %yellow% ENTER A CUSTOM SET QUILT LOADER VERSION: %blue% && ECHO:
   SET /P QUILTLOADER=
 )
+
+:: Checks if any blank spaces were in the entry.
+IF "!QUILTLOADER!" NEQ "!QUILTLOADER: =!" GOTO :redofabricloader
+
 IF /I !MODLOADER!==QUILT GOTO :fabricandquiltram
 
 :enterforge
@@ -866,20 +875,23 @@ IF /I "!FROGEENTRY!"=="Y" (
   IF !MODLOADER!==NEOFORGE SET NEOFORGE=!NEWESTNEOFORGE!
   GOTO :skipvalidcheck
 )
-:: Checks to see if the first string character is letter or number.  If it's not a number then go back to re-enter value.  Also checks if any blank spaces were in the entry.
+:: Checks if any blank spaces were in the entry.
 IF "!FROGEENTRY!" NEQ "!FROGEENTRY: =!" GOTO :redoenterforge
-SET "TEST1=!FROGEENTRY:~0,1!"
+
+:: Checks to see if there were any a-z or A-Z characters in the entry.
+ECHO:
 SET FORGEENTRYCHECK=IDK
-ECHO !TEST1! | FINDSTR "1 2 3 4 5 6 7 8 9" && SET FORGEENTRYCHECK=Y
-IF "!FROGEENTRY!" NEQ "!FROGEENTRY: =! " GOTO :redoenterforge
- IF !FORGEENTRYCHECK!==Y (
+ECHO !FROGEENTRY! | FINDSTR "[a-z] [A-Z]" && SET FORGEENTRYCHECK=LETTER
+ IF !FORGEENTRYCHECK!==IDK (
     IF /I !MODLOADER!==FORGE SET FORGE=!FROGEENTRY!
     IF /I !MODLOADER!==NEOFORGE SET NEOFORGE=!FROGEENTRY!
 ) ELSE (
-  ECHO OOPS NOT A VALID ENTRY MADE - PRESS ANY KEY AND TRY AGAIN & ECHO: & ECHO:
+  ECHO: & ECHO OOPS NOT A VALID ENTRY MADE - PRESS ANY KEY AND TRY AGAIN & ECHO:
   PAUSE
   GOTO :redoenterforge
 )
+
+:: Pre-sets Java versions as default set versions in case any funny business happens later.
 :skipvalidcheck
 IF %MCMAJOR% LEQ 16 SET JAVAVERSION=8
 IF %MCMAJOR%==17 SET JAVAVERSION=16
