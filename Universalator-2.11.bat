@@ -694,6 +694,7 @@ ECHO    Valid entries - %green% FORGE %blue%
 ECHO                    %green% NEOFORGE %blue%
 ECHO                    %green% FABRIC %blue%
 ECHO                    %green% QUILT %blue%
+ECHO                    %green% VANILLA %blue%
 ECHO:
 ECHO   %yellow% ENTER THE MODLOADER TYPE %blue%
 ECHO: && ECHO:
@@ -704,7 +705,8 @@ IF /I !MODLOADER!==FORGE SET MODLOADER=FORGE
 IF /I !MODLOADER!==FABRIC SET MODLOADER=FABRIC
 IF /I !MODLOADER!==QUILT SET MODLOADER=QUILT
 IF /I !MODLOADER!==NEOFORGE SET MODLOADER=NEOFORGE
-IF /I !MODLOADER! NEQ FORGE IF /I !MODLOADER! NEQ FABRIC IF /I !MODLOADER! NEQ NEOFORGE IF /I !MODLOADER! NEQ QUILT GOTO :reentermodloader
+IF /I !MODLOADER!==VANILLA SET MODLOADER=VANILLA
+IF /I !MODLOADER! NEQ FORGE IF /I !MODLOADER! NEQ FABRIC IF /I !MODLOADER! NEQ NEOFORGE IF /I !MODLOADER! NEQ QUILT IF /I !MODLOADER! NEQ VANILLA GOTO :reentermodloader
 
 
 :: Detects if settings are trying to use some weird old Minecraft Forge version that isn't supported.
@@ -725,6 +727,7 @@ IF /I !MODLOADER!==FORGE IF !MCMAJOR! LSS 10 IF !MINECRAFT! NEQ 1.6.4 IF !MINECR
 IF /I !MODLOADER!==QUILT GOTO :enterquilt
 IF /I !MODLOADER!==FORGE GOTO :enterforge
 IF /I !MODLOADER!==NEOFORGE GOTO :enterforge
+IF /I !MODLOADER!==VANILLA GOTO :fabricandquiltandvanillaram
 
 :: If Fabric modloader ask user to enter Fabric and Fabric Loader
 
@@ -763,7 +766,7 @@ IF /I !ASKFABRICLOADER!==N (
 :: Checks if any blank spaces were in the entry.
 IF "!FABRICLOADER!" NEQ "!FABRICLOADER: =!" GOTO :redofabricloader
 
-IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltram
+IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltandvanillaram
 
 :: If Quilt modloader ask user to enter Fabric and Fabric Loader
 :enterquilt
@@ -802,7 +805,7 @@ IF /I !ASKQUILTLOADER!==N (
 :: Checks if any blank spaces were in the entry.
 IF "!QUILTLOADER!" NEQ "!QUILTLOADER: =!" GOTO :redofabricloader
 
-IF /I !MODLOADER!==QUILT GOTO :fabricandquiltram
+IF /I !MODLOADER!==QUILT GOTO :fabricandquiltandvanillaram
 
 :enterforge
 :: BEGIN SETTING VERSION FOR FORGE OR NEOFORGE
@@ -899,8 +902,8 @@ IF %MCMAJOR% GEQ 18 SET JAVAVERSION=17
 
 
 :gojava
-IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltram
-IF /I !MODLOADER!==QUILT GOTO :fabricandquiltram
+IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltandvanillaram
+IF /I !MODLOADER!==QUILT GOTO :fabricandquiltandvanillaram
 :: This section is for Forge and Neoforge Java setting
 CLS
 IF NOT EXIST settings-universalator.txt (
@@ -977,7 +980,7 @@ IF /I !MODLOADER!==FORGE GOTO :skipthatram
 IF /I !MODLOADER!==NEOFORGE GOTO :skipthatram
 
 :: IF Fabric or Quilt ask for Java verison entry
-:fabricandquiltram
+:fabricandquiltandvanillaram
 
   CLS
   IF NOT EXIST settings-universalator.txt (
@@ -1011,9 +1014,9 @@ IF /I !MODLOADER!==NEOFORGE GOTO :skipthatram
   ECHO:
   SET /P JAVAVERSION=
 
-IF !MCMAJOR! LEQ 16 IF !JAVAVERSION! NEQ 8 GOTO :fabricandquiltram
-IF !MCMAJOR!==17 IF !JAVAVERSION! NEQ 16 GOTO :fabricandquiltram
-IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :fabricandquiltram
+IF !MCMAJOR! LEQ 16 IF !JAVAVERSION! NEQ 8 GOTO :fabricandquiltandvanillaram
+IF !MCMAJOR!==17 IF !JAVAVERSION! NEQ 16 GOTO :fabricandquiltandvanillaram
+IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :fabricandquiltandvanillaram
 
 :skipthatram
 IF /I !MAINMENU!==J GOTO :setconfig
@@ -1108,6 +1111,7 @@ IF EXIST settings-universalator.txt DEL settings-universalator.txt
     IF /I !MODLOADER!==NEOFORGE ECHO SET MODLOADERVERSION=!NEOFORGE!>>settings-universalator.txt
     IF /I !MODLOADER!==FABRIC ECHO SET MODLOADERVERSION=!FABRICLOADER!>>settings-universalator.txt
     IF /I !MODLOADER!==QUILT ECHO SET MODLOADERVERSION=!QUILTLOADER!>>settings-universalator.txt
+    IF /I !MODLOADER!==VANILLA ECHO SET MODLOADERVERSION=>>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
     ECHO :: Java version below - MUST BE 8, 11, 16, 17, 18, or 19 >>settings-universalator.txt
     ECHO SET JAVAVERSION=!JAVAVERSION!>>settings-universalator.txt
@@ -1174,10 +1178,9 @@ IF !JAVAVERSION!==19 (
     SET JAVAFILE="univ-utils\java\jdk-19.0.2+7-jre\bin\java.exe"
 )
 
-
 :: Checks to see if the mods folder even exists yet
 SET NEWRESPONSE=Y
-IF NOT EXIST "%HERE%\mods" (
+IF /I !MODLOADER! NEQ VANILLA IF NOT EXIST "%HERE%\mods" (
   :nommodsfolder
   CLS
   ECHO: && ECHO: && ECHO: && ECHO:
@@ -1200,7 +1203,10 @@ IF NOT EXIST "%HERE%\mods" (
 
 :: Downloads java binary file
 :javaretry
+IF EXIST !JAVAFILE! GOTO :skipjavainstall
+
 IF NOT EXIST "%HERE%\univ-utils\java\java.zip" IF NOT EXIST %JAVAFOLDER% (
+  CLS
   ECHO:
   ECHO: Java installation not detected - Downloading Java files!...
   ECHO:
@@ -1208,13 +1214,16 @@ IF NOT EXIST "%HERE%\univ-utils\java\java.zip" IF NOT EXIST %JAVAFOLDER% (
   powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/adoptium/temurin!JAVAVERSION!-binaries/releases/download/%JAVAFILENAME%', 'univ-utils\java\java.zip')" >nul
 
 )
-
+IF NOT EXIST univ-utils\java\java.zip (
+  ECHO: & ECHO: & ECHO   JAVA BINARIES ZIP FILE FAILED TO DOWNLOAD - PRESS ANY KEY TO TRY AGAIN! & ECHO: & ECHO:
+  GOTO :javaretry
+)
 :: Gets the checksum hash of the downloaded java binary file
 set idx=0 
 IF EXIST univ-utils\java\java.zip (
-  for /f %%F  in ('certutil -hashfile univ-utils\java\java.zip SHA256') do (
-      set "out!idx!=%%F"
-      set /a idx += 1
+  FOR /F %%F IN ('certutil -hashfile univ-utils\java\java.zip SHA256') DO (
+      SET OUT[!idx!]=%%F
+      SET /a idx+=1
   )
 
   IF NOT EXIST univ-utils\java\java.zip IF NOT EXIST %JAVAFOLDER% (
@@ -1224,27 +1233,27 @@ IF EXIST univ-utils\java\java.zip (
     PAUSE
     GOTO :javaretry
   )
-
 )
 IF EXIST univ-utils\java\java.zip (
-set filechecksum=%out1%
+SET filechecksum=!OUT[1]!
 ) ELSE (
-    set filechecksum=0a
+    SET filechecksum=0a
   )
 :: Checks to see if the calculated checksum hash is the same as stored value above - unzips file if valid
 IF EXIST univ-utils\java\java.zip (
     PUSHD univ-utils\java
-    IF /i %checksumeight%==%filechecksum% (
+    IF !checksumeight!==!filechecksum! (
     tar -xf java.zip
     ) && DEL java.zip && ECHO   Downloaded Java binary and stored hashfile match values - file is valid
     POPD
 )
-IF EXIST univ-utils\java\java.zip IF %checksumeight% NEQ %filechecksum% (
+IF EXIST univ-utils\java\java.zip IF !checksumeight! NEQ !filechecksum! (
   ECHO:
   ECHO %yellow% THE JAVA INSTALLATION FILE DID NOT DOWNLOAD CORRECTLY - PLEASE TRY AGAIN %blue%
   DEL univ-utils\java\java.zip && PAUSE && EXIT [\B]
 )
 :: Sends console message if Java found
+:skipjavainstall
 IF EXIST %JAVAFOLDER% (
   ECHO:
   ECHO    Java !JAVAVERSION! installation found! ...
@@ -1260,9 +1269,10 @@ FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
     SET /a MCMINOR=%%F
 )
 
-:: BEGIN SPLIT BETWEEN FABRIC AND FORGE SETUP AND LAUNCH - If MODLOADER is FABRIC skips the Forge installation and launch section
+:: BEGIN SPLIT BETWEEN SETUP FOR DIFFERENT MODLOADERS - SENDS SCRIPT TO THE NEXT PLACE DEPENDING ON WHICH
 IF /I !MODLOADER!==FABRIC GOTO :preparefabric
 IF /I !MODLOADER!==QUILT GOTO :preparequilt
+IF /I !MODLOADER!==VANILLA GOTO :preparevanilla
 :: BEGIN FORGE SPECIFIC SETUP AND LAUNCH
 :detectforge
 
@@ -1282,9 +1292,9 @@ IF /I !MODLOADER!==NEOFORGE ECHO   Existing Neoforge !NEOFORGE! files installati
 ECHO: & ECHO   Beginning installation! & ECHO:
 
 :: Downloads the Minecraft server JAR if version is 1.16 and older.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets the vanilla server JAR first.
-IF !MCMAJOR! LEQ 16 IF NOT EXIST minecraft_server.!MINECRAFT!.jar (
-  powershell -Command "(New-Object Net.WebClient).DownloadFile(((Invoke-RestMethod -Method Get -Uri ((Invoke-RestMethod -Method Get -Uri "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json").versions | Where-Object -Property id -Value !MINECRAFT! -EQ).url).downloads.server.url), 'minecraft_server.!MINECRAFT!.jar')"
-)
+:: Sends the script to the vanilla server section to get, then gets returned back here after.
+IF !MCMAJOR! LEQ 16 IF NOT EXIST minecraft_server.!MINECRAFT!.jar GOTO :getvanillajar
+:returnfromgetvanillajar
 
 :pingforgeagain
 :: Pings the Forge files server to see it can be reached - decides to ping if forge file not present - accounts for extremely annoyng changes in filenames depending on OLD version names.
@@ -1916,7 +1926,7 @@ powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabr
 
 
 :: Sends script execution back if no installer file found.
-  IF NOT EXIST "fabric-installer.jar" (
+  IF NOT EXIST fabric-installer.jar (
     ECHO:
     ECHO    Something went wrong downloading the Fabric Installer file.
     ECHO    Press any key to try again.
@@ -1928,23 +1938,23 @@ powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabr
 IF EXIST fabric-installer.jar.sha256 (
   SET /P INSTALLERVAL=<fabric-installer.jar.sha256
 )
-set idf=0 
-IF EXIST "fabric-installer.jar" (
-  for /f %%F  in ('certutil -hashfile "fabric-installer.jar" SHA256') do (
-      set "Fout!idf!=%%F"
-      set /a idf += 1
+set /a idf=0 
+IF EXIST fabric-installer.jar (
+  for /f %%F  in ('certutil -hashfile fabric-installer.jar SHA256') do (
+      set FOUT[!idf!]=%%F
+      set /a idf+=1
   )
 )
 IF EXIST fabric-installer.jar (
-set fabricinstallerhecksum=%Fout1%
+SET fabricinstallerhecksum=!FOUT[1]!
 ) ELSE (
-    set fabricinstallerhecksum=0a
+    SET fabricinstallerhecksum=0a
   )
 
 :: Checks to see if the calculated checksum hash is the same as the value from the downloaded SHA256 file value
 :: IF yes then install fabric server files
 IF EXIST fabric-installer.jar (
-    IF /I %INSTALLERVAL%==%fabricinstallerhecksum% (
+    IF /I !INSTALLERVAL!==!fabricinstallerhecksum! (
       %JAVAFILE% -XX:+UseG1GC -jar fabric-installer.jar server -loader !FABRICLOADER! -mcversion !MINECRAFT! -downloadMinecraft
     ) ELSE (
       DEL fabric-installer.jar
@@ -2042,27 +2052,35 @@ powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.quil
     GOTO :preparequilt
   )
 
-GOTO :justinstallquilt
-
 :: Sets variable equal to the value in the sha256 file.
 IF EXIST quilt-installer.jar.sha256 (
   SET /P INSTALLERVAL=<quilt-installer.jar.sha256
 )
-set idf=0 
+set /a idf=0 
 IF EXIST quilt-installer.jar (
-  for /f %%F  in ('certutil -hashfile quilt-installer.jar SHA256') do (
-      set "Fout!idf!=%%F"
-      set /a idf += 1
+  FOR /F %%F  IN ('certutil -hashfile quilt-installer.jar SHA256') DO (
+      set FOUT[!idf!]=%%F
+      set /a idf+=1
   )
-  set quiltinstallerhecksum=%Fout1%
+  set quiltinstallerhecksum=!FOUT[1]!
 ) ELSE (
     set quiltinstallerhecksum=0a
 )
-PAUSE
+
 :: Checks to see if the calculated checksum hash is the same as the value from the downloaded SHA256 file value
 :: IF yes then install quilt server files
+IF "%HERE%" NEQ "%HERE: =%" (
+  CLS
+  ECHO: & ECHO:
+  ECHO   UH OH - THE QUILT INSTALL COMMAND DOES NOT LIKE FOLDER PATH LOCATIONS WITH BLANK SPACES IN ANY OF THE FOLDER NAMES.
+  ECHO: & ECHO   MOVE THE SERVER FOLDER TO SOME FOLDER LOCATION WITH NO SPACES IN THE FOLDER NAMES.
+  ECHO   OR CHANGE THE FOLDER NAMES TO REMOVE BLANK SPACES
+  ECHO: & ECHO:
+  PAUSE
+  GOTO :mainmenu
+)
 IF EXIST quilt-installer.jar (
-    IF /I %INSTALLERVAL%==%quiltinstallerhecksum% (
+    IF /I !INSTALLERVAL!==!quiltinstallerhecksum! (
       %JAVAFILE% -XX:+UseG1GC -jar quilt-installer.jar install server !MINECRAFT! !QUILTLOADER! --download-server --install-dir=%cd%
     ) ELSE (
       DEL quilt-installer.jar
@@ -2075,9 +2093,6 @@ IF EXIST quilt-installer.jar (
       GOTO :preparequilt
     )
 )
-
-:justinstallquilt
-%JAVAFILE% -XX:+UseG1GC -jar quilt-installer.jar install server !MINECRAFT! !QUILTLOADER! --download-server --install-dir=%cd%
 
 IF EXIST quilt-installer.jar DEL quilt-installer.jar
 IF EXIST quilt-installer.jar.sha256 DEL quilt-installer.jar.sha256
@@ -2113,6 +2128,7 @@ IF EXIST eula.txt (
   ECHO eula.txt file found! ..
   ECHO:
 )
+IF /I !MODLOADER!==VANILLA GOTO :launchvanilla
 IF EXIST quilt-server-launch-!MINECRAFT!-!QUILTLOADER!.jar GOTO :launchquilt
 GOTO :preparequilt
 
@@ -2343,10 +2359,80 @@ ECHO:
 PAUSE
 GOTO :mainmenu
 
-::END FABRIC CLIENT ONLY MODS SCANNING
+:: END FABRIC CLIENT ONLY MODS SCANNING
+
+:: BEGIN VANILLA INSTALLATION SECTION
 
 
-:: FINALLY LAUNCH FABRIC / QUILT SERVER!
+:preparevanilla
+:: Downloads the Minecraft server JAR if version is 1.16 and older.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets the vanilla server JAR first.
+
+IF EXIST minecraft_server.!MINECRAFT!.jar GOTO :skipvanillainstall
+:getvanillajar
+:: Tries to ping the Mojang file server to check that it is online and responding
+SET /a pingmojang=1
+:pingmojangagain
+CLS
+ECHO: & ECHO: & ECHO: & ECHO   Pinging Mojang file server - Attempt # !pingmojang! ... & ECHO:
+ping -n 4 launchermeta.mojang.com >nul
+IF %ERRORLEVEL% NEQ 0 (
+  SET pingmojang+=1
+  CLS
+  ECHO:
+  ECHO A PING TO THE MOJANG FILE SERVER HAS FAILED
+  ECHO EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE
+  ECHO PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN
+  PAUSE
+  GOTO :pingmojangagain
+)
+CLS
+ECHO: & ECHO: & ECHO   Downloading Minecraft server JAR file... .. . & ECHO:
+:: Downloads the vanilla Minecraft server JAR from the Mojang file server
+powershell -Command "(New-Object Net.WebClient).DownloadFile(((Invoke-RestMethod -Method Get -Uri ((Invoke-RestMethod -Method Get -Uri "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json").versions | Where-Object -Property id -Value !MINECRAFT! -EQ).url).downloads.server.url), 'minecraft_server.!MINECRAFT!.jar')"
+:: If the download failed to get a file then try again
+IF NOT EXIST minecraft_server.!MINECRAFT!.jar (
+  ECHO: & ECHO: & ECHO   OOPS - THE MINECRAFT SERVER JAR FAILED TO DOWNLOAD & ECHO: & ECHO   PRESS ANY KEY TO TRY DOWNLOADING AGAIN & ECHO: & ECHO:
+  PAUSE
+  GOTO :preparevanilla
+)
+
+:: Gets a URL for the version JSON from the Mojang file server
+FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json') | Out-String | ConvertFrom-Json)); $stuff=($data.versions | Where-Object -Property id -Value !MINECRAFT! -EQ); $stuff.url"') DO SET MOJANGVERSIONURL2=%%A
+:: Looks at the version JSON URL at the Mojang file server to get the SHA1 checksum for the server JAR file
+FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('!MOJANGVERSIONURL2!') | Out-String | ConvertFrom-Json)); $data.downloads.server.sha1"') DO SET SERVERSHA1REAL=%%A
+
+
+:: Gets the SHA1 checksum for the downloaded server JAR.
+set idm=0 
+FOR /f %%F  IN ('certutil -hashfile minecraft_server.!MINECRAFT!.jar SHA1') DO (
+      set SHA1VAL[!idm!]=%%F
+      set /a idm+=1
+)
+set SERVERJARSHA1=!SHA1VAL[1]!
+  
+:: Checks to see if the calculated checksum is the same as the value specified from Mojang information
+IF !SERVERSHA1REAL! NEQ !SERVERJARSHA1! (
+  DEL minecraft_server.!MINECRAFT!.jar
+  ECHO: & ECHO: & ECHO:
+  ECHO   THE MINECRAFT SERVER JAR FILE CHECKSUM VALUE DID NOT MATCH THE CHECKSUM IT WAS SUPPOSED TO BE
+  ECHO   THIS LIKELY MEANS A CORRUPTED DOWNLOAD.
+  ECHO:
+  ECHO   PRESS ANY KEY TO TRY DOWNLOADING AGAIN! & ECHO: & ECHO:
+  PAUSE
+  GOTO :preparevanilla
+)
+IF /I !MODLOADER!==FORGE GOTO :returnfromgetvanillajar
+IF /I !MODLOADER!==NEOFORGE GOTO :returnfromgetvanillajar
+
+:skipvanillainstall
+:: Goes to the Quilt section EULA screen, after that it goes directly to the launchvanilla label
+GOTO :quilteula
+
+:: END VANILLA INSTALLATION SECTION
+
+
+:: FINALLY LAUNCH FABRIC / QUILT / VANILLA SERVER!
+:launchvanilla
 :launchfabric
 :launchquilt
 CLS
@@ -2381,7 +2467,7 @@ ECHO:
 ECHO    THE WORD '%green%localhost%blue%' INSTEAD OF AN IP ADDRESS WORKS FOR CLIENTS ON SAME COMPUTER
 ECHO:
 ECHO ============================================
-ECHO   %yellow% READY TO LAUNCH !MODLOADER SERVER! %blue%
+ECHO   %yellow% READY TO LAUNCH !MODLOADER! SERVER! %blue%
 ECHO:
 ECHO            ENTER %green% 'M' %blue% FOR MAIN MENU
 ECHO            ENTER %green% ANY OTHER %blue% KEY TO START SERVER LAUNCH 
@@ -2401,6 +2487,9 @@ IF /I !MODLOADER!==FABRIC (
 )
 IF /I !MODLOADER!==QUILT (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar quilt-server-launch-!MINECRAFT!-!QUILTLOADER!.jar nogui
+)
+IF /I !MODLOADER!==VANILLA (
+%JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar minecraft_server.!MINECRAFT!.jar nogui
 )
 
 :: Complains in console output if launch attempt crashes
