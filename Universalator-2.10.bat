@@ -891,7 +891,7 @@ ECHO !FROGEENTRY! | FINDSTR "[a-z] [A-Z]" && SET FORGEENTRYCHECK=LETTER
   GOTO :redoenterforge
 )
 
-:: Pre-sets Java versions as default set versions in case any funny business happens later.
+:: Pre-sets Java versions as default set versions in case any funny business happens later
 :skipvalidcheck
 IF %MCMAJOR% LEQ 16 SET JAVAVERSION=8
 IF %MCMAJOR%==17 SET JAVAVERSION=16
@@ -899,6 +899,9 @@ IF %MCMAJOR% GEQ 18 SET JAVAVERSION=17
 
 
 :gojava
+IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltram
+IF /I !MODLOADER!==QUILT GOTO :fabricandquiltram
+:: This section is for Forge and Neoforge Java setting
 CLS
 IF NOT EXIST settings-universalator.txt (
   ECHO:%yellow%
@@ -910,8 +913,11 @@ IF NOT EXIST settings-universalator.txt (
 ) ELSE (
      ECHO: && ECHO:
   )
+:: Minecraft 1.17.x requires only Java 16 and no other works
+IF !MCMAJOR!==17 SET JAVAVERSION=16
 
-IF /I !MCMAJOR! GEQ 17 (
+:: Minecraft equal to and newer than 1.18
+IF !MCMAJOR! GEQ 18 (
   ECHO: && ECHO: && ECHO: && ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
@@ -931,11 +937,11 @@ IF /I !MCMAJOR! GEQ 17 (
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO: && ECHO:
   SET /P JAVAVERSION=
-  IF /I !MCMAJOR! NEQ 17 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 GOTO :gojava
-  IF /I !MCMAJOR!==17 IF !JAVAVERSION! NEQ 16 GOTO :gojava
+  IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 GOTO :gojava
 )
 
-IF /I !MODLOADER!==FORGE IF !MINECRAFT!==1.16.5 (
+:: Minecraft Forge 1.16.5 is a special version that a few different Javas can work with
+IF !MINECRAFT!==1.16.5 (
   ECHO: && ECHO: && ECHO: && ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
@@ -952,7 +958,8 @@ IF /I !MODLOADER!==FORGE IF !MINECRAFT!==1.16.5 (
   IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
 )
 
-IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 (
+:: Minecraft 1.16 and older
+IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 (
   ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
@@ -969,7 +976,7 @@ IF /I !MODLOADER!==FORGE IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 (
 IF /I !MODLOADER!==FORGE GOTO :skipthatram
 IF /I !MODLOADER!==NEOFORGE GOTO :skipthatram
 
-:: IF Fabric ask for Java verison entry
+:: IF Fabric or Quilt ask for Java verison entry
 :fabricandquiltram
 
   CLS
@@ -1004,12 +1011,12 @@ IF /I !MODLOADER!==NEOFORGE GOTO :skipthatram
   ECHO:
   SET /P JAVAVERSION=
 
-IF !MCMAJOR! LEQ 16 IF !JAVAVERSION! NEQ 8 GOTO :fabricram
-IF !MCMAJOR!==17 IF !JAVAVERSION! NEQ 16 GOTO :fabricram
-IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :fabricram
+IF !MCMAJOR! LEQ 16 IF !JAVAVERSION! NEQ 8 GOTO :fabricandquiltram
+IF !MCMAJOR!==17 IF !JAVAVERSION! NEQ 16 GOTO :fabricandquiltram
+IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :fabricandquiltram
 
 :skipthatram
-IF /I !MAINMENU!==J GOTO :mainmenu
+IF /I !MAINMENU!==J GOTO :setconfig
 
 :: BEGIN RAM / MEMORY SETTING
 :goramentry
@@ -1084,6 +1091,7 @@ IF NOT EXIST settings-universalator.txt (
   SET MAINMENU=S
   SET ASKMODSCHECK=Y
 )
+:setconfig
 :: Generates settings-universalator.txt file if settings-universalator.txt does not exist
 IF EXIST settings-universalator.txt DEL settings-universalator.txt
 
