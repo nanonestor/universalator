@@ -1275,7 +1275,7 @@ IF /I !MODLOADER!==QUILT GOTO :preparequilt
 IF /I !MODLOADER!==VANILLA GOTO :preparevanilla
 :: BEGIN FORGE SPECIFIC SETUP AND LAUNCH
 :detectforge
-
+CLS
 :: Checks to see if the specific JAR file or libraries folder exists for this modloader & version.  If found we'll assume it's installed correctly and move to the foundforge label.
 IF /I !MODLOADER!==NEOFORGE IF EXIST libraries/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/. GOTO :foundforge
 
@@ -1286,10 +1286,18 @@ IF /I !MODLOADER!==FORGE (
   IF EXIST forge-!MINECRAFT!-!FORGE!-!MINECRAFT!-universal.jar GOTO :foundforge
   IF EXIST forge-!MINECRAFT!-!FORGE!-universal.jar GOTO :foundforge
 )
+ECHO: & ECHO:
 :: At this point assume the JAR file or libaries folder does not exist and installation is needed.
 IF /I !MODLOADER!==FORGE ECHO   Existing Forge !FORGE! files installation not detected.
 IF /I !MODLOADER!==NEOFORGE ECHO   Existing Neoforge !NEOFORGE! files installation not detected.
 ECHO: & ECHO   Beginning installation! & ECHO:
+
+:: Deletes existing JAR files and libraries folder to prevent mash-up of various versions installing on top of each other, and then moves on
+DEL *.jar >nul 2>&1
+IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
+ECHO   Any existing JAR files and 'libaries' folder deleted. & ECHO:
 
 :: Downloads the Minecraft server JAR if version is 1.16 and older.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets the vanilla server JAR first.
 :: Sends the script to the vanilla server section to get, then gets returned back here after.
@@ -1310,14 +1318,6 @@ IF %ERRORLEVEL% NEQ 0 (
   PAUSE
   GOTO :pingforgeagain
 )
-
-:: Deletes existing JAR files and libraries folder to prevent mash-up of various versions installing on top of each other, and then downloads installer JAR
-DEL *.jar >nul 2>&1
-IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-ECHO: && ECHO   Forge !FORGE! Server JAR-file not found.
-ECHO   Any existing JAR files and 'libaries' folder deleted.
-ECHO   Downloading installer... && ECHO:
 
 :: Skips ahead if Neoforge instead of Forge
 IF /I !MODLOADER!==NEOFORGE GOTO :downloadneoforge
