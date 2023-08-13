@@ -501,10 +501,19 @@ REM FOR /F %%B IN ('curl -w "\n" -s https://api.ipify.org') DO SET PUBLICIP=%%B
 FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
 IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
 IF NOT DEFINED PORT SET PORT=25565
+
+IF !PORT! LSS 10000 (
+  CLS
+  ECHO: & ECHO: & ECHO   %red% CURRENT PORT SET IN server.properties FILE - %blue%%yellow% !PORT! %blue%
+  ECHO: & ECHO   %red% DO NOT SET THE PORT TO BE USED BELOW 10000 - BELOW THAT NUMBER IS NOT A GOOD IDEA %blue%
+  ECHO: & ECHO   %red% OTHER CRITICAL PROCESSES MAY ALREADY USE PORTS BELOW THIS NUMBER %blue% & ECHO:
+  PAUSE && EXIT [\B]
+)
 :: END SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
 
-:: If file present (upnp port forwarding = loaded') check to see if port forwarding is activated or not using it.
+:: BEGIN GETTING LOCAL IPV4 ADDRESS TO BE USED
 
+:: If file present (upnp port forwarding = loaded') check to see if port forwarding is activated or not using it.
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
   SET ISUPNPACTIVE=N
   FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
@@ -517,14 +526,22 @@ IF DEFINED LANLINE (
   FOR /F "tokens=5 delims=: " %%T IN ("!LANLINE!") DO SET LOCALIP=%%T
 )
 
+:: If no UPnP setting of LOCALIP was done - then use ipconfig to get the local IP address
 IF NOT DEFINED LOCALIP (
   FOR /F "delims=" %%G IN ('ipconfig') DO (
       SET LOOKFORIPV4=%%G
+      :: If the string marking the IPv4 address is found then record it using delims and tokens to get the right string
       IF "!LOOKFORIPV4!" NEQ "!LOOKFORIPV4:IPv4 Address=replace!" (
         FOR /F "tokens=13 delims=: " %%T IN ("!LOOKFORIPV4!") DO SET LOCALIP=%%T
       )
+      :: If ethernet and WiFi are both active then the first entry recorded will be ethernet which is probably preferred
+      :: Ethernet is listed first always in ipconfig - so if LOCALIP becomes defined the loop gets exited by going to the exitlocalipset label
+      IF DEFINED LOCALIP GOTO :exitlocalipset
   )
 )
+:exitlocalipset
+:: END GETTING LOCAL IPV4 ADDRESS TO BE USED
+
 
 :: If no settings file exists yet then go directly to entering settings (first setting being Minecraft version)
 IF NOT EXIST settings-universalator.txt GOTO :startover
@@ -2403,12 +2420,12 @@ FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).D
 
 
 :: Gets the SHA1 checksum for the downloaded server JAR.
-set idm=0 
-FOR /f %%F  IN ('certutil -hashfile minecraft_server.!MINECRAFT!.jar SHA1') DO (
-      set SHA1VAL[!idm!]=%%F
-      set /a idm+=1
+SET /a idm=0 
+FOR /F %%F  IN ('certutil -hashfile minecraft_server.!MINECRAFT!.jar SHA1') DO (
+      SET SHA1VAL[!idm!]=%%F
+      SET /a idm+=1
 )
-set SERVERJARSHA1=!SHA1VAL[1]!
+SET SERVERJARSHA1=!SHA1VAL[1]!
   
 :: Checks to see if the calculated checksum is the same as the value specified from Mojang information
 IF !SERVERSHA1REAL! NEQ !SERVERJARSHA1! (
@@ -2666,29 +2683,54 @@ IF /I !ENABLEUPNP! NEQ N IF /I !ENABLEUPNP! NEQ Y GOTO :upnpactivate
 IF /I !ENABLEUPNP!==N GOTO :upnpmenu
 SET /a CYCLE=1
 SET ACTIVATING=Y
+ECHO: & ECHO   %yellow%  Attempting to activate UPnP port forwarding ... .. . %blue% & ECHO:
 :activatecycle
 :: Tries several different command methods to activate the port forward using miniUPnP.  Each attempt then goes to get checked for success in the upnpstatus section.
 IF !CYCLE!==1 (
-  univ-utils\miniupnp\upnpc-static.exe -a !LOCALIP! %PORT% %PORT% TCP 0
+  FOR /F "delims=" %%A IN ('univ-utils\miniupnp\upnpc-static.exe -a !LOCALIP! %PORT% %PORT% TCP 0') DO (
+    SET TEMPM=%%A
+    IF "!TEMPM!" NEQ "!TEMPM:ConflictInMappingEntry=x!" (
+      ECHO: & ECHO   %red% UPNP ACTIVATION NOT SUCCESSFUL - IT LOOKS LIKE PORT SELECTION IS ALREADY IN USE %blue%
+      ECHO: & ECHO   %yellow%  TRY CLOSING ANY OLD SERVER WINDOWS OR BACKGROUND PROCESSES / RESTART COMPUTER / RESTART NETWORK ROUTER & ECHO:
+      PAUSE
+      GOTO :upnpmenu
+    )
+  )
   SET /a CYCLE+=1
   GOTO :activatestatus
 )
 IF !CYCLE!==2 (
-  univ-utils\miniupnp\upnpc-static.exe -r %PORT% TCP
+  FOR /F "delims=" %%A IN ('univ-utils\miniupnp\upnpc-static.exe -r %PORT% TCP') DO (
+      SET TEMPM=%%A
+    IF "!TEMPM!" NEQ "!TEMPM:ConflictInMappingEntry=x!" (
+      ECHO: & ECHO   %red% UPNP ACTIVATION NOT SUCCESSFUL - IT LOOKS LIKE PORT SELECTION IS ALREADY IN USE %blue%
+      ECHO: & ECHO   %yellow%  TRY CLOSING ANY OLD SERVER WINDOWS OR BACKGROUND PROCESSES / RESTART COMPUTER / RESTART NETWORK ROUTER & ECHO:
+      PAUSE
+      GOTO :upnpmenu
+
+    )
+  )
   SET /a CYCLE+=1
   GOTO :activatestatus
 )
 IF !CYCLE!==3 (
-  univ-utils\miniupnp\upnpc-static.exe -a %PUBLICIP% %PORT% %PORT% TCP
+  FOR /F "delims=" %%A IN ('univ-utils\miniupnp\upnpc-static.exe -a %PUBLICIP% %PORT% %PORT% TCP') DO (
+      SET TEMPM=%%A
+    IF "!TEMPM!" NEQ "!TEMPM:ConflictInMappingEntry=x!" (
+      ECHO: & ECHO   %red% UPNP ACTIVATION NOT SUCCESSFUL - IT LOOKS LIKE PORT SELECTION IS ALREADY IN USE %blue%
+      ECHO: & ECHO   %yellow%  TRY CLOSING ANY OLD SERVER WINDOWS OR BACKGROUND PROCESSES / RESTART COMPUTER / RESTART NETWORK ROUTER & ECHO:
+      PAUSE
+      GOTO :upnpmenu
+
+    )
+  )
   SET /a CYCLE+=1
   GOTO :activatestatus
 )
 SET ACTIVATING=N
 :: Activating if reaching here has failed - run a scan of the first activation method to try and produce an error code to read
-
-
-
-ECHO   %red% SORRY - The activation of UPnP port forwarding was not detected to have worked. %blue%
+ECHO:
+ECHO   %red% SORRY - The activation of UPnP port forwarding was not detected to have worked. %blue% & ECHO: & ECHO:
 PAUSE
 GOTO :upnpmenu
 
@@ -2710,14 +2752,16 @@ FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
 :: IF detected port is active then reset var set if sent here by activating code, then either way go back to upnp menu.
 IF !ISUPNPACTIVE!==Y (
   IF DEFINED ACTIVATING SET ACTIVATING=N
+  ECHO:
   ECHO   %green% ACTIVE - Port forwarding using UPnP is active for port %PORT% %blue%
+  ECHO: & ECHO:
   PAUSE
   GOTO :upnpmenu
 )
 :: if script was sent here by the activating section and port forward still not active - goes back there.
 IF !ISUPNPACTIVE!==N IF DEFINED ACTIVATING IF !ACTIVATING!==Y GOTO :activatecycle
 :: Otherwise goes back to upnpmenu
-IF !ISUPNPACTIVE!==N ECHO   %red% NOT ACTIVE - Port forwarding using UPnP is not active for port %PORT% %blue%
+IF !ISUPNPACTIVE!==N ECHO   %red% NOT ACTIVE - Port forwarding using UPnP is not active for port %PORT% %blue% & ECHO:
 PAUSE
 GOTO :upnpmenu
 :: END UPNP CHECK STATUS
@@ -2742,22 +2786,22 @@ IF /I !DEACTIVATEUPNP! NEQ Y IF /I !DEACTIVATEUPNP! NEQ N GOTO :upnpdeactivate
 IF /I !DEACTIVATEUPNP!==N GOTO :upnpmenu
 :: Deactivates the port connection used by the MiniUPNP program.
 IF /I !DEACTIVATEUPNP!==Y (
-    univ-utils\miniupnp\upnpc-static.exe -d %PORT% TCP
+    ECHO: & ECHO   %yellow% Attempting to deactivate UPnP port forwarding ... .. . %blue%
+    univ-utils\miniupnp\upnpc-static.exe -d %PORT% TCP >nul
     SET ISUPNPACTIVE=N
     FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
         SET UPNPSTATUS=%%E
         IF "!UPNPSTATUS!" NEQ "!UPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
     )
     IF !ISUPNPACTIVE!==N (
-        CLS
-        ECHO:
-        ECHO     UPNP SUCCESSFULLY DEACTIVATED
+        ECHO: & ECHO:
+        ECHO   %yellow% UPNP SUCCESSFULLY DEACTIVATED %blue%
         ECHO:
         PAUSE
         GOTO :upnpmenu
     )
     IF !ISUPNPACTIVE!==Y (
-      ECHO:
+      ECHO: & ECHO: & ECHO:
       ECHO   %red% DEACTIVATION OF UPNP PORT FORWARDING HAS FAILED %blue% && ECHO:
       ECHO   %red% UPNP PORT FORWARDING IS STILL ACTIVE %blue% && ECHO:
       PAUSE
