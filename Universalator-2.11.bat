@@ -102,23 +102,21 @@ for /f "tokens=4-7 delims=[.] " %%i in ('ver') do (if %%i==Version (
     set major=%%i
     set minor=%%j
     ))
-
+:: If Windows is older than 10 tells user the sad news that they are not supported.
 :: If Windows is greater than or equal to version 10 then set some variables to set console output colors!  Then skip OS warning.
+IF %major% LEQ 9 (
+    ECHO: & ECHO: & ECHO:
+    ECHO   YOUR WINDOWS VERSION IS OLD ENOUGH TO NOT BE SUPPORTED & ECHO:
+    ECHO   UPDATING TO WINDOWS 10 OR GREATER IS HIGHLY RECOMMENDED
+    ECHO:
+    PAUSE && EXIT [\B]
+)
 IF %major% GEQ 10 (
   SET yellow=[34;103m
   SET blue=[93;44m
   SET green=[93;42m
   SET red=[93;101m
-  GOTO :skipwin
 )
-IF %major% LEQ 9 (
-    ECHO:
-    ECHO YOUR WINDOWS VERSION IS OLD ENOUGH TO NOT BE SUPPORTED
-    ECHO UPDATING TO WINDOWS 10 OR GREATER IS HIGHLY RECOMMENDED
-    ECHO:
-    PAUSE && EXIT [\B]
-)
-:skipwin
 
 :: Checks the last character of the folder name the script was run from.  If that last character is found in a FINDSTR of the string of bad characters then prompt user to change the folder name or move the server files and pause/exit.
 :: Handling the character needs to be done carefully because it will be null in some cases without character escaping ^ or echo without entering variables as string.  Special characters at the end of the working folder breaks certain CMD commands.
@@ -349,6 +347,7 @@ IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
     ECHO   ENTER YOUR CHOICE:
     ECHO   'CORRECT' or 'IGNORE'
     ECHO:
+    SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
     SET /P "CHOOSE_IP="
 )
 IF DEFINED IPLINE IF !IS_IP_ENTERED!==Y (
@@ -451,7 +450,7 @@ IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.
   ECHO   Type 'KILL' to try and let the script close the program using the port already.
   ECHO   Type 'Q' to close the script program if you'd like to try and solve the issue on your own.
   ECHO:
-  ECHO   Enter your response:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P "KILLIT="
   IF /I !KILLIT! NEQ KILL IF /I !KILLIT! NEQ Q GOTO :portwarning
   IF /I !KILLIT!==Q (
@@ -560,6 +559,7 @@ IF EXIST settings-universalator.txt (
   IF /I !MODLOADER!==QUILT SET QUILTLOADER=!MODLOADERVERSION!
 )
 IF NOT EXIST univ-utils MD univ-utils
+SET "MAINMENU="
 
 CLS
 ECHO:%yellow%
@@ -578,7 +578,8 @@ IF DEFINED MODLOADER IF DEFINED NEOFORGE IF /I !MODLOADER!==NEOFORGE ECHO   %yel
 IF DEFINED MODLOADER IF DEFINED FORGE IF /I !MODLOADER!==FORGE ECHO   %yellow% FORGE VERSION %blue%     !FORGE!
 IF DEFINED MODLOADER IF DEFINED FABRICLOADER IF /I !MODLOADER!==FABRIC ECHO   %yellow% FABRIC LOADER %blue%     !FABRICLOADER!
 IF DEFINED MODLOADER IF DEFINED QUILTLOADER IF /I !MODLOADER!==QUILT ECHO   %yellow% FABRIC LOADER %blue%     !QUILTLOADER!
-IF DEFINED JAVAVERSION ECHO   %yellow% JAVA VERSION %blue%      !JAVAVERSION!
+IF DEFINED JAVAVERSION IF !OVERRIDE! NEQ Y ECHO   %yellow% JAVA VERSION %blue%      !JAVAVERSION!
+IF DEFINED OVERRIDE IF !OVERRIDE!==Y ECHO   %yellow% JAVA VERSION %blue%   %green% * CUSTOM OVERRIDE - OS JAVA PATH * %blue% & ECHO                       !CUSTOMJAVA!
 IF NOT DEFINED JAVAVERSION ECHO   %yellow% JAVA VERSION %blue%      %red% ENTER SETTINGS - 'S' %blue%
 IF NOT DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  %red% ENTER SETTINGS - 'S' %blue%
 ECHO: && ECHO:
@@ -598,9 +599,8 @@ ECHO                                                           %green% J %blue% 
 ECHO                                                           %green% UPNP %blue% = UPNP PORT FORWARDING MENU
 ECHO                                                           %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT mods
 ECHO                                                           %green% A %blue% = LIST ALL POSSIBLE MENU OPTIONS
-
-IF EXIST settings-universalator.txt ECHO   %green% ENTER A MENU OPTION: %blue%
-set /P "MAINMENU="
+SET /P SCRATCH="%blue%  %green% ENTER A MENU OPTION:%blue% " <nul
+SET /P "MAINMENU="
 
 IF /I !MAINMENU!==Q EXIT [\B]
 IF /I !MAINMENU!==J GOTO :getmcmajor
@@ -625,7 +625,7 @@ ECHO:%yellow%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-ECHO: && ECHO: && ECHO:
+ECHO: & ECHO: & ECHO:
 ECHO:    %green% S %blue% = RE-ENTER ALL SETTINGS
 ECHO:    %green% L %blue% = LAUNCH SERVER
 ECHO:    %green% R %blue% = SET RAM MAXIMUM AMOUNT
@@ -638,7 +638,7 @@ ECHO:
 ECHO:    %green% MCREATOR %blue% = SCAN MOD FILES FOR MCREATOR MADE MODS
 ECHO:
 ECHO:    %green% OVERRIDE %blue% = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA
-ECHO: && ECHO: && ECHO: && ECHO:
+ECHO: & ECHO: & ECHO: & ECHO:
 PAUSE
 GOTO :mainmenu
 
@@ -654,12 +654,12 @@ ECHO:%yellow%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-ECHO: && ECHO:
+ECHO: & ECHO:
 ECHO    %green% Settings can be changed from main menu once all initial settings have been entered %blue%
 ) ELSE (
-  ECHO: && ECHO:
+  ECHO: & ECHO:
 )
-ECHO: && ECHO: && ECHO: && ECHO:
+ECHO: & ECHO: & ECHO: & ECHO:
 ECHO   %yellow% ENTER THE MINECRAFT VERSION %blue%
 ECHO:
 ECHO    example: 1.7.10
@@ -667,7 +667,8 @@ ECHO    example: 1.16.5
 ECHO    example: 1.19.2
 ECHO:
 ECHO   %yellow% ENTER THE MINECRAFT VERSION %blue%
-ECHO: && ECHO:
+ECHO: & ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P MINECRAFT=
 
 :: Checks to see if the MC just entered begins with 1. as a simple pass in case something else was entered.  Until Minecraft 2 happens this will be fine.
@@ -699,12 +700,12 @@ ECHO:%yellow%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-ECHO: && ECHO:
+ECHO: & ECHO:
 ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
 ) ELSE (
-  ECHO: && ECHO: && ECHO:
+  ECHO: & ECHO: & ECHO:
 )
-ECHO: && ECHO: && ECHO: && ECHO:
+ECHO: & ECHO: & ECHO: & ECHO:
 ECHO   %yellow% ENTER THE MODLOADER TYPE %blue%
 ECHO:
 ECHO    Valid entries - %green% FORGE %blue%
@@ -714,7 +715,8 @@ ECHO                    %green% QUILT %blue%
 ECHO                    %green% VANILLA %blue%
 ECHO:
 ECHO   %yellow% ENTER THE MODLOADER TYPE %blue%
-ECHO: && ECHO:
+ECHO: & ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "MODLOADER="
 
 :: Corrects entry to be all capital letters if not already entered by user.
@@ -730,7 +732,7 @@ IF /I !MODLOADER! NEQ FORGE IF /I !MODLOADER! NEQ FABRIC IF /I !MODLOADER! NEQ N
 :: This is done again later after the settings-universalator.txt is present and this is section is skipped.
 IF /I !MODLOADER!==FORGE IF !MCMAJOR! LSS 10 IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 (
   CLS
-  ECHO: && ECHO: && ECHO: && ECHO:
+  ECHO: & ECHO: & ECHO: & ECHO:
   ECHO    %yellow% SORRY - YOUR ENTERED MINECRAFT VERSION - FORGE FOR MINECRAFT !MINECRAFT! - IS NOT SUPPORTED. %blue%
   ECHO:
   ECHO    %yellow% FIND A MODPACK WITH A MORE POPULARLY USED VERSION. %blue%
@@ -757,12 +759,12 @@ FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/net/fabr
   ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
   ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-  ECHO: && ECHO:
+  ECHO: & ECHO:
   ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
     ) ELSE (
-        ECHO: && ECHO:
+        ECHO: & ECHO:
       )
-  ECHO: && ECHO: && ECHO: && ECHO:
+  ECHO: & ECHO: & ECHO: & ECHO:
   ECHO   %yellow% FABRIC LOADER - FABRIC LOADER %blue%
   ECHO:
   ECHO    DO YOU WANT TO USE THE NEWEST PUBLISHED VERSION OF THE FABRIC %yellow% LOADER %blue% FILE? & ECHO:
@@ -771,19 +773,27 @@ FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/net/fabr
   ECHO    UNLESS YOU KNOW A SPECIFIC OLDER FABRIC LOADER IS REQUIRED FOR YOUR MODS - ENTER %green% 'Y' %blue%
   ECHO:
   ECHO   %yellow% FABRIC LOADER - FABRIC LOADER %blue%
-  ECHO: && ECHO: && ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% to use %yellow% !FABRICLOADER! %blue% & ECHO           OR & ECHO          %red% 'N' %blue% to enter a custom version number && ECHO:
+  ECHO: & ECHO: & ECHO: & ECHO:
+  ECHO    ENTER %green% 'Y' %blue% to use %yellow% !FABRICLOADER! %blue% & ECHO           OR & ECHO          %red% 'N' %blue% to enter a custom version number & ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P "ASKFABRICLOADER="
 )
 IF /I !ASKFABRICLOADER! NEQ Y IF /I !ASKFABRICLOADER! NEQ N GOTO :redofabricloader
+IF /I !ASKFABRICLOADER!==Y GOTO :fabricandquiltandvanillaram
 IF /I !ASKFABRICLOADER!==N (
   ECHO   %yellow% ENTER A CUSTOM SET FABRIC LOADER VERSION: %blue% && ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P FABRICLOADER=
 )
 :: Checks if any blank spaces were in the entry.
 IF "!FABRICLOADER!" NEQ "!FABRICLOADER: =!" GOTO :redofabricloader
 
-IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltandvanillaram
+:: If custom Fabric Loader was entered check on the maven XML file that it is a valid version
+FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  IF %%A==!FABRICLOADER! GOTO :fabricandquiltandvanillaram
+)
+:: If this point is reached then no valid Fabric Loader version was found on the maven - go to the oops message
+GOTO :oopsnovalidfabricqulit
 
 :: If Quilt modloader ask user to enter Fabric and Fabric Loader
 :enterquilt
@@ -795,12 +805,12 @@ FOR /F %%A IN ('powershell -Command "$url = 'https://maven.quiltmc.org/repositor
   ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
   ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-  ECHO: && ECHO:
+  ECHO: & ECHO:
   ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
     ) ELSE (
-        ECHO: && ECHO:
+        ECHO: & ECHO:
       )
-  ECHO: && ECHO: && ECHO: && ECHO:
+  ECHO: & ECHO: & ECHO: & ECHO:
   ECHO   %yellow% QUILT LOADER - QUILT LOADER %blue%
   ECHO:
   ECHO    DO YOU WANT TO USE THE NEWEST PUBLISHED VERSION OF THE QUILT %yellow% LOADER %blue% FILE? & ECHO:
@@ -809,20 +819,36 @@ FOR /F %%A IN ('powershell -Command "$url = 'https://maven.quiltmc.org/repositor
   ECHO    UNLESS YOU KNOW A SPECIFIC OLDER FABRIC LOADER IS REQUIRED FOR YOUR MODS - ENTER %green% 'Y' %blue%
   ECHO:
   ECHO   %yellow% QUILT LOADER - QUILT LOADER %blue%
-  ECHO: && ECHO: && ECHO: && ECHO:
-  ECHO    ENTER %green% 'Y' %blue% to use %green% !QUILTLOADER! %blue% & ECHO           OR & ECHO          %red% 'N' %blue% to enter a custom version number && ECHO:
+  ECHO: & ECHO: & ECHO: & ECHO:
+  ECHO    ENTER %green% 'Y' %blue% to use %green% !QUILTLOADER! %blue% & ECHO           OR & ECHO          %red% 'N' %blue% to enter a custom version number & ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P "ASKQUILTLOADER="
 
 IF /I !ASKQUILTLOADER! NEQ Y IF /I !ASKQUILTLOADER! NEQ N GOTO :redoenterquilt
 IF /I !ASKQUILTLOADER!==N (
   ECHO   %yellow% ENTER A CUSTOM SET QUILT LOADER VERSION: %blue% && ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P QUILTLOADER=
 )
 
 :: Checks if any blank spaces were in the entry.
 IF "!QUILTLOADER!" NEQ "!QUILTLOADER: =!" GOTO :redofabricloader
 
-IF /I !MODLOADER!==QUILT GOTO :fabricandquiltandvanillaram
+:: If custom Quilt Loader was entered check on the maven XML file that it is a valid version
+FOR /F %%A IN ('powershell -Command "$url = 'https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  IF %%A==!QUILTLOADER! GOTO :fabricandquiltandvanillaram
+)
+:oopsnovalidfabricqulit
+:: If this point is reached then no valid Fabric Loader version was found on the maven - go to the oops message
+CLS
+ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & 
+IF !MODLOADER!==FABRIC ECHO   %red% OOPS - THE VERSION OF %yellow% !MODLOADER! %red% ENTERED : %yellow% %FABRICLOADER% %blue%
+IF !MODLOADER!==QUILT ECHO   %red% OOPS - THE VERSION OF %yellow% !MODLOADER! %red% ENTERED : %yellow% %QUILTLOADER% %blue%
+ECHO: & ECHO   %red% DOES NOT SEEM TO EXIST ON THE !MODLOADER! FILE SERVER %blue% & ECHO:
+ECHO   %red% ENTER A DIFFERENT VERSION NUMBER THAT IS KNOWN TO EXIST %blue% & ECHO: & ECHO:
+PAUSE
+IF !MODLOADER!==FABRIC GOTO :redofabricloader
+IF !MODLOADER!==QUILT GOTO :enterquilt
 
 :enterforge
 :: BEGIN SETTING VERSION FOR FORGE OR NEOFORGE
@@ -871,10 +897,10 @@ IF NOT EXIST settings-universalator.txt (
   ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
   ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-  ECHO: && ECHO:
+  ECHO: & ECHO:
   ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
   ) ELSE (
-      ECHO: && ECHO: && ECHO:
+      ECHO: & ECHO: & ECHO:
     )
   ECHO   %yellow% FORGE VERSION - FORGE VERSION %blue% & ECHO:
 
@@ -888,11 +914,13 @@ ECHO     -ENTER A VERSION NUMBER TO USE INSTEAD
 ECHO        example: 14.23.5.2860
 ECHO        example: 47.1.3
 ECHO: & ECHO   %yellow% FORGE VERSION - FORGE VERSION %blue% & ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "FROGEENTRY="
 IF NOT DEFINED FROGEENTRY GOTO :redoenterforge
 IF /I "!FROGEENTRY!"=="Y" (
   IF !MODLOADER!==FORGE SET FORGE=!NEWESTFORGE!
   IF !MODLOADER!==NEOFORGE SET NEOFORGE=!NEWESTNEOFORGE!
+  :: Skips ahead if Y to select the already found newest version was entered
   GOTO :skipvalidcheck
 )
 :: Checks if any blank spaces were in the entry.
@@ -911,16 +939,38 @@ ECHO !FROGEENTRY! | FINDSTR "[a-z] [A-Z]" && SET FORGEENTRYCHECK=LETTER
   GOTO :redoenterforge
 )
 
+:: Checks maven website to determine if non-newest version entered does in fact exist
+:: Compares the Minecraft version and FORGE/NEOFORGE entry input above to the Maven manifest file for either modloader that is selected
+IF /I !MODLOADER!==FORGE (
+  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+    IF %%A==!MINECRAFT! IF %%B==!FROGEENTRY! GOTO :foundvalidforgeversion
+    )
+)
+IF /I !MODLOADER!==NEOFORGE (
+  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+    IF %%A==!MINECRAFT! IF %%B==!FROGEENTRY! GOTO :foundvalidforgeversion
+  )
+)
+:: If no valid version was detected on the maven file server XML list then no skip ahead was done to the foundvalidforgeversion label - display error and go back to enter another version
+CLS
+ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS - THE VERSION OF %yellow% !MODLOADER! %red% ENTERED : %yellow% %MINECRAFT% - %FROGEENTRY% %blue% & ECHO:
+ECHO   %red% DOES NOT SEEM TO EXIST ON THE FORGE FILE SERVER %blue% & ECHO:
+ECHO   %red% ENTER A DIFFERENT VERSION NUMBER THAT IS KNOWN TO EXIST %blue% & ECHO: & ECHO:
+PAUSE
+GOTO :redoenterforge
+
+:foundvalidforgeversion
+
 :: Pre-sets Java versions as default set versions in case any funny business happens later
 :skipvalidcheck
 IF %MCMAJOR% LEQ 16 SET JAVAVERSION=8
 IF %MCMAJOR%==17 SET JAVAVERSION=16
 IF %MCMAJOR% GEQ 18 SET JAVAVERSION=17
 
-
 :gojava
 IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltandvanillaram
 IF /I !MODLOADER!==QUILT GOTO :fabricandquiltandvanillaram
+IF DEFINED OVERRIDE SET OVERRIDE=N
 :: This section is for Forge and Neoforge Java setting
 CLS
 IF NOT EXIST settings-universalator.txt (
@@ -928,17 +978,17 @@ IF NOT EXIST settings-universalator.txt (
   ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
   ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-  ECHO: && ECHO:
+  ECHO: & ECHO:
   ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
 ) ELSE (
-     ECHO: && ECHO:
+     ECHO: & ECHO:
   )
 :: Minecraft 1.17.x requires only Java 16 and no other works
 IF !MCMAJOR!==17 SET JAVAVERSION=16
 
 :: Minecraft equal to and newer than 1.18
 IF !MCMAJOR! GEQ 18 (
-  ECHO: && ECHO: && ECHO: && ECHO:
+  ECHO: & ECHO: & ECHO: & ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
@@ -947,22 +997,23 @@ IF !MCMAJOR! GEQ 18 (
   ECHO   -JAVA VERSION FOR 1.17/1.17.1 %green% MUST BE %blue% 16
   ECHO: && ECHO: && ECHO:
   ) ELSE (
-  ECHO   JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer -- %green% 17 %blue% *Target version* / RECOMMENDED && ECHO:
-  ECHO                                                        -- %green% 18 %blue% && ECHO:
+  ECHO   JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer -- %green% 17 %blue% *Target version* / RECOMMENDED & ECHO:
+  ECHO                                                        -- %green% 18 %blue% & ECHO:
   ECHO:
   ECHO:  JAVA 18 %green% MAY %blue% OR %red% MAY NOT %blue% WORK - DEPENDING ON MODS BEING LOADED OR CHANGES IN THE MODLOADER VERSION
   ECHO   IF YOU TRY JAVA NEWER THAN 17 AND CRASHES HAPPEN -- EDIT SETTINGS TO TRY 17
   )
   ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO: && ECHO:
+  ECHO: & ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P JAVAVERSION=
   IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 GOTO :gojava
 )
 
 :: Minecraft Forge 1.16.5 is a special version that a few different Javas can work with
 IF !MINECRAFT!==1.16.5 (
-  ECHO: && ECHO: && ECHO: && ECHO:
+  ECHO: & ECHO: & ECHO: & ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
   ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
@@ -974,6 +1025,7 @@ IF !MINECRAFT!==1.16.5 (
   ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P JAVAVERSION=
   IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
 )
@@ -990,6 +1042,7 @@ IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 (
   ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P JAVAVERSION=
   IF !JAVAVERSION! NEQ 8 GOTO :gojava
 )
@@ -1005,10 +1058,10 @@ IF /I !MODLOADER!==NEOFORGE GOTO :skipthatram
     ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
     ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-    ECHO: && ECHO:
+    ECHO: & ECHO:
     ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
     ) ELSE (
-        ECHO: && ECHO:
+        ECHO: & ECHO:
       )
   ECHO: && ECHO: && ECHO: && ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
@@ -1029,6 +1082,7 @@ IF /I !MODLOADER!==NEOFORGE GOTO :skipthatram
   ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P JAVAVERSION=
 
 IF !MCMAJOR! LEQ 16 IF !JAVAVERSION! NEQ 8 GOTO :fabricandquiltandvanillaram
@@ -1060,12 +1114,12 @@ FOR /F "tokens=4,5 delims=, " %%E IN ("!RAWFREERAM!") DO (
 :badramentry
 :: Ram / Memory setting amount entry menu
   CLS
-  ECHO: && ECHO:
+  ECHO: & ECHO:
   ECHO %yellow%    Computer Total Total Memory/RAM     %blue% = %yellow% !TOTALRAM!.!DECIMALTOTAL! Gigabytes (GB) %blue%
   ECHO %yellow%    Current Available (Free) Memory/RAM %blue% = %yellow% !FREERAM!.!DECIMALFREE! Gigabytes (GB) %blue%
   ECHO:
-  ECHO: && ECHO:
-  ECHO: && ECHO: && ECHO: && ECHO:
+  ECHO: & ECHO:
+  ECHO: & ECHO: & ECHO: & ECHO:
   ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) %blue%
   ECHO:
   ECHO    BE SURE TO USE A VALUE THAT LEAVES AT LEAST SEVERAL GB AVAILABLE IF ALL USED
@@ -1078,6 +1132,7 @@ FOR /F "tokens=4,5 delims=, " %%E IN ("!RAWFREERAM!") DO (
   ECHO:
   ECHO   %yellow% ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) %blue%
   ECHO: & ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P MAXRAMGIGS=
 
 :: Checks if there are any spaces or decimal points in the entry
@@ -1211,6 +1266,7 @@ IF /I !MODLOADER! NEQ VANILLA IF NOT EXIST "%HERE%\mods" (
   ECHO:
   ECHO   %yellow% TYPE YOUR RESPONSE AND PRESS ENTER: %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   set /P "NEWRESPONSE=" 
   IF /I !NEWRESPONSE! NEQ N IF /I !NEWRESPONSE! NEQ Y GOTO :nomodsfolder
   IF /I !NEWRESPONSE!==N (
@@ -1408,15 +1464,13 @@ IF !MCMAJOR! GEQ 17 (
 ::If eula.txt doens't exist yet user prompted to agree and sets the file automatically to eula=true.  The only entry that gets the user further is 'agree'.
 IF NOT EXIST eula.txt (
   CLS
-  ECHO:
-  ECHO:
+  ECHO: & ECHO:
   ECHO   Mojang's EULA has not yet been accepted. In order to run a Minecraft server, you must accept Mojang's EULA.
   ECHO   Mojang's EULA is available to read at https://account.mojang.com/documents/minecraft_eula
   ECHO:
-  ECHO     %yellow% If you agree to Mojang's EULA then type 'AGREE' %blue%
-  ECHO:
-  ECHO     %yellow% ENTER YOUR RESPONSE %blue%
-  ECHO:
+  ECHO     %yellow% If you agree to Mojang's EULA then type 'AGREE' %blue% & ECHO:
+  ECHO     %yellow% ENTER YOUR RESPONSE %blue% & ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P RESPONSE=
 
   IF /I !RESPONSE!==AGREE (
@@ -1449,8 +1503,7 @@ IF /I !MAINMENU!==L IF /I !MODLOADER!==FABRIC GOTO :fabricmain
 SET ASKMODSCHECK=N
 IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   CLS
-  ECHO:
-  ECHO:
+  ECHO: & ECHO:
   ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% && ECHO:
   ECHO:
   ECHO       --MANY CLIENT MODS ARE NOT CODED TO SELF DISABLE ON SERVERS AND MAY CRASH THEM && ECHO:
@@ -1462,13 +1515,11 @@ IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   ECHO:
   ECHO      %green% WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? %blue%
   ECHO      %green% FOUND CLIENT MODS CAN BE AUTOMATICALLY MOVED TO A DIFFERENT FOLDER FOR STORAGE. %blue%
-  ECHO:
-  ECHO:
-  ECHO:
+  ECHO: & ECHO: & ECHO:
   ECHO             %yellow% Please choose 'Y' or 'N' %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P DOSCAN=
-
   IF /I !DOSCAN! NEQ N IF /I !DOSCAN! NEQ Y GOTO :actuallyscanmods
   IF /I !DOSCAN!==N GOTO :mainmenu
 
@@ -1723,24 +1774,21 @@ IF %MaxLength% GTR !%1! (
 GOTO:EOF
 :continue2
 
-  ECHO    ------------------------------------------------------
-  ECHO:
-  ECHO:
+  ECHO    ------------------------------------------------------ & ECHO: & ECHO:
   ECHO   %green% *** DO YOU WANT TO MOVE THESE CLIENT MODS TO A DIFFERENT FOLDER FOR SAFE KEEPING? *** %blue%
   ECHO:
   ECHO         If 'Y' they will NOT be deleted - they WILL be moved to a new folder in the server named %green% CLIENTMODS %blue%
   ECHO         SOME CLIENT MODS ARE NOT CODED TO SELF DISABLE AND WILL CRASH SERVERS IF LEFT IN THE MODS FOLDER
-  ECHO:
-  ECHO:
+  ECHO: & ECHO:
   ECHO      - IF YOU THINK THE CURRENT MASTER LIST IS INNACURATE OR HAVE FOUND A MOD TO ADD -
   ECHO         PLEASE CONTACT THE LAUNCHER AUTHOR OR
   ECHO         FILE AN ISSUE AT https://github.com/nanonestor/universalator/issues !
   ECHO:
   :typo
-  ECHO    ------------------------------------------------------
-  ECHO:
+  ECHO    ------------------------------------------------------ & ECHO:
   ECHO       %yellow% ENTER YOUR RESPONSE - 'Y' OR 'N' %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P MOVEMODS=
   IF /I !MOVEMODS!==N (
     GOTO :mainmenu
@@ -1763,8 +1811,7 @@ GOTO:EOF
   ECHO:
   ECHO      %yellow%   CLIENT MODS MOVED TO THIS FOLDER AS STORAGE:     %blue%
   ECHO      %yellow%   "%HERE%\CLIENTMODS"    %blue%
-  ECHO:
-  ECHO:
+  ECHO: & ECHO:
   ECHO      %yellow% -PRESS ANY KEY TO CONTINUE- %blue%
   ECHO:
   DEL univ-utils\foundclients.txt >nul 2>&1
@@ -1775,8 +1822,7 @@ GOTO :mainmenu
 
 :noclients
 CLS
-ECHO:
-ECHO:
+ECHO: & ECHO:
 ECHO   %yellow% ----------------------------------------- %blue%
 ECHO   %yellow%     NO CLIENT ONLY MODS FOUND             %blue%
 ECHO   %yellow% ----------------------------------------- %blue%
@@ -1831,6 +1877,7 @@ ECHO:
 ECHO            %yellow% ENTER 'M' FOR MAIN MENU %blue%
 ECHO            %yellow% ENTER ANY OTHER KEY TO START SERVER LAUNCH %blue%
 ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "FORGELAUNCH="
 IF /I !FORGELAUNCH!==M GOTO :mainmenu
 
@@ -2004,6 +2051,7 @@ IF NOT EXIST eula.txt (
   ECHO:
   ECHO     %yellow% ENTER YOUR RESPONSE %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P "RESPONSE="
 )
 IF /I !RESPONSE!==AGREE (
@@ -2130,6 +2178,7 @@ IF NOT EXIST eula.txt (
   ECHO:
   ECHO     %yellow% ENTER YOUR RESPONSE %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P "RESPONSE="
 )
 IF /I !RESPONSE!==AGREE (
@@ -2322,9 +2371,7 @@ IF %MaxLength% GTR !%1! (
 GOTO:EOF
 :continue1
 
-  ECHO    ------------------------------------------------------
-  ECHO:
-  ECHO:
+  ECHO    ------------------------------------------------------ & ECHO: & ECHO:
   ECHO   %green% *** DO YOU WANT TO MOVE THESE CLIENT MODS TO A DIFFERENT FOLDER FOR SAFE KEEPING? *** %blue%
   ECHO:
   ECHO         If 'Y' they will NOT be deleted - they WILL be moved to a new folder in the server named %green% CLIENTMODS %blue%
@@ -2332,10 +2379,10 @@ GOTO:EOF
   ECHO:
   :typo
   ECHO:
-  ECHO    ------------------------------------------------------
-  ECHO:
+  ECHO    ------------------------------------------------------ & ECHO:
   ECHO       %yellow% ENTER YOUR RESPONSE - 'Y' OR 'N' %blue%
   ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P MOVEMODS=
   IF /I !MOVEMODS!==N GOTO :mainmenu
   IF /I !MOVEMODS!==Y (
@@ -2489,6 +2536,7 @@ ECHO:
 ECHO            ENTER %green% 'M' %blue% FOR MAIN MENU
 ECHO            ENTER %green% ANY OTHER %blue% KEY TO START SERVER LAUNCH 
 ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P FABRICLAUNCH=
 IF /I !FABRICLAUNCH!==M GOTO :mainmenu
 
@@ -2603,7 +2651,7 @@ ECHO: && ECHO   %green% M - Main Menu %blue%
 ECHO: && ECHO   Enter your choice:
 )
 ECHO:
-
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "ASKUPNPMENU="
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
 IF /I !ASKUPNPMENU!==M GOTO :mainmenu
@@ -2627,7 +2675,6 @@ IF /I !ASKUPNPMENU!==DOWNLOAD GOTO :upnpdownload
 IF /I !ASKUPNPMENU!==M GOTO :mainmenu
 IF /I !ASKUPNPMENU! NEQ DOWNLOAD IF /I !ASKUPNPMENU! NEQ M GOTO :upnpmenu
 )
-
 
 :: BEGIN UPNP LOOK FOR VALID & ENABLED UPNP ROUTER
 :upnpvalid
@@ -2678,6 +2725,7 @@ ECHO         Enter your choice:
 ECHO:
 ECHO         %green% 'Y' or 'N' %blue%
 ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "ENABLEUPNP="
 IF /I !ENABLEUPNP! NEQ N IF /I !ENABLEUPNP! NEQ Y GOTO :upnpactivate
 IF /I !ENABLEUPNP!==N GOTO :upnpmenu
@@ -2780,6 +2828,7 @@ IF !ISUPNPACTIVE!==Y (
     ECHO: && ECHO:
     ECHO       %green% 'Y' or 'N' %blue% && ECHO:
     ECHO       Enter your choice: && ECHO:
+    SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
     SET /P "DEACTIVATEUPNP="
 )
 IF /I !DEACTIVATEUPNP! NEQ Y IF /I !DEACTIVATEUPNP! NEQ N GOTO :upnpdeactivate
@@ -2823,6 +2872,7 @@ ECHO  %yellow% DOWNLOAD MINIUPNP PROGRAM? %blue% && ECHO:
 ECHO   ENTER YOUR CHOICE: && ECHO:
 ECHO   %green%  'Y' - Download file %blue%
 ECHO   %green%  'N' - NO  (Back to UPnP menu) %blue% && ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "ASKUPNPDOWNLOAD="
 IF /I !ASKUPNPDOWNLOAD! NEQ N IF /I !ASKUPNPDOWNLOAD! NEQ Y GOTO :upnpdownload
 IF /I !ASKUPNPDOWNLOAD!==N GOTO :upnpmenu
@@ -2870,8 +2920,14 @@ IF /I !ASKUPNPDOWNLOAD!==Y IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static
 :override
 CLS
 ECHO: && ECHO: && ECHO   %green% JAVA OVERRIDE FOR THE CURRENT PROGRAM SESSION ENABLED %blue% && ECHO   %yellow% Using the following system Path Java %blue% && ECHO:
-FOR /F "delims=" %%J IN ('java -version') DO ECHO %%J
+SET /a num=0
+FOR /F "usebackq delims=" %%J IN (`"java -version 2>&1"`) DO (
+  ECHO        %%J
+  SET JAV[!num!]=%%J
+  SET /a num+=1
+)
 ECHO: && ECHO   %yellow% GOOD LUCK WITH THAT !! %blue% && ECHO: && ECHO   %green% JAVA OVERRIDE FOR THE CURRENT PROGRAM SESSION ENABLED %blue% && ECHO:
+SET CUSTOMJAVA=!JAV[1]!
 SET OVERRIDE=Y
 PAUSE
 GOTO :mainmenu
