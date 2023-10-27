@@ -204,11 +204,10 @@ IF %LASTCHAR%==")" (
   PAUSE && EXIT [\B]
 )
 
-:: The below SET PATH only applies to this command window launch and isn't permanent to the system's PATH.
-SET PATH=%PATH%;"C:\Windows\system32\"
-SET PATH=%PATH%;"C:\Windows\Syswow64\"
 
 :: Checks to see if CMD is working by checking WHERE for some commands
+:testcmdagain
+
 WHERE FINDSTR >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 WHERE CERTUTIL >nul 2>&1
@@ -222,6 +221,15 @@ IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 WHERE TAR >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 
+:: The below SET PATH only applies to this command window launch and isn't permanent to the system's PATH.
+:: It's only done if the above tests fail, after the second round of tests if still fail prompt user with message.
+
+IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y IF NOT DEFINED CMDFIX (
+  SET "PATH=%PATH%C:\Windows\System32;"
+  SET "PATH=%PATH%C:\Windows\SysWOW64;"
+  SET CMDFIX=TRIED
+  GOTO :testcmdagain
+)
 IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y (
   ECHO:
   ECHO        %yellow% WARNING - PROBLEM DETECTED %blue%
@@ -241,23 +249,25 @@ IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y (
   PAUSE && EXIT [\B]
 )
 
-:: Checks to see if Powershell is installed.  If not recognized as command or exists as file it will send a message to install.
-:: If exists as file then the path is simply not set and the ELSE sets it for this script run.
+:: Checks to see if Powershell is installed.  If the powershell command isn't found then an attempt is made to add it to the path for this command window session.
+:: If still not recognized as command user is prompted with a message about the problem.
 
 WHERE powershell >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 IF NOT EXIST "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" (
+IF %ERRORLEVEL% NEQ 0 SET "PATH=%PATH%C:\Windows\System32\WindowsPowerShell\v1.0\;"
+ver >nul
+WHERE powershell >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 (
   ECHO:
-  ECHO   Uh oh - POWERSHELL is not detected as installed to your system.
-  ECHO:
+  ECHO   Uh oh - POWERSHELL is not detected as installed to your system - or not installed correctly to system PATH.
+  ECHO:          
   ECHO   'Microsoft Powershell' is required for this program to function.
   ECHO   Web search to find an installer for this product!
   ECHO:
   ECHO   FOR ADDITIONAL INFORMATION - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
   ECHO   https://github.com/nanonestor/universalator/wiki
-  ECHO:
+  ECHO: & ECHO:
   PAUSE && EXIT [\B]
-
-) ELSE SET PATH=%PATH%;"C:\Windows\System32\WindowsPowerShell\v1.0\"
+)
 
 :: This is to fix an edge case issue with folder paths ending in ).  Yes this is worked on already above - including this anyways!
 SET LOC=%cd:)=]%
@@ -1685,30 +1695,30 @@ FOR /L %%t IN (0,1,!SERVERMODSCOUNT!) DO (
 :: END SCANNING OLD STYLE MCMOD.INFO
 :finishedscan
 
-IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
 
-:: Enters all modIds and corresponding file names to a single txt file for FINDSTR comparison with client mod list.
-
-FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
-  ECHO !SERVERMODS[%%b].id!;!SERVERMODS[%%b].file! >>univ-utils\allmodidsandfiles.txt
-)
-:: FINDSTR compares each line of the client only mods list to the list containing all found modIds and returns only lines with matches.
-ver >nul
-FINDSTR /b /g:univ-utils\clientonlymods.txt univ-utils\allmodidsandfiles.txt>univ-utils\foundclients.txt
-SORT univ-utils\foundclients.txt
-ECHO zzdummyzz>>univ-utils\foundclients.txt
-
-:: Loops/Reads through the foundclients.txt and enters values into an array.
+:: This is it! Checking each server modid versus the client only mods list text file.  Starts with a loop through each server modID found.
 SET /a NUMCLIENTS=0
-FOR /F "tokens=1,2 delims=;" %%b IN (univ-utils\foundclients.txt) DO (
-   SET FOUNDCLIENTS[!NUMCLIENTS!].id=%%b
-   SET FOUNDCLIENTS[!NUMCLIENTS!].file=%%c
-   SET /a NUMCLIENTS+=1
+FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
+
+  :: Runs a FINDSTR to see if the string of the modID is found on a line.  This needs further checks to guarantee the modID is the entire line and not just part of it.
+  FINDSTR /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt
+
+  :: If errorlevel is 0 then the FINDSTR above found the modID.  The line returned by the FINDSTR can be captured into a variable by using a FOR loop.
+  :: That variable is compared to the server modID in question.  If they are equal then it is a definite match and the modID and filename are recorded to a list of client only mods found.
+  IF !ERRORLEVEL!==0 (
+    FOR /F "delims=" %%A IN ('FINDSTR /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt') DO (
+      IF !SERVERMODS[%%b].id!==%%A (
+        SET /a NUMCLIENTS+=1
+        SET FOUNDCLIENTS[!NUMCLIENTS!].id=!SERVERMODS[%%b].id!
+        SET FOUNDCLIENTS[!NUMCLIENTS!].file=!SERVERMODS[%%b].file!
+      )
+    )
+  )
 )
 
 :: If foundclients.txt isn't found then assume none were found and GOTO section stating none found.
 REM IF NOT EXIST univ-utils\foundclients.txt GOTO :noclients
-IF !FOUNDCLIENTS[0].id!==zzdummyzz GOTO :noclients
+IF !NUMCLIENTS!==0 GOTO :noclients
 
   :: Prints report to user - showing client mod file names and corresponding modid's.
   CLS
@@ -1723,26 +1733,18 @@ IF !FOUNDCLIENTS[0].id!==zzdummyzz GOTO :noclients
   ECHO:
   ECHO    ------------------------------------------------------
 
-:: Corrects the number of found client mods to remove dummy entries
-SET NEWNUMCLIENTS=!NUMCLIENTS!
-FOR /L %%R IN (0,1,!NUMCLIENTS!) DO (
-	IF "!FOUNDCLIENTS[%%R].id!" NEQ "!FOUNDCLIENTS[%%R].id:zzdummyzz=z!" (
-    SET /a NEWNUMCLIENTS-=1
-  )
-)
-SET NUMCLIENTS=!NEWNUMCLIENTS!
 
 :: The purpose of the following code is to echo the modIDs and filenames to view but do so with auto-formatted columns depending on the maximum size of the modID.
 :: It determines this first entry column width with a funciton.
 
 :: First iterate through the list to find the length of the longest modID string
 SET COLUMNWIDTH=0
-FOR /L %%p IN (0,1,!NUMCLIENTS!) DO (
+FOR /L %%p IN (1,1,!NUMCLIENTS!) DO (
 	CALL :GetMaxStringLength COLUMNWIDTH "!FOUNDCLIENTS[%%p].id!"
 )
 :: The equal sign is followed by 80 spaces and a doublequote
 SET "EightySpaces=                                                                                "
-FOR /L %%D IN (0,1,!NUMCLIENTS!) DO (
+FOR /L %%D IN (1,1,!NUMCLIENTS!) DO (
 	:: Append 80 spaces after the modID value
 	SET "Column=!FOUNDCLIENTS[%%D].id!%EightySpaces%"
 	:: Chop at maximum column width, using a FOR loop as a kind of "super delayed" variable expansion
@@ -1802,7 +1804,7 @@ GOTO:EOF
   CLS
   ECHO:
   ECHO:
-  FOR /L %%L IN (0,1,%NUMCLIENTS%) DO (
+  FOR /L %%L IN (1,1,!NUMCLIENTS!) DO (
     IF DEFINED FOUNDCLIENTS[%%L].file (
       MOVE "%HERE%\mods\!FOUNDCLIENTS[%%L].file!" "%HERE%\CLIENTMODS\!FOUNDCLIENTS[%%L].file!" >nul 2>&1
       ECHO   MOVED - !FOUNDCLIENTS[%%L].file!
