@@ -1701,12 +1701,13 @@ SET /a NUMCLIENTS=0
 FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
 
   :: Runs a FINDSTR to see if the string of the modID is found on a line.  This needs further checks to guarantee the modID is the entire line and not just part of it.
-  FINDSTR /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt
+  FINDSTR /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt >nul
 
-  :: If errorlevel is 0 then the FINDSTR above found the modID.  The line returned by the FINDSTR can be captured into a variable by using a FOR loop.
-  :: That variable is compared to the server modID in question.  If they are equal then it is a definite match and the modID and filename are recorded to a list of client only mods found.
+  REM If errorlevel is 0 then the FINDSTR above found the modID.  The line returned by the FINDSTR can be captured into a variable by using a FOR loop.
+  REM That variable is compared to the server modID in question.  If they are equal then it is a definite match and the modID and filename are recorded to a list of client only mods found.
   IF !ERRORLEVEL!==0 (
     FOR /F "delims=" %%A IN ('FINDSTR /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt') DO (
+
       IF !SERVERMODS[%%b].id!==%%A (
         SET /a NUMCLIENTS+=1
         SET FOUNDCLIENTS[!NUMCLIENTS!].id=!SERVERMODS[%%b].id!
