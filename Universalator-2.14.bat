@@ -886,9 +886,15 @@ IF /I !MODLOADER!==FORGE (
 :: If Neoforge get newest Forge version available of the selected minecraft version.
 IF /I !MODLOADER!==NEOFORGE (
   SET "NEWESTNEOFORGE="
-  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  IF !MINECRAFT!==1.20.1 FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
     IF %%A==%MINECRAFT% (
         SET NEWESTNEOFORGE=%%B
+    )
+  )
+  IF !MINECRAFT! NEQ 1.20.1 FOR /F "tokens=1-4 delims=.-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+    IF %%A==%MCMAJOR% IF %%B==%MCMINOR% (
+        SET NEWESTNEOFORGE=%%A.%%B.%%C
+        IF %%D NEQ "" SET NEWESTNEOFORGE=!NEWESTNEOFORGE!-%%D
     )
   )
   IF "!NEWESTNEOFORGE!" EQU "" (
@@ -956,9 +962,14 @@ IF /I !MODLOADER!==FORGE (
     IF %%A==!MINECRAFT! IF %%B==!FROGEENTRY! GOTO :foundvalidforgeversion
     )
 )
-IF /I !MODLOADER!==NEOFORGE (
+IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 (
   FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
     IF %%A==!MINECRAFT! IF %%B==!FROGEENTRY! GOTO :foundvalidforgeversion
+  )
+)
+IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 (
+  FOR /F "tokens=1-3 delims=." %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+    IF %%A==%MCMAJOR% IF %%B==%MCMINOR% IF !FROGEENTRY!==%%A.%%B.%%C  GOTO :foundvalidforgeversion
   )
 )
 :: If no valid version was detected on the maven file server XML list then no skip ahead was done to the foundvalidforgeversion label - display error and go back to enter another version
@@ -1224,16 +1235,16 @@ IF /I !MAINMENU!==S IF /I !ASKMODSCHECK!==Y (
 
 ::Stores values in variables depending on Java version entered
 IF !JAVAVERSION!==8 (
-    SET JAVAFILENAME="jdk8u382-b05/OpenJDK8U-jre_x64_windows_hotspot_8u382b05.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk8u382-b05-jre\."
-    SET checksumeight=976068897ed670ff775f14227982a71af88dfdeee03f9070f7c75356c2c05890
-    SET JAVAFILE="univ-utils\java\jdk8u382-b05-jre\bin\java.exe"
+    SET JAVAFILENAME="jdk8u392-b08/OpenJDK8U-jre_x64_windows_hotspot_8u392b08.zip"
+    SET JAVAFOLDER="univ-utils\java\jdk8u392-b08-jre\."
+    SET checksumeight=a6b7e671cc12f9fc16db59419bda8be00da037e14aaf5d5afb78042c145b76ed
+    SET JAVAFILE="univ-utils\java\jdk8u392-b08-jre\bin\java.exe"
 )
 IF !JAVAVERSION!==11 (
-    SET JAVAFILENAME="jdk-11.0.20%%2B8/OpenJDK11U-jre_x64_windows_hotspot_11.0.20_8.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-11.0.20+8-jre\."
-    SET checksumeight=06b88b61d85d069483d22ff4b0b8dbdfdb321bd55d8bbfe8e847980a2586b714
-    SET JAVAFILE="univ-utils\java\jdk-11.0.20+8-jre\bin\java.exe"
+    SET JAVAFILENAME="jdk-11.0.21%%2B9/OpenJDK11U-jre_x64_windows_hotspot_11.0.21_9.zip"
+    SET JAVAFOLDER="univ-utils\java\jdk-11.0.21+9-jre\."
+    SET checksumeight=a93d8334a85f6cbb228694346aad0353a8cb9ff3c84b5dc3221daf2c54a11e54
+    SET JAVAFILE="univ-utils\java\jdk-11.0.21+9-jre\bin\java.exe"
 )
 IF !JAVAVERSION!==16 (
     SET JAVAFILENAME="jdk-16.0.2%%2B7/OpenJDK16U-jdk_x64_windows_hotspot_16.0.2_7.zip"
@@ -1242,10 +1253,10 @@ IF !JAVAVERSION!==16 (
     SET JAVAFILE="univ-utils\java\jdk-16.0.2+7\bin\java.exe"
 )
 IF !JAVAVERSION!==17 (
-    SET JAVAFILENAME="jdk-17.0.8%%2B7/OpenJDK17U-jre_x64_windows_hotspot_17.0.8_7.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-17.0.8+7-jre\."
-    SET checksumeight=216aa7d4db4bd389b8e3d3b4f1a58863666c37c58b0a83e1c744620675312e36
-    SET JAVAFILE="univ-utils\java\jdk-17.0.8+7-jre\bin\java.exe"
+    SET JAVAFILENAME="jdk-17.0.9%%2B9.1/OpenJDK17U-jre_x64_windows_hotspot_17.0.9_9.zip"
+    SET JAVAFOLDER="univ-utils\java\jdk-17.0.9+9-jre\."
+    SET checksumeight=6c491d6f8c28c6f451f08110a30348696a04b009f8c58592191046e0fab1477b
+    SET JAVAFILE="univ-utils\java\jdk-17.0.9+9-jre\bin\java.exe"
 )
 IF !JAVAVERSION!==18 (
     SET JAVAFILENAME="jdk-18.0.2.1%%2B1/OpenJDK18U-jre_x64_windows_hotspot_18.0.2.1_1.zip"
@@ -1360,7 +1371,8 @@ IF /I !MODLOADER!==VANILLA GOTO :preparevanilla
 :detectforge
 CLS
 :: Checks to see if the specific JAR file or libraries folder exists for this modloader & version.  If found we'll assume it's installed correctly and move to the foundforge label.
-IF /I !MODLOADER!==NEOFORGE IF EXIST libraries/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/. GOTO :foundforge
+IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 IF EXIST libraries/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/. GOTO :foundforge
+IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 IF EXIST libraries/net/neoforged/neoforge/!MINECRAFT!-!NEOFORGE!/. GOTO :foundforge
 
 IF /I !MODLOADER!==FORGE (
   IF EXIST libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/. GOTO :foundforge
@@ -1424,9 +1436,11 @@ IF /I !MODLOADER!==FORGE (
 :downloadneoforge
 IF /I !MODLOADER!==NEOFORGE (
   ECHO   Downloading !MINECRAFT! - Neoforge - !NEOFORGE! installer file!
-  curl -sLfo forge-installer.jar https://maven.neoforged.net/releases/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/forge-!MINECRAFT!-!NEOFORGE!-installer.jar >nul 2>&1
+  IF !MINECRAFT!==1.20.1 curl -sLfo forge-installer.jar https://maven.neoforged.net/releases/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/forge-!MINECRAFT!-!NEOFORGE!-installer.jar >nul 2>&1
+  IF !MINECRAFT! NEQ 1.20.1 curl -sLfo forge-installer.jar https://maven.neoforged.net/releases/net/neoforged/neoforge/!NEOFORGE!/neoforge-!NEOFORGE!-installer.jar >nul 2>&1
   IF NOT EXIST forge-installer.jar (
-    powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.neoforged.net/releases/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/forge-!MINECRAFT!-!NEOFORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
+    IF !MINECRAFT!==1.20.1 powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.neoforged.net/releases/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/forge-!MINECRAFT!-!NEOFORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
+    IF !MINECRAFT! NEQ 1.20.1 powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.neoforged.net/releases/net/neoforged/neoforge/!NEOFORGE!/neoforge-!NEOFORGE!-installer.jar', 'forge-installer.jar')" >nul 2>&1
   )
 )
 
@@ -1621,7 +1635,7 @@ FOR /L %%T IN (0,1,!SERVERMODSCOUNT!) DO (
    IF !ERRORLEVEL!==0 FOR /F "delims=" %%X IN ('tar -xOf "mods\!SERVERMODS[%%T].file!" *\mods.toml') DO (
     
       SET "TEMP=%%X"
-      IF !FOUNDMODPLACE!==Y (
+      IF !FOUNDMODPLACE!==Y IF "!TEMP!" NEQ "!TEMP:modId=x!" (
          SET "TEMP=!TEMP: =!"
          SET "TEMP=!TEMP:#mandatory=!"
          :: CALLs a special function to replace equals with underscore characters for easier detection.
@@ -1925,7 +1939,8 @@ IF !MCMAJOR! GEQ 17 (
 
 :actuallylaunchneoforge
 IF /I !MODLOADER!==NEOFORGE (
-  %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/win_args.txt nogui %*
+  IF !MINECRAFT!==1.20.1 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/win_args.txt nogui %*
+  IF !MINECRAFT! NEQ 1.20.1 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/neoforged/neoforge/!NEOFORGE!/win_args.txt nogui %*
 )
 
 :: Complaints to report in console output if launch attempt crashes
