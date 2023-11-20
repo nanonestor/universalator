@@ -597,23 +597,20 @@ IF DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  !MAXRAMGIGS!
 ECHO:
 ECHO:
 IF DEFINED PORT ECHO   %yellow% CURRENT PORT SET %blue%          !PORT!                            %green% MENU OPTIONS %blue%
-IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue% NOT LOADED
-IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO   %yellow% UPNP PROGRAM (MINIUPNP) %blue%   LOADED
+ECHO:
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue%       %red% NOT ACTIVATED %blue%
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue%  %green% ACTIVE - FORWARDING PORT %PORT% %blue%
-IF EXIST settings-universalator.txt ECHO                                                           %green% L %blue% = LAUNCH SERVER
+IF EXIST settings-universalator.txt ECHO                                                           %green% L %blue% = LAUNCH SERVER & ECHO:
 IF NOT EXIST settings-universalator.txt ECHO                                                           %green% S %blue% = SETTINGS ENTRY
 IF EXIST settings-universalator.txt ECHO                                                           %green% S %blue% = RE-ENTER ALL SETTINGS
-ECHO                                                           %green% R %blue% = SET (ONLY)RAM MAXIMUM
-ECHO                                                           %green% J %blue% = SET (ONLY) JAVA VERSION
-ECHO                                                           %green% UPNP %blue% = UPNP PORT FORWARDING MENU
-ECHO                                                           %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT mods
-ECHO                                                           %green% A %blue% = LIST ALL POSSIBLE MENU OPTIONS
+ECHO                                                           %green% R %blue%    = RAM MAX SETTING
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO                                                           %green% UPNP %blue% = UPNP PORT FORWARDING MENU
+ECHO                                                           %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT MODS & ECHO:
+ECHO                                                           %green% A %blue%    = (LIST) ALL POSSIBLE MENU OPTIONS
 SET /P SCRATCH="%blue%  %green% ENTER A MENU OPTION:%blue% " <nul
 SET /P "MAINMENU="
 
 IF /I !MAINMENU!==Q EXIT [\B]
-IF /I !MAINMENU!==J GOTO :getmcmajor
 IF /I !MAINMENU!==UPNP GOTO :upnpmenu
 IF /I !MAINMENU!==R GOTO :justsetram
 IF /I !MAINMENU!==S GOTO :startover
@@ -624,6 +621,7 @@ IF /I !MAINMENU!==OVERRIDE GOTO :override
 IF /I !MAINMENU!==MCREATOR IF EXIST "%HERE%\mods" GOTO :mcreator
 IF /I !MAINMENU!==MCREATOR IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
 IF /I !MAINMENU!==A GOTO :allcommands
+IF /I !MAINMENU!==ZIP GOTO :zipit
 
 :: If no recognized entries were made then go back to main menu
 IF !MAINMENU!=="" GOTO :mainmenu
@@ -639,16 +637,13 @@ ECHO: & ECHO: & ECHO:
 ECHO:    %green% S %blue% = RE-ENTER ALL SETTINGS
 ECHO:    %green% L %blue% = LAUNCH SERVER
 ECHO:    %green% R %blue% = SET RAM MAXIMUM AMOUNT
-ECHO:    %green% J %blue% = SET JAVA VERSION
-ECHO:    %green% UPNP %blue% = UPNP PORT FORWARDING MENU
 ECHO:    %green% Q %blue% = QUIT
 ECHO:
-ECHO:    %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT ONLY MODS
-ECHO:
-ECHO:    %green% MCREATOR %blue% = SCAN MOD FILES FOR MCREATOR MADE MODS
-ECHO:
-ECHO:    %green% OVERRIDE %blue% = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA
-ECHO: & ECHO: & ECHO: & ECHO:
+ECHO:    %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT ONLY MODS & ECHO:
+ECHO:    %green% UPNP %blue% = UPNP PORT FORWARDING MENU & ECHO:
+ECHO:    %green% MCREATOR %blue% = SCAN MOD FILES FOR MCREATOR MADE MODS & ECHO:
+ECHO:    %green% OVERRIDE %blue% = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA & ECHO:
+ECHO:    %green% ZIP %blue% = MENU FOR CREATING SERVER PACK ZIP FILE & ECHO: & ECHO: & ECHO: & ECHO:
 PAUSE
 GOTO :mainmenu
 
@@ -700,7 +695,6 @@ FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
 
 :: IF running SCAN from main menu now goto actual scan section
 IF /I !MAINMENU!==SCAN GOTO :actuallyscanmods
-IF /I !MAINMENU!==J GOTO :gojava
 
 :reentermodloader
 :: User entry for Modloader version
@@ -756,7 +750,7 @@ IF /I !MODLOADER!==FORGE IF !MCMAJOR! LSS 10 IF !MINECRAFT! NEQ 1.6.4 IF !MINECR
 IF /I !MODLOADER!==QUILT GOTO :enterquilt
 IF /I !MODLOADER!==FORGE GOTO :enterforge
 IF /I !MODLOADER!==NEOFORGE GOTO :enterforge
-IF /I !MODLOADER!==VANILLA GOTO :fabricandquiltandvanillaram
+IF /I !MODLOADER!==VANILLA GOTO :setjava
 
 :: If Fabric modloader ask user to enter Fabric and Fabric Loader
 
@@ -789,7 +783,7 @@ FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/net/fabr
   SET /P "ASKFABRICLOADER="
 )
 IF /I !ASKFABRICLOADER! NEQ Y IF /I !ASKFABRICLOADER! NEQ N GOTO :redofabricloader
-IF /I !ASKFABRICLOADER!==Y GOTO :fabricandquiltandvanillaram
+IF /I !ASKFABRICLOADER!==Y GOTO :setjava
 IF /I !ASKFABRICLOADER!==N (
   ECHO   %yellow% ENTER A CUSTOM SET FABRIC LOADER VERSION: %blue% && ECHO:
   SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
@@ -800,7 +794,7 @@ IF "!FABRICLOADER!" NEQ "!FABRICLOADER: =!" GOTO :redofabricloader
 
 :: If custom Fabric Loader was entered check on the maven XML file that it is a valid version
 FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
-  IF %%A==!FABRICLOADER! GOTO :fabricandquiltandvanillaram
+  IF %%A==!FABRICLOADER! GOTO :setjava
 )
 :: If this point is reached then no valid Fabric Loader version was found on the maven - go to the oops message
 GOTO :oopsnovalidfabricqulit
@@ -846,7 +840,7 @@ IF "!QUILTLOADER!" NEQ "!QUILTLOADER: =!" GOTO :redofabricloader
 
 :: If custom Quilt Loader was entered check on the maven XML file that it is a valid version
 FOR /F %%A IN ('powershell -Command "$url = 'https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
-  IF %%A==!QUILTLOADER! GOTO :fabricandquiltandvanillaram
+  IF %%A==!QUILTLOADER! GOTO :setjava
 )
 :oopsnovalidfabricqulit
 :: If this point is reached then no valid Fabric Loader version was found on the maven - go to the oops message
@@ -937,7 +931,7 @@ IF /I "!FROGEENTRY!"=="Y" (
   IF !MODLOADER!==FORGE SET FORGE=!NEWESTFORGE!
   IF !MODLOADER!==NEOFORGE SET NEOFORGE=!NEWESTNEOFORGE!
   :: Skips ahead if Y to select the already found newest version was entered
-  GOTO :skipvalidcheck
+  GOTO :setjava
 )
 :: Checks if any blank spaces were in the entry.
 IF "!FROGEENTRY!" NEQ "!FROGEENTRY: =!" GOTO :redoenterforge
@@ -983,57 +977,15 @@ GOTO :redoenterforge
 :foundvalidforgeversion
 
 :: Pre-sets Java versions as default set versions in case any funny business happens later
-:skipvalidcheck
+:setjava
+
 IF %MCMAJOR% LEQ 16 SET JAVAVERSION=8
 IF %MCMAJOR%==17 SET JAVAVERSION=16
 IF %MCMAJOR% GEQ 18 SET JAVAVERSION=17
 
-:gojava
-IF /I !MODLOADER!==FABRIC GOTO :fabricandquiltandvanillaram
-IF /I !MODLOADER!==QUILT GOTO :fabricandquiltandvanillaram
-IF DEFINED OVERRIDE SET OVERRIDE=N
-:: This section is for Forge and Neoforge Java setting
-CLS
-IF NOT EXIST settings-universalator.txt (
-  ECHO:%yellow%
-  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
-  ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-  ECHO: & ECHO:
-  ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
-) ELSE (
-     ECHO: & ECHO:
-  )
-:: Minecraft 1.17.x requires only Java 16 and no other works
-IF !MCMAJOR!==17 SET JAVAVERSION=16
-
-:: Minecraft equal to and newer than 1.18
-IF !MCMAJOR! GEQ 18 (
-  ECHO: & ECHO: & ECHO: & ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
-  ECHO:
-  IF /I !MCMAJOR!==17 (
-  ECHO   -JAVA VERSION FOR 1.17/1.17.1 %green% MUST BE %blue% 16
-  ECHO: && ECHO: && ECHO:
-  ) ELSE (
-  ECHO   JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer -- %green% 17 %blue% *Target version* / RECOMMENDED & ECHO:
-  ECHO                                                        -- %green% 18 %blue% & ECHO:
-  ECHO:
-  ECHO:  JAVA 18 %green% MAY %blue% OR %red% MAY NOT %blue% WORK - DEPENDING ON MODS BEING LOADED OR CHANGES IN THE MODLOADER VERSION
-  ECHO   IF YOU TRY JAVA NEWER THAN 17 AND CRASHES HAPPEN -- EDIT SETTINGS TO TRY 17
-  )
-  ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO: & ECHO:
-  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
-  SET /P JAVAVERSION=
-  IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 GOTO :gojava
-)
-
 :: Minecraft Forge 1.16.5 is a special version that a few different Javas can work with
-IF !MINECRAFT!==1.16.5 (
+IF %MCMAJOR%==16 IF %MCMINOR%==5 IF /I !MODLOADER!==FORGE (
+  CLS
   ECHO: & ECHO: & ECHO: & ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
   ECHO:
@@ -1048,73 +1000,11 @@ IF !MINECRAFT!==1.16.5 (
   ECHO:
   SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
   SET /P JAVAVERSION=
-  IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :gojava
+  IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :setjava
 )
 
-:: Minecraft 1.16 and older
-IF /I !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.16.5 (
-  ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
-  ECHO:
-  ECHO:
-  ECHO   -JAVA VERSION FOR MINECRAFT OLDER THAN 1.16.5 %green% MUST BE %blue% 8
-  ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
-  SET /P JAVAVERSION=
-  IF !JAVAVERSION! NEQ 8 GOTO :gojava
-)
-IF /I !MODLOADER!==FORGE GOTO :skipthatram
-IF /I !MODLOADER!==NEOFORGE GOTO :skipthatram
-
-:: IF Fabric or Quilt ask for Java verison entry
-:fabricandquiltandvanillaram
-
-  CLS
-  IF NOT EXIST settings-universalator.txt (
-    ECHO:%yellow%
-    ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    ECHO    Welcome to the Universalator - A modded Minecraft server installer / launcher    
-    ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-    ECHO: & ECHO:
-    ECHO    %green% Settings can be changed from main menu once all settings have been entered %blue%
-    ) ELSE (
-        ECHO: & ECHO:
-      )
-  ECHO: && ECHO: && ECHO: && ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
-  ECHO:
-  ECHO:
-  IF !MCMAJOR! LEQ 16 ECHO  THE ONLY JAVA VERSION FOR MINECRAFT EQUAL TO AND OLDER THAN 1.16.5 -- *MUST BE* %green% 8 %blue%
-  IF !MCMAJOR!==17 ECHO   JAVA VERSION FOR 1.17/1.17.1 -- *MUST BE* %green% 16 %blue%
-  IF !MCMAJOR! GEQ 18 (
-  ECHO   JAVA VERSIONS AVAILABLE FOR MINECRAFT 1.18 and newer -- %green% 17 %blue% *Target version* / RECOMMENDED && ECHO:
-  ECHO                                                        -- %green% 18 %blue% && ECHO:
-  ECHO                                                        -- %green% 19 %blue%
-  ECHO:
-  ECHO:  JAVA 18 OR 19 %green% MAY %blue% OR %red% MAY NOT %blue% WORK - DEPENDING ON MODS BEING LOADED OR CHANGES IN THE FABRIC LOADER
-  ECHO   IF YOU TRY JAVA NEWER THAN 17 AND CRASHES HAPPEN -- EDIT SETTINGS TO TRY 17
-  )
-  ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
-  SET /P JAVAVERSION=
-
-IF !MCMAJOR! LEQ 16 IF !JAVAVERSION! NEQ 8 GOTO :fabricandquiltandvanillaram
-IF !MCMAJOR!==17 IF !JAVAVERSION! NEQ 16 GOTO :fabricandquiltandvanillaram
-IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 GOTO :fabricandquiltandvanillaram
-
-:skipthatram
-IF /I !MAINMENU!==J GOTO :setconfig
 
 :: BEGIN RAM / MEMORY SETTING
-:goramentry
 :justsetram
 :: Uses the systeminfo command to get the total and available/free ram/memory on the computer.
 FOR /F "delims=" %%D IN ('systeminfo') DO (
@@ -1172,16 +1062,6 @@ IF !MAXRAMGIGS! NEQ !TEST1! GOTO :badramentry
 
 :actuallylaunch
 
-:: Checks to see if the Java version entered is available - this shouldn't even be possible using settings normally, but checking anyways
-IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 IF !JAVAVERSION! NEQ 16 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 18 IF !JAVAVERSION! NEQ 19 (
-  ECHO:
-  ECHO   %yellow% THE JAVA VERSION YOU ENTERED IN SETTINGS IS NOT AVAILABLE FOR THIS LAUNCHER %blue%
-  ECHO    AVAILABLE VERSIONS ARE = 8, 11, 16, 17, 19
-  ECHO:
-  PAUSE
-  GOTO :gojava
-)
-
 IF /I !MAINMENU!==L SET ASKMODSCHECK=N
 IF NOT EXIST settings-universalator.txt (
   SET MAINMENU=S
@@ -1219,7 +1099,6 @@ IF EXIST settings-universalator.txt DEL settings-universalator.txt
     ECHO SET ASKMODSCHECK=!ASKMODSCHECK!>>settings-universalator.txt
 
 :: Returns to main menu if menu option was only to enter java or ram values
-IF /I !MAINMENU!==J GOTO :mainmenu
 IF /I !MAINMENU!==R GOTO :mainmenu
 
 SET MAXRAM=-Xmx!MAXRAMGIGS!G
@@ -1231,44 +1110,6 @@ IF /I !MAINMENU!==S IF /I !ASKMODSCHECK!==N GOTO :mainmenu
 IF /I !MAINMENU!==S IF /I !ASKMODSCHECK!==Y (
   SET ASKMODSCHECK=N
   GOTO :actuallyscanmods
-)
-
-::Stores values in variables depending on Java version entered
-IF !JAVAVERSION!==8 (
-    SET JAVAFILENAME="jdk8u392-b08/OpenJDK8U-jre_x64_windows_hotspot_8u392b08.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk8u392-b08-jre\."
-    SET checksumeight=a6b7e671cc12f9fc16db59419bda8be00da037e14aaf5d5afb78042c145b76ed
-    SET JAVAFILE="univ-utils\java\jdk8u392-b08-jre\bin\java.exe"
-)
-IF !JAVAVERSION!==11 (
-    SET JAVAFILENAME="jdk-11.0.21%%2B9/OpenJDK11U-jre_x64_windows_hotspot_11.0.21_9.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-11.0.21+9-jre\."
-    SET checksumeight=a93d8334a85f6cbb228694346aad0353a8cb9ff3c84b5dc3221daf2c54a11e54
-    SET JAVAFILE="univ-utils\java\jdk-11.0.21+9-jre\bin\java.exe"
-)
-IF !JAVAVERSION!==16 (
-    SET JAVAFILENAME="jdk-16.0.2%%2B7/OpenJDK16U-jdk_x64_windows_hotspot_16.0.2_7.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-16.0.2+7\."
-    SET checksumeight=40191ffbafd8a6f9559352d8de31e8d22a56822fb41bbcf45f34e3fd3afa5f9e
-    SET JAVAFILE="univ-utils\java\jdk-16.0.2+7\bin\java.exe"
-)
-IF !JAVAVERSION!==17 (
-    SET JAVAFILENAME="jdk-17.0.9%%2B9.1/OpenJDK17U-jre_x64_windows_hotspot_17.0.9_9.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-17.0.9+9-jre\."
-    SET checksumeight=6c491d6f8c28c6f451f08110a30348696a04b009f8c58592191046e0fab1477b
-    SET JAVAFILE="univ-utils\java\jdk-17.0.9+9-jre\bin\java.exe"
-)
-IF !JAVAVERSION!==18 (
-    SET JAVAFILENAME="jdk-18.0.2.1%%2B1/OpenJDK18U-jre_x64_windows_hotspot_18.0.2.1_1.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-18.0.2.1+1-jre\."
-    SET checksumeight=ba7976e86e9a7e27542c7cf9d5081235e603a9be368b6cbd49673b417da544b1
-    SET JAVAFILE="univ-utils\java\jdk-18.0.2.1+1-jre\bin\java.exe"
-)
-IF !JAVAVERSION!==19 (
-    SET JAVAFILENAME="jdk-19.0.2%%2B7/OpenJDK19U-jre_x64_windows_hotspot_19.0.2_7.zip"
-    SET JAVAFOLDER="univ-utils\java\jdk-19.0.2+7-jre\."
-    SET checksumeight=daaaa092343e885b0814dd85caa74529b9dec2c1f28a711d5dbc066a9f7af265
-    SET JAVAFILE="univ-utils\java\jdk-19.0.2+7-jre\bin\java.exe"
 )
 
 :: Checks to see if the mods folder even exists yet
@@ -1294,69 +1135,112 @@ IF /I !MODLOADER! NEQ VANILLA IF NOT EXIST "%HERE%\mods" (
     GOTO :mainmenu
   )
 )
+:: BEGIN JAVA SETUP SECTION
+:: Presets a variable to use as a search string versus java folder names.
+IF !JAVAVERSION!==8 SET FINDFOLDER=jdk8u
+IF !JAVAVERSION!==11 SET FINDFOLDER=jdk-11
+IF !JAVAVERSION!==16 SET FINDFOLDER=jdk-16
+IF !JAVAVERSION!==17 SET FINDFOLDER=jdk-17
 
-:: Downloads java binary file
-:javaretry
-IF EXIST !JAVAFILE! GOTO :skipjavainstall
+:checkforjava
+IF NOT EXIST "%HERE%\univ-utils\java" MD "%HERE%\univ-utils\java"
 
-IF NOT EXIST "%HERE%\univ-utils\java\java.zip" IF NOT EXIST %JAVAFOLDER% (
-  CLS
-  ECHO:
-  ECHO: Java installation not detected - Downloading Java files!...
-  ECHO:
-  IF NOT EXIST univ-utils\java MD univ-utils\java
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://github.com/adoptium/temurin!JAVAVERSION!-binaries/releases/download/%JAVAFILENAME%', 'univ-utils\java\java.zip')" >nul
 
+FOR /F "tokens=1" %%A IN ('DIR /B univ-utils\java') DO (
+  ECHO %%A | FINDSTR !FINDFOLDER!
+  IF !ERRORLEVEL!==0 (
+    :: Runs a FOR loop with a powershell command to check the age of the found java folder.  If it's older than 3 months result is 'True'.  If it's newer than 3 months result is 'False'.
+    FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\java\%%A' -OlderThan (Get-Date).AddMonths(-2.5)"') DO (
+      :: If False then that means the folder is newer than 3 months - go ahead and use that folder for java, then move on!
+      IF %%G==False (
+        SET JAVAFILE="univ-utils\java\%%A\bin\java.exe"
+        GOTO :javafileisset
+      )
+      :: If True that means that it is older than 2.5 months old and is marked as OLD and folder value stored for testing vs the current published release later.
+      IF %%G==True (
+        SET FOUNDJAVA=OLD
+        SET JAVAFOLDER=%%A
+        GOTO :javaold
+      )
+    )
+  ) ELSE (
+    SET FOUNDJAVA=N
+  )
 )
-IF NOT EXIST univ-utils\java\java.zip (
+:javaold
+
+:: Skips rest of java setup if a good version is found and set.
+IF !FOUNDJAVA!==Y GOTO :javafileisset
+
+:: Java 16 is not a LTS version and never had JRE releases so this is just being set as a variable because of that... Thanks Minecraft 1.17.
+IF !JAVAVERSION!==16 SET "IMAGETYPE=jdk"
+IF !JAVAVERSION! NEQ 16 SET "IMAGETYPE=jre"
+
+:: If the old flag was put on FOUNDJAVA then test the the folder name of the existing old version found versus what the adoptium API says the newest release is for that Java version.
+IF !FOUNDJAVA!==OLD (
+  :: Uses the Adoptium URL Api to return the JSON for the parameters specified, and then the FOR loop pulls the last value printed which is that value in the JSON variable that got made.
+  :: Java 8 used a bit of a different format for it's version information so a different value is used form the JSON.
+  IF !JAVAVERSION!==8 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/8/ga?architecture=x64&heap_size=normal&image_type=jre&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.release_name"') DO SET NEWESTJAVA=%%A
+  IF !JAVAVERSION! NEQ 8 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/!JAVAVERSION!/ga?architecture=x64&heap_size=normal&image_type=!IMAGETYPE!&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.version_data.openjdk_version"') DO SET NEWESTJAVA=%%A
+
+  :: Test if the found newest relaease is found in the folder name then test passes and the JAVAFILE is set to that found.
+  ECHO !JAVAFOLDER! | FINDSTR !NEWESTJAVA! >nul
+  :: If test passes then java folder version is current - use it and move on!
+  IF !ERRORLEVEL!==0 (
+    SET JAVAFILE="univ-utils\java\!JAVAFOLDER!\bin\java.exe"
+    GOTO :javafileisset
+  ) ELSE (
+    :: Removes the old java folder if the test failed and the newest release was not found in the folder name.
+    RD /s /q "%HERE%\univ-utils\java\!JAVAFOLDER!"
+  ) 
+)
+
+:: At this point Java was either not found or was old with a newer version available as release from Adoptium.
+PUSHD "%HERE%\univ-utils\java"
+ver >nul
+
+:: Sets a variable for the URL string to use to use the Adoptium URL Api - it just makes the actual command later easier deal with.
+SET "ADOPTIUMDL=https://api.adoptium.net/v3/assets/feature_releases/!JAVAVERSION!/ga?architecture=x64&heap_size=normal&image_type=!IMAGETYPE!&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse"
+ver >nul
+:: Gets the download URL for the newest release binaries ZIP using the URL Api and then in the same powershell command downloads it.  This avoids having to manipulate URL links with % signs in them in the CMD environment which is tricky.
+powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('!ADOPTIUMDL!') | Out-String | ConvertFrom-Json)); (New-Object Net.WebClient).DownloadFile($data.binaries.package.link, '%HERE%\univ-utils\java\javabinaries.zip')"
+
+IF NOT EXIST javabinaries.zip (
   ECHO: & ECHO: & ECHO   JAVA BINARIES ZIP FILE FAILED TO DOWNLOAD - PRESS ANY KEY TO TRY AGAIN! & ECHO: & ECHO:
   GOTO :javaretry
 )
-:: Gets the checksum hash of the downloaded java binary file
-set idx=0 
-IF EXIST univ-utils\java\java.zip (
-  FOR /F %%F IN ('certutil -hashfile univ-utils\java\java.zip SHA256') DO (
-      SET OUT[!idx!]=%%F
-      SET /a idx+=1
-  )
 
-  IF NOT EXIST univ-utils\java\java.zip IF NOT EXIST %JAVAFOLDER% (
-    ECHO:
-    ECHO   !yellow! Something went wrong downloading the Java files. !blue!
-    ECHO    Press any key to try again.
-    PAUSE
-    GOTO :javaretry
-  )
+:: Gets the SHA256 checksum hash of the downloaded java binary file using the Adoptium URL Api.
+FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/!JAVAVERSION!/ga?architecture=x64&heap_size=normal&image_type=!IMAGETYPE!&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.binaries.package.checksum"') DO SET JAVACHECKSUM=%%A
+
+:: Compares a checksum of the actual downloaded file to the one obtained above as the correct value to have.
+set idx=0 
+FOR /F %%F IN ('certutil -hashfile javabinaries.zip SHA256') DO (
+  SET OUT[!idx!]=%%F
+  SET /a idx+=1
 )
-IF EXIST univ-utils\java\java.zip (
-SET filechecksum=!OUT[1]!
-) ELSE (
-    SET filechecksum=0a
-  )
+SET FILECHECKSUM=!OUT[1]!
+
 :: Checks to see if the calculated checksum hash is the same as stored value above - unzips file if valid
-IF EXIST univ-utils\java\java.zip (
-    PUSHD univ-utils\java
-    IF !checksumeight!==!filechecksum! (
-    tar -xf java.zip
-    ) && DEL java.zip && ECHO   Downloaded Java binary and stored hashfile match values - file is valid
-    POPD
+IF !JAVACHECKSUM!==!FILECHECKSUM! (
+  tar -xf javabinaries.zip
+  DEL javabinaries.zip
+  ECHO: & ECHO   The downloaded Java binary and hashfile match - file downloaded correctly is valid & ECHO:
 )
-IF EXIST univ-utils\java\java.zip IF !checksumeight! NEQ !filechecksum! (
-  ECHO:
-  ECHO %yellow% THE JAVA INSTALLATION FILE DID NOT DOWNLOAD CORRECTLY - PLEASE TRY AGAIN %blue%
-  DEL univ-utils\java\java.zip && PAUSE && EXIT [\B]
+IF !JAVACHECKSUM! NEQ !FILECHECKSUM! (
+  CLS
+  ECHO: & ECHO:
+  ECHO   %yellow% THE JAVA INSTALLATION FILE DID NOT DOWNLOAD CORRECTLY - PLEASE TRY AGAIN %blue% & ECHO: & ECHO:
+  DEL javabinaries.zip
 )
-:: Sends console message if Java found
-:skipjavainstall
-IF EXIST %JAVAFOLDER% (
-  ECHO:
-  ECHO    Java !JAVAVERSION! installation found! ...
-  ECHO:
-) ELSE (
-  ECHO UH-OH - JAVA folder not detected.
-  ECHO Perhaps try resetting all files, delete settings-universalator.txt and starting over.
-  PAUSE && EXIT [\B]
-)
+POPD
+
+:: Sends the script back to the beginning of the java section to check for and set as JAVAFILE the hopefully unzipped new java folder.
+GOTO :checkforjava
+
+:javafileisset
+:: END JAVA SETUP SECTION
+
 
 FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
     SET /a MCMAJOR=%%E
@@ -1372,7 +1256,7 @@ IF /I !MODLOADER!==VANILLA GOTO :preparevanilla
 CLS
 :: Checks to see if the specific JAR file or libraries folder exists for this modloader & version.  If found we'll assume it's installed correctly and move to the foundforge label.
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 IF EXIST libraries/net/neoforged/forge/!MINECRAFT!-!NEOFORGE!/. GOTO :foundforge
-IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 IF EXIST libraries/net/neoforged/neoforge/!MINECRAFT!-!NEOFORGE!/. GOTO :foundforge
+IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 IF EXIST libraries/net/neoforged/neoforge/!NEOFORGE!/. GOTO :foundforge
 
 IF /I !MODLOADER!==FORGE (
   IF EXIST libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/. GOTO :foundforge
@@ -1715,14 +1599,14 @@ SET /a NUMCLIENTS=0
 FOR /L %%b IN (0,1,!SERVERMODSCOUNT!) DO (
 
   :: Runs a FINDSTR to see if the string of the modID is found on a line.  This needs further checks to guarantee the modID is the entire line and not just part of it.
-  FINDSTR /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt >nul
-
+  FINDSTR /I /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt >nul
+  
   REM If errorlevel is 0 then the FINDSTR above found the modID.  The line returned by the FINDSTR can be captured into a variable by using a FOR loop.
   REM That variable is compared to the server modID in question.  If they are equal then it is a definite match and the modID and filename are recorded to a list of client only mods found.
   IF !ERRORLEVEL!==0 (
-    FOR /F "delims=" %%A IN ('FINDSTR /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt') DO (
+    FOR /F "delims=" %%A IN ('FINDSTR /I /R /C:"!SERVERMODS[%%b].id!" univ-utils\clientonlymods.txt') DO (
 
-      IF !SERVERMODS[%%b].id!==%%A (
+      IF /I !SERVERMODS[%%b].id!==%%A (
         SET /a NUMCLIENTS+=1
         SET FOUNDCLIENTS[!NUMCLIENTS!].id=!SERVERMODS[%%b].id!
         SET FOUNDCLIENTS[!NUMCLIENTS!].file=!SERVERMODS[%%b].file!
@@ -1910,19 +1794,15 @@ IF /I !MODLOADER!==NEOFORGE GOTO :actuallylaunchneoforge
 IF !MINECRAFT!==1.6.4 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar minecraftforge-universal-1.6.4-!FORGE!.jar nogui
 ) 
-
 IF !MINECRAFT!==1.7.10 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-1.7.10-!FORGE!-1.7.10-universal.jar nogui
 ) 
-
 IF !MINECRAFT!==1.8.9 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-1.8.9-!FORGE!-1.8.9-universal.jar nogui
 ) 
-
 IF !MINECRAFT!==1.9.4 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-1.9.4-!FORGE!-1.9.4-universal.jar nogui
 ) 
-
 IF !MINECRAFT!==1.10.2 (
 %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-1.10.2-!FORGE!-universal.jar nogui
 ) 
@@ -1931,7 +1811,6 @@ IF !MINECRAFT!==1.10.2 (
 IF !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 IF !MINECRAFT! NEQ 1.10.2 (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar forge-!MINECRAFT!-!FORGE!.jar nogui
 ) 
-
 :: General case for NEW (1.17 and newer) Minecraft versions.
 IF !MCMAJOR! GEQ 17 (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/win_args.txt nogui %*
@@ -2624,32 +2503,30 @@ ECHO:%yellow%
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO      UPNP PORT FORWARDING MENU    
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%blue%
-ECHO:
+ECHO: & ECHO:
 IF NOT EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
 ECHO   %yellow% MiniUPnP PROGRAM %blue% - %red% NOT YET INSTALLED / DOWNLOADED %blue%
 ECHO   Port forwarding done in one way or another is requied for people outside your router network to connect.
 ECHO   ---------------------------------------------------------------------------------------------
 ECHO   %yellow% SETTING UP PORT FORWARDING: %blue%
-ECHO   1- THE PREFERRED METHOD IS MANUALLY SETTING UP PORT FORWARDING IN YOUR ROUTER
-ECHO        Manual setting of port forwarding introduces less risk allowing connections than using UPnP.  
+ECHO   1. THE PREFERRED METHOD IS MANUALLY SETTING UP PORT FORWARDING IN YOUR ROUTER
+ECHO      - Manual setting of port forwarding introduces less risk allowing connections than using UPnP.  
 ECHO:
-ECHO   2- UPnP CAN BE USED IF YOU HAVE A COMPATIBLE NETWORK ROUTER WITH UPnP SET TO ENABLED
-ECHO        UPnP is a connection method with which networked computers can open ports on network routers.
-ECHO        Not all routers have UPnP - and if yours does it needs to be enabled in settings  - it often is by default.
-ECHO: && ECHO:
-ECHO        For personal preference the tool used by the Universalator to do UPnP functions - MiniUPnP - is not downloaded
-ECHO        by default.  To check if your router can use UPnP, and use it for setting up port forwarding - you can
-ECHO        enter %yellow% DOWNLOAD %blue% to get the file and enable Universalator script UPnP functions.
-ECHO: && ECHO:
-ECHO      %yellow% FOR MORE INFORMATION ON PORT FORWARDING AND UPnP - VISIT THE UNIVERSALATOR WIKI AT: %blue%
-ECHO      %yellow% https://github.com/nanonestor/universalator/wiki                                    %blue%
-ECHO: && ECHO   ENTER YOUR SELECTION && ECHO      %green% 'DOWNLOAD' - Download UPnP Program %blue% && ECHO      %green% 'M' - Main Menu %blue%
+ECHO   2. UPnP CAN ALTERNATIVELY BE USED IF YOU HAVE NETWORK ROUTER WHICH IS COMPATIBLE WITH UPnP.
+ECHO      - UPnP is a connection method with which networked computers can open ports on network routers.
+ECHO      - Not all routers have UPnP - and if yours does it needs to be enabled in settings  - it often is by default.
+ECHO: & ECHO:
+ECHO      - The program used by the Universalator to do UPnP functions - MiniUPnP, is not downloaded by default.
+ECHO        To check if your router can use UPnP, and use it for setting up port forwarding - you can
+ECHO        enter %yellow% 'DOWNLOAD' %blue% to install the MiniUPnP program and enable the Universalator UPNP Menu.
+ECHO: & ECHO:
+ECHO: & ECHO   ENTER YOUR SELECTION & ECHO      %green% 'DOWNLOAD' - Download UPnP Program %blue% & ECHO      %green% 'M' - Main Menu %blue%
 )
 
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
 ECHO: && ECHO   %yellow% MiniUPnP PROGRAM %blue% - %green% DOWNLOADED %blue%
 IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue% -      %red% NOT ACTIVATED: %blue% && ECHO                        %red% 'A' - ACTIVATE %yellow% OR %red% SET UP AND USE MANUAL NETWORK ROUTER PORT FORWARDING %blue% && ECHO:
-IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue% - %green% ACTIVE - FORWARDING PORT %PORT% %blue% && ECHO:
+IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue% - %green% ACTIVE - FORWARDING PORT %PORT% %blue% & ECHO:
 IF !SHOWIP!==Y ECHO                                                               %yellow% Local IP:port  %blue% - !LOCALIP!:%PORT%
 IF !SHOWIP!==Y ECHO                                                               %yellow% Public IP:port %blue% - !PUBLICIP!:%PORT%
 IF !SHOWIP!==N ECHO:
@@ -2883,7 +2760,7 @@ IF /I !DEACTIVATEUPNP!==Y (
 CLS
 ECHO: && ECHO:
 ECHO  %yellow% DOWNLOAD MINIUPNP PROGRAM? %blue% && ECHO:
-ECHO  THE SCRIPT WILL DOWNLOAD THE MINIUPnP PROGRAM FROM THAT PROJECTS WEBSITE AT: && ECHO:
+ECHO  ENTERING 'Y' WILL DOWNLOAD THE MINIUPnP PROGRAM FROM THAT PROJECTS WEBSITE AT: && ECHO:
 ECHO   http://miniupnp.free.fr/files/ && ECHO:
 ECHO   MiniUPnP is published / licensed as a free and open source program. && ECHO:
 ECHO  %yellow% DOWNLOAD MINIUPNP PROGRAM? %blue% && ECHO:
@@ -2986,3 +2863,117 @@ ECHO      the mod file names for future reference. && ECHO:
 PAUSE
 GOTO :mainmenu
 :: END MCREATOR SECTION
+
+:: BEGIN ZIP SERVERPACK SECTION
+:zipit
+CLS
+ECHO: & ECHO   %yellow% ZIP SERVER PACK - ZIP SERVER PACK %blue% & ECHO:
+ECHO     Continue on to create a server pack ZIP file? & ECHO:
+ECHO     Server packs are typically made by modpack authors wishing to share the files & ECHO     needed to correctly run a server for their modpack. & ECHO:
+ECHO          %green% - Include all required files and folders in the following menu. %blue% & ECHO:
+ECHO          %red% - Do not include folders or files that aren't neccessary / customized by you. %blue% & ECHO: & ECHO:
+ECHO   %yellow% ZIP SERVER PACK - ZIP SERVER PACK %blue% & ECHO: & ECHO: & ECHO: & ECHO: & ECHO:
+SET /P SCRATCH="%blue%         %green% ENTER 'Y' TO CONTINUE OR 'M' FOR MAIN MENU: %blue% " <nul
+SET /P "ASKUPNPDOWNLOAD="
+IF /I !ASKUPNPDOWNLOAD! NEQ M IF /I !ASKUPNPDOWNLOAD! NEQ Y GOTO :zipit
+IF /I !ASKUPNPDOWNLOAD!==M GOTO :mainmenu
+
+
+SET /a ZIPCOUNT=0
+FOR /F %%A IN ('DIR /B') DO (
+  IF %%A==config SET "ZIPFILE[!ZIPCOUNT!]=config" & SET /a ZIPCOUNT+=1
+  IF %%A==defaultconfigs SET "ZIPFILE[!ZIPCOUNT!]=defaultconfigs" & SET /a ZIPCOUNT+=1
+  IF %%A==kubejs SET "ZIPFILE[!ZIPCOUNT!]=kubejs" & SET /a ZIPCOUNT+=1
+  IF %%A==mods SET "ZIPFILE[!ZIPCOUNT!]=mods" & SET /a ZIPCOUNT+=1
+  IF %%A==scripts SET "ZIPFILE[!ZIPCOUNT!]=scripts" & SET /a ZIPCOUNT+=1
+  IF %%A==server.properties SET "ZIPFILE[!ZIPCOUNT!]=server.properties" & SET /a ZIPCOUNT+=1
+  IF %%A==settings-universalator.txt SET "ZIPFILE[!ZIPCOUNT!]=settings-universalator.txt" & SET /a ZIPCOUNT+=1
+  ECHO %%A | FINDSTR /BI "Universalator" >nul
+  IF !ERRORLEVEL!==0 (
+    SET "ZIPFILE[!ZIPCOUNT!]=%%A"
+    SET /a ZIPCOUNT+=1
+  )
+)
+
+
+
+:zipit2
+CLS
+ECHO: & ECHO    ZIP SERVER PACK - ZIP SERVER PACK %blue% & ECHO:
+
+FOR /L %%B IN (0,1,!ZIPCOUNT!) DO (
+  IF [!ZIPFILE[%%B]!] NEQ [] IF !ZIPFILE[%%B]! NEQ deletedentry ECHO   %yellow% !ZIPFILE[%%B]! %blue% 
+)
+ECHO:
+ECHO    Above are listed the current files and folders selected to include in making the server pack ZIP file.
+ECHO    Use the commands listed to add or remove entries - use exact file or folder names. & ECHO:
+ECHO    Once you are finished editing, enter the ZIPIT command to generate your server pack ZIP. & ECHO    The name after the ZIPIT command will be the filename that gets created - do not include .zip at the end. & ECHO: & ECHO:
+
+SET /P SCRATCH="%green% Entry options - %blue% %green% 'ADD <name>' %blue% %green% 'REM <name>' %blue% %green% 'ZIPIT <name>' %blue% %green% 'M' for main menu%blue%" <nul
+ECHO: & ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
+SET /P "ASKUPNPDOWNLOAD="
+ECHO:
+
+IF /I !ASKUPNPDOWNLOAD! NEQ M IF /I "!ASKUPNPDOWNLOAD:~0,6!" NEQ "ZIPIT " IF /I "!ASKUPNPDOWNLOAD:~0,3!" NEQ "ADD" IF /I "!ASKUPNPDOWNLOAD:~0,3!" NEQ "REM" GOTO :zipit2
+IF /I !ASKUPNPDOWNLOAD!==M GOTO :mainmenu
+
+:: ADD section
+:: Filters entries to deny adding things that should be installed by user or a script like modloader files.
+:: If entry is allowed and exists then it adds +1 to ZIPCOUNT a new pseudo array ZIPFILE variable for the entry.
+IF /I "!ASKUPNPDOWNLOAD:~0,3!"=="ADD" (
+  SET "TEMP=!ASKUPNPDOWNLOAD:~4!"
+  ECHO !TEMP! | FINDSTR /I ".fabric libraries versions .jar" >nul
+  IF !ERRORLEVEL!==0 (
+    ECHO   %red% You tried to add '!TEMP!' - this will not be added because it should be either installed %blue% & ECHO   %red% by script / user or will be generated when server files first run. %blue% & ECHO:
+    PAUSE
+    GOTO :zipit2
+  )
+  IF EXIST "!TEMP!" (
+   SET /a ZIPCOUNT+=1
+   SET ZIPFILE[!ZIPCOUNT!]=!TEMP!
+  ) ELSE (
+    ECHO   %red% 'ADD' ENTRY '!TEMP!' DOES NOT EXIST - Filenames must be exact and include any extension! %blue% & ECHO:
+    PAUSE
+  )
+)
+
+:: REM section
+:: Changes rem entries into the string 'deletedentry'.  Adding and then removing a ton of entries eventually winds up in a large ZIPCOUNT but it's not a big problem.
+IF /I "!ASKUPNPDOWNLOAD:~0,3!"=="REM" (
+  SET "TEMP=!ASKUPNPDOWNLOAD:~4!"
+  IF EXIST "!TEMP!" (
+    FOR /L %%R IN (0,1,!ZIPCOUNT!) DO (
+      IF "!ZIPFILE[%%R]!"=="!TEMP!" SET ZIPFILE[%%R]=deletedentry
+      ECHO !ZIPFILE[%%R]!
+    )
+  ) ELSE (
+    ECHO   %red% 'REM' ENTRY '!TEMP!' DOES NOT EXIST - Filenames must be exact and include any extension! %blue% & ECHO:
+    PAUSE
+  )
+)
+
+IF /I "!ASKUPNPDOWNLOAD:~0,6!"=="ZIPIT " (
+  SET "ZIPNAME=!ASKUPNPDOWNLOAD:~6!"
+  IF [!ASKUPNPDOWNLOAD:~6!]==[] GOTO :zipit2
+  IF EXIST "!ZIPNAME!.zip" DEL "!ZIPNAME!.zip" >nul
+  FOR /L %%R IN (0,1,!ZIPCOUNT!) DO (
+    IF "!ZIPFILE[%%R]!" NEQ "deletedentry" IF [!ZIPFILE[%%R]!] NEQ [] (
+      powershell -Command "Compress-Archive -CompressionLevel Optimal -Path '!ZIPFILE[%%R]!' -Update -DestinationPath '!ZIPNAME!.zip'" >nul
+    )
+  )
+  IF NOT EXIST univ-utils\readme.txt (
+    ECHO Using this serverpack->univ-utils\readme.txt
+    ECHO .>>univ-utils\readme.txt
+    ECHO If using Windows - run the file named 'Universalator-version.bat', then launch.  Changing any settings, do not alter the Minecraft version - '!MINECRAFT!'>>univ-utils\readme.txt
+    ECHO .>>univ-utils\readme.txt
+    ECHO IF using Linux or OSX/Mac go to the website for the modloader used - '!MODLOADER!' - and install, then launch the core server files for that modloader using the same Minecraft - '!MINECRAFT!' - and Modloader version - '!MODLOADERVERSION!' - as the modpack version or custom profile you are using.  Use the same version of java - '!JAVAVERSION!'.>>univ-utils\readme.txt
+  )
+  powershell -Command "Compress-Archive -CompressionLevel Optimal -Path 'univ-utils\readme.txt' -Update -DestinationPath '!ZIPNAME!.zip'" >nul
+  ECHO: & ECHO   %yellow% Finished creating server pack zip named !ZIPNAME!.zip %blue% & ECHO: & ECHO:
+  PAUSE
+  GOTO :mainmenu
+)
+
+GOTO :zipit2
+:: END ZIP SERVERPACK SECTION
