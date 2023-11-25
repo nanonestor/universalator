@@ -30,14 +30,8 @@ REM    along with this program.  If not, see https://www.gnu.org/licenses/.
   ::
   :: 
   :: -TO CREATE A SERVER PACK
-  ::    1- ONLY DO FOLLOWING AFTER SUCCESSFULLY LAUNCHING A SERVER AT LEAST ONCE ALL THE WAY TO WORLD CREATION - THIS GUARANTEES FILES AT LEAST WORK TO THAT POINT
-  ::    3- CREATE A ZIP FILE CONTAINING:  
-  ::        A- THIS BAT
-  ::        B- settings-universalator.txt
-  ::        C- THE 'MODS' FOLDER
-  ::        D- ANY OTHER SPECIAL FOLDERS/FILES WANTED (FOR EXAMPLE THE 'CONFIGS' AND 'DEFAULTCONFIGS' FOLDERS).
-  ::      DO NOT INCLUDE MODLOADER / MINECRAFT FILES/FOLDERS.  'DO NOT INCLUDE' EXAMPLES- LIBRARIES, .FABRIC, server.jar
-  ::      ONLY INCLUDE FOLDERS/FILES THAT YOU KNOW ARE REQUIRED OR WANTED.  DEFAULT FOLDERS/FILES NOT INCLUDED WILL GENERATE AUTOMATICALLY WITH DEFAULT VALUES.
+  ::    USE THE ZIP MENU FROM WITHIN THE SCRIPT PROGRAM FOR A GUIDE TO CREATING A ZIP FILE CONTAINING NECESSARY FILES
+::
 :: ------------------------------------------------
 :: README ABOVE -- NOTES -- README -- NOTES
 
@@ -45,12 +39,6 @@ REM    along with this program.  If not, see https://www.gnu.org/licenses/.
 
 
 
-:: Enter custom JVM arguments in this ARGS variable
-:: DO NOT INCLUDE Xmx -- THAT IS HANDLED BY ANOTHER VARIABLE IN PROGRAM
- SET ARGS=-XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch -XX:+ParallelRefProcEnabled -XX:MaxTenuringThreshold=1 -XX:SurvivorRatio=32 -XX:MaxGCPauseMillis=100 -XX:GCPauseIntervalMillis=150 -XX:TargetSurvivorRatio=90 -XX:+UseFastAccessorMethods -XX:+UseCompressedOops -XX:ReservedCodeCacheSize=2048m -XX:SoftRefLRUPolicyMSPerMB=10000 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1NewSizePercent=30 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20
-
-
-
 
 
 
@@ -61,6 +49,14 @@ REM    along with this program.  If not, see https://www.gnu.org/licenses/.
 :: DO NOT EDIT INFORMATION BELOW - SCRIPT FILE (WILL PROBABLY) BREAK
 
 :: DO NOT EDIT INFORMATION BELOW - SCRIPT FILE (WILL PROBABLY) BREAK
+
+
+
+
+
+
+
+
 
 
 
@@ -81,8 +77,10 @@ PUSHD "%~dp0" >nul 2>&1
 TITLE Universalator
 color 1E
 prompt [universalator]:
+::  The defaut JVM arguments that will print out for use in the settings file that gets created.  Users can edit this settings file to edit their JVM arguments to be used for launching.
+SET ARGS=-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch -XX:+ParallelRefProcEnabled -XX:MaxTenuringThreshold=1 -XX:SurvivorRatio=32 -XX:MaxGCPauseMillis=100 -XX:GCPauseIntervalMillis=150 -XX:TargetSurvivorRatio=90 -XX:+UseFastAccessorMethods -XX:+UseCompressedOops -XX:ReservedCodeCacheSize=400M -XX:SoftRefLRUPolicyMSPerMB=10000 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1NewSizePercent=30 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20
 :: Additional JVM arguments that will always be applied
-SET OTHERARGS=-Dlog4j2.formatMsgNoLookups=true
+SET OTHERARGS=-XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysActAsServerClassMachine -Dlog4j2.formatMsgNoLookups=true
 :: These variables set to exist as blank in case windows is older than 10 and they aren't assigned otherwise
 SET "yellow="
 SET "blue="
@@ -120,26 +118,27 @@ IF %major% GEQ 10 (
   SET red=[93;101m
 )
 
-:: Checks to see if an exclamation mark is found anywhere in the folder path, which breaks many commands in the script.  Disabling delayed expansion could be done to detect it a different way.
-FOR /F "delims=" %%A IN ('powershell -Command "(ECHO (get-location).path | FINDSTR "^^!")"') DO SET ISEXCLFOUND=%%A
-IF DEFINED ISEXCLFOUND IF "%CD%"=="!ISEXCLFOUND!" (
-    setlocal disabledelayedexpansion
-    ECHO. & ECHO. & ECHO. & ECHO   %yellow% PROBLEM DETECTED %blue% & ECHO. & ECHO   %red% %cd% %blue% & ECHO. & ECHO   THE ABOVE FOLDER PATH CONTAINS AN EXCLAMATION MARK CHARACTER  - %red% ^! %blue% & ECHO.
-    ECHO   INCLUDING THIS CHARACTER IN FOLDER NAMES CAN BREAK THE FUNCTIONS IN THE PROGRAM. & ECHO   CHANGE FOLDER NAMES TO REMOVE THE EXCLAMATION MARK %red% ^! %blue% & ECHO: & ECHO: & ECHO:
-    PAUSE & EXIT [/B]
-    setlocal enabledelayedexpansion
-)
-
 :: Checks the last character of the folder name the script was run from.  If that last character is found in a FINDSTR to not contain an a-z, A-Z, or 0-9 character then prompt user to change the folder name or move the server files and pause/exit.
 :: Handling the character needs to be done carefully because it will be null in some cases without character escaping ^ or echo without entering variables as string.  Special characters at the end of the working folder breaks certain CMD commands.
+
 SET "LASTCHAR=%cd:~-1%"
-ECHO %LASTCHAR% | FINDSTR "[a-z] [A-Z] [0-9]" >nul || (
+ECHO ^%LASTCHAR% | FINDSTR "[a-z] [A-Z] [0-9]" >nul || (
   CLS
-  ECHO. & ECHO. & ECHO. & ECHO   %yellow% PROBLEM DETECTED %blue% & ECHO. & ECHO      %red% %cd% %blue% & ECHO. & ECHO      THE ABOVE FOLDER LOCATION ENDS IN A SPECIAL CHARACTER - %red% ^%LASTCHAR% %blue% & ECHO.
+  ECHO. & ECHO. & ECHO. & ECHO   %yellow% PROBLEM DETECTED %blue% & ECHO. & ECHO      %red% "%cd%" %blue% & ECHO. & ECHO      THE ABOVE FOLDER LOCATION ENDS IN A SPECIAL CHARACTER - %red% ^!LASTCHAR! %blue% & ECHO:
   ECHO      REMOVE THIS SPECIAL CHARACTER FROM THE END OF OF THE FOLDER NAME OR USE A DIFFERENT FOLDER
   ECHO      SPECIAL CHARACTERS AT THE END OF FOLDER NAMES BREAKS CERTAIN COMMAND FUNCTIONS THE SCRIPT USES
   ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & ECHO:
   PAUSE & EXIT [\B]
+)
+
+:: Checks to see if an exclamation mark is found anywhere in the folder path, which breaks many commands in the script.  Disabling delayed expansion could be done to detect it a different way.
+FOR /F "delims=" %%A IN ('powershell -Command "ECHO (get-location).path | FINDSTR "^^!""') DO SET ISEXCLFOUND=%%A
+IF DEFINED ISEXCLFOUND IF "%CD%"=="!ISEXCLFOUND!" (
+    setlocal disabledelayedexpansion
+    ECHO. & ECHO. & ECHO. & ECHO   %yellow% PROBLEM DETECTED %blue% & ECHO. & ECHO   %red% "%cd%" %blue% & ECHO. & ECHO   THE ABOVE FOLDER PATH CONTAINS AN EXCLAMATION MARK CHARACTER  - %red% ^! %blue% & ECHO.
+    ECHO   INCLUDING THIS CHARACTER IN FOLDER NAMES CAN BREAK THE FUNCTIONS IN THE PROGRAM. & ECHO   CHANGE FOLDER NAMES TO REMOVE THE EXCLAMATION MARK %red% ^! %blue% & ECHO: & ECHO: & ECHO:
+    PAUSE & EXIT [/B]
+    setlocal enabledelayedexpansion
 )
 
 :: Checks to see if there are environmental variables trying to set global ram allocation values!  This is a real thing!
@@ -292,9 +291,9 @@ IF "%cd%"=="C:\" SET FOLDER=BAD
 IF !FOLDER!==BAD (
     CLS
     ECHO:
-    ECHO       %yellow% WARNING WARNING WARNING %blue%
+    ECHO            WARNING %blue% WARNING  WARNING %blue%
     ECHO       %red% DO NOT PUT SERVER FOLDERS INSIDE OF SYSTEM FOLDERS %blue%
-    ECHO       %yellow% WARNING WARNING WARNING %blue%
+    ECHO            WARNING %blue% WARNING  WARNING %blue%
     ECHO: & ECHO:
     ECHO    %red% %LOC% %blue%
   IF NOT DEFINED DESKTOP (
@@ -316,10 +315,29 @@ IF !FOLDER!==BAD (
   )
     ECHO:
     ECHO   -USE FILE BROWSER to create a new folder, or move this folder - to use in a non-system folder location.
-    ECHO    EXAMPLES: & ECHO:
+    ECHO    GOOD LOCATION EXAMPLES: & ECHO:
     ECHO         %green% C:\MYNEWSERVER\ %blue%   %green% D:\MYSERVERS\MODDEDSERVERNAME\ %blue%
     ECHO: & ECHO:
     PAUSE & EXIT [\B]
+)
+
+ECHO "%LOC%" | FINDSTR /i "curseforge atlauncher at_launcher gdlauncher gd_launcher" 1>NUL && (
+      CLS
+    ECHO:
+    ECHO            WARNING %blue% WARNING  WARNING %blue%
+    ECHO       %red% DO NOT PUT SERVER FOLDERS INSIDE OF LAUNCHER APP OR SYSTEM FOLDERS %blue%
+    ECHO            WARNING %blue% WARNING  WARNING %blue%
+    ECHO: & ECHO:
+    ECHO    %red% %LOC% %blue% & ECHO: & ECHO:
+    ECHO   -It was detected that the server folder this script was run from is located inside the folder of a game launcher app.
+    ECHO   -Do NOT use this script program from the same folder as client profiles or anywhere inside launcher app folders.
+    ECHO: & ECHO    ------------------------------------------- & ECHO: & ECHO:
+    ECHO   -DO use a folder location ouside of any launcher app or Windows system folder ^(including desktop^) & ECHO:
+    ECHO    GOOD LOCATION EXAMPLES: & ECHO:
+    ECHO         %green% C:\MYNEWSERVER\ %blue%   %green% D:\MYSERVERS\MODDEDSERVERNAME\ %blue% & ECHO: & ECHO: & ECHO: & ECHO:
+    PAUSE & EXIT [\B]
+
+  PAUSE
 )
 
 :: The following line is purely done to guarantee the current ERRORLEVEL is reset
@@ -1097,7 +1115,7 @@ IF EXIST settings-universalator.txt DEL settings-universalator.txt
     ECHO :: Minecraft version below - example: MINECRAFT=1.18.2 >>settings-universalator.txt
     ECHO SET MINECRAFT=!MINECRAFT!>>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
-    ECHO :: Modloader type - FORGE / NEOFORGE / FABRIC / QUILT>>settings-universalator.txt
+    ECHO :: Modloader type - FORGE / NEOFORGE / FABRIC / QUILT / VANILLA>>settings-universalator.txt
     ECHO SET MODLOADER=!MODLOADER!>>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
     ECHO :: Enter the version number of the modloader type set above>>settings-universalator.txt
@@ -1107,7 +1125,7 @@ IF EXIST settings-universalator.txt DEL settings-universalator.txt
     IF /I !MODLOADER!==QUILT ECHO SET MODLOADERVERSION=!QUILTLOADER!>>settings-universalator.txt
     IF /I !MODLOADER!==VANILLA ECHO SET MODLOADERVERSION=>>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
-    ECHO :: Java version below - MUST BE 8, 11, 16, 17, 18, or 19 >>settings-universalator.txt
+    ECHO :: Java version - do not edit - this is set by the script>>settings-universalator.txt
     ECHO SET JAVAVERSION=!JAVAVERSION!>>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
     ECHO :: Ram maximum value in gigabytes - example: 6 >>settings-universalator.txt
@@ -1868,10 +1886,12 @@ IF /I !MODLOADER!==NEOFORGE (
 :: Complaints to report in console output if launch attempt crashes
 
 :: Looks for the stopping the server text to decide if the server was shut down on purpose.  If so goes to main menu.
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Stopping the server" >nul 2>&1 & PAUSE & GOTO :mainmenu
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Stopping the server" >nul && (
+  PAUSE
+  GOTO :mainmenu
+)
 
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Unsupported class file major version" >nul 2>&1
-IF !ERRORLEVEL!==0 (
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Unsupported class file major version" >nul && (
   ECHO: & ECHO        %red% --SPECIAL NOTE-- %blue%
   ECHO    %yellow% FROM SCANNING THE LOGS IT LOOKS LIKE YOUR SERVER MAY HAVE CRASHED FOR ONE OF TWO REASONS:  %blue%
   ECHO    %yellow% --YOUR SELECTED JAVA VERSION IS CRASHING WITH THE CURRENT FORGE AND MODS VERSIONS %blue%
@@ -1879,9 +1899,8 @@ IF !ERRORLEVEL!==0 (
   ECHO        %red% --SPECIAL NOTE-- %blue% & ECHO:
 )
 
-  :: Search if the standard client side mod message was found.  Ignore if java 19 is detected as probably the more important item.
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul 2>&1
-IF !ERRORLEVEL!==0 (
+  :: Search if the standard client side mod message was found.  Ignore if certain mod file names of server-needed mods are found that are known to have unsilenced messages regarding.
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul && DIR /B | FINDSTR /i "auxiliaryblocks farmersdelight ispawner findme modernfix obscuria's the_vault" >nul && (
   ECHO: & ECHO        %red% --- SPECIAL MESSAGE --- %blue%
   ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
   ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER - OTHERWISE SOME MOD AUTHORS DID NOT SILENCE THAT MESSAGE.
@@ -1889,7 +1908,7 @@ IF !ERRORLEVEL!==0 (
   ECHO    TRY USING THE UNIVERSALATOR %green% 'SCAN' %blue% OPTION TO FIND CLIENT MODS.
   ECHO        %red% --- SPECIAL MESSAGE --- %blue% & ECHO:
 )
-
+ECHO: & ECHO   IF THIS MESSAGE IS VISIBLE SERVER MAY HAVE CRASHED / STOPPED & ECHO: & ECHO   CHECK LOG FILES - PRESS ANY KEY TO GO BACK TO MAIN MENU & ECHO: & ECHO:
 PAUSE
 GOTO :mainmenu
 :: END FORGE LAUNCH SECTION
