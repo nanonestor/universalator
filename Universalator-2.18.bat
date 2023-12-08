@@ -727,10 +727,12 @@ ECHO !MINECRAFT! | FINDSTR "[a-z] [A-Z]" && GOTO :startover
 :getmcmajor
 
 :: Stores the major and minor Minecraft version numbers in their own variables as integers.
+SET "MCMINOR="
 FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
     SET /a MCMAJOR=%%E
     SET /a MCMINOR=%%F
 )
+IF NOT DEFINED MCMINOR SET /a MCMINOR=0
 
 :: IF running SCAN from main menu now goto actual scan section
 IF /I !MAINMENU!==SCAN GOTO :actuallyscanmods
@@ -785,17 +787,52 @@ IF /I !MODLOADER!==FORGE IF !MCMAJOR! LSS 10 IF !MINECRAFT! NEQ 1.6.4 IF !MINECR
   PAUSE
   GOTO :startover
 )
-
-IF /I !MODLOADER!==QUILT GOTO :enterquilt
+:: Skips to different modloader version entry if type is not Fabric or Quilt, or just go to java setup for Vanilla
 IF /I !MODLOADER!==FORGE GOTO :enterforge
 IF /I !MODLOADER!==NEOFORGE GOTO :enterforge
 IF /I !MODLOADER!==VANILLA GOTO :setjava
 
-:: If Fabric modloader ask user to enter Fabric and Fabric Loader
 
+:: If a maven metadata file for whichever modloader type is present - test its age.  Set a default value first so that if no file is found the default will be the same as if the file was returned as being old.
+  SET XMLAGE=True
+  IF EXIST "%HERE%\univ-utils\maven-fabric-metadata.xml" IF /I !MODLOADER!==FABRIC FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\maven-fabric-metadata.xml' -OlderThan (Get-Date).AddHours(-6)"') DO SET XMLAGE=%%G
+  IF EXIST "%HERE%\univ-utils\maven-quilt-metadata.xml" IF /I !MODLOADER!==QUILT FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\maven-quilt-metadata.xml' -OlderThan (Get-Date).AddHours(-6)"') DO SET XMLAGE=%%G
+
+:: If XMLAGE is True then a new maven metadata file is obtained.  Any existing is silently deleted.  If the maven is unreachable by ping then no file delete and download is done, so any existing old file is preserved.
+IF /I !MODLOADER!==FABRIC IF /I !XMLAGE!==True (
+  ping -n 2 maven.fabricmc.net >nul
+  IF !ERRORLEVEL!==0 (
+    DEL "%HERE%\univ-utils\maven-fabric-metadata.xml" >nul 2>&1
+    curl -sLfo "%HERE%\univ-utils\maven-fabric-metadata.xml" https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml >nul 2>&1
+  )
+)
+IF /I !MODLOADER!==QUILT IF /I !XMLAGE!==True (
+  ping -n 2 maven.quiltmc.org >nul
+  IF !ERRORLEVEL!==0 (
+    DEL "%HERE%\univ-utils\maven-quilt-metadata.xml" >nul 2>&1
+    curl -sLfo "%HERE%\univ-utils\maven-quilt-metadata.xml" https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml >nul 2>&1
+  )
+)
+:: Skips over the oops message if a maven metadata file was found
+IF EXIST "%HERE%\univ-utils\maven-fabric-metadata.xml" IF /I !MODLOADER!==FABRIC GOTO :skipmavenoopsfabric
+IF EXIST "%HERE%\univ-utils\maven-quilt-metadata.xml" IF /I !MODLOADER!==QUILT GOTO :skipmavenoopsfabric
+
+:: If script gets here then either no maven metadata file ever existed, or an old file was deleted, and none was obtained from the maven either due to download problems or because the maven is offline.
+CLS
+ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% IT LOOKS LIKE THE MAVEN FILE REPOSITORY FOR YOUR MODLOADER TYPE %blue% - %green% !MODLOADER! %blue% & ECHO:
+ECHO   %yellow% IS NOT FUNCTIONING NORMALLY AT THIS TIME - TRY AGAIN LATER %blue% & ECHO: & ECHO: & ECHO:
+PAUSE
+GOTO :startover
+
+:skipmavenoopsfabric
+
+IF /I !MODLOADER!==QUILT GOTO :enterquilt
+
+:: If Fabric modloader ask user to enter version or Y for newest detected.
 :redofabricloader
 IF /I !MODLOADER!==FABRIC (
-FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.release"') DO SET FABRICLOADER=%%A
+:: Gets the newest release version available from the current maven mavendata file.
+FOR /F %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-fabric-metadata.xml); $data.metadata.versioning.release"') DO SET FABRICLOADER=%%A
   CLS
   IF NOT EXIST settings-universalator.txt (
   ECHO:%yellow%
@@ -832,15 +869,16 @@ IF /I !ASKFABRICLOADER!==N (
 IF "!FABRICLOADER!" NEQ "!FABRICLOADER: =!" GOTO :redofabricloader
 
 :: If custom Fabric Loader was entered check on the maven XML file that it is a valid version
-FOR /F %%A IN ('powershell -Command "$url = 'https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+FOR /F %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-fabric-metadata.xml); $data.metadata.versioning.versions.version"') DO (
   IF %%A==!FABRICLOADER! GOTO :setjava
 )
 :: If this point is reached then no valid Fabric Loader version was found on the maven - go to the oops message
 GOTO :oopsnovalidfabricqulit
 
-:: If Quilt modloader ask user to enter Fabric and Fabric Loader
+:: If Quilt modloader ask user to enter version or Y for newest detected.
 :enterquilt
-FOR /F %%A IN ('powershell -Command "$url = 'https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.release"') DO SET QUILTLOADER=%%A
+:: Gets the newest release version available from the current maven mavendata file.
+FOR /F %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-quilt-metadata.xml); $data.metadata.versioning.release"') DO SET QUILTLOADER=%%A
   :redoenterquilt
   CLS
   IF NOT EXIST settings-universalator.txt (
@@ -878,7 +916,7 @@ IF /I !ASKQUILTLOADER!==N (
 IF "!QUILTLOADER!" NEQ "!QUILTLOADER: =!" GOTO :redofabricloader
 
 :: If custom Quilt Loader was entered check on the maven XML file that it is a valid version
-FOR /F %%A IN ('powershell -Command "$url = 'https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+FOR /F %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-quilt-metadata.xml); $data.metadata.versioning.versions.version"') DO (
   IF %%A==!QUILTLOADER! GOTO :setjava
 )
 :oopsnovalidfabricqulit
@@ -896,18 +934,59 @@ IF !MODLOADER!==QUILT GOTO :enterquilt
 :enterforge
 :: BEGIN SETTING VERSION FOR FORGE OR NEOFORGE
 
-:: If Forge get newest Forge version available of the selected minecraft version.
+:: If a maven metadata file for whichever modloader type is present - test its age.  Set a default value first so that if no file is found the default will be the same as if the file was returned as being old.
+  SET XMLAGE=True
+  IF EXIST "%HERE%\univ-utils\maven-forge-metadata.xml" IF /I !MODLOADER!==FORGE FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\maven-forge-metadata.xml' -OlderThan (Get-Date).AddHours(-2)"') DO SET XMLAGE=%%G
+  IF EXIST "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml" IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml' -OlderThan (Get-Date).AddHours(-2)"') DO SET XMLAGE=%%G
+  IF EXIST "%HERE%\univ-utils\maven-neoforge-metadata.xml" IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\maven-neoforge-metadata.xml' -OlderThan (Get-Date).AddHours(-2)"') DO SET XMLAGE=%%G
+
+:: If XMLAGE is True then a new maven metadata file is obtained.  Any existing is silently deleted.  If the maven is unreachable by ping then no file delete and download is done, so any existing old file is preserved.
+IF /I !MODLOADER!==FORGE IF /I !XMLAGE!==True (
+  ping -n 2 maven.minecraftforge.net >nul
+  IF !ERRORLEVEL!==0 (
+    DEL "%HERE%\univ-utils\maven-forge-metadata.xml" >nul 2>&1
+    curl -sLfo "%HERE%\univ-utils\maven-forge-metadata.xml" https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml >nul 2>&1
+  )
+)
+IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 IF /I !XMLAGE!==True (
+  ping -n 2 maven.neoforged.net >nul
+  IF !ERRORLEVEL!==0 (
+    DEL "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml" >nul 2>&1
+    curl -sLfo "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml" https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml >nul 2>&1
+  )
+)
+IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 IF /I !XMLAGE!==True (
+  ping -n 2 maven.neoforged.net >nul
+  IF !ERRORLEVEL!==0 (
+    DEL "%HERE%\univ-utils\maven-neoforge-metadata.xml" >nul 2>&1
+    curl -sLfo "%HERE%\univ-utils\maven-neoforge-metadata.xml" https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml >nul 2>&1
+  )
+)
+:: Skips over the oops message if a maven metadata file was found
+IF EXIST "%HERE%\univ-utils\maven-forge-metadata.xml" IF /I !MODLOADER!==FORGE GOTO :skipmavenoopsforge
+IF EXIST "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml" IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 GOTO :skipmavenoopsforge
+IF EXIST "%HERE%\univ-utils\maven-neoforge-metadata.xml" IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 GOTO :skipmavenoopsforge
+
+:: If script gets here then either no maven metadata file ever existed, or an old file was deleted, and none was obtained from the maven either due to download problems or because the maven is offline.
+CLS
+ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% IT LOOKS LIKE THE MAVEN FILE REPOSITORY FOR YOUR MODLOADER TYPE %blue% - %green% !MODLOADER! %blue% & ECHO:
+ECHO   %yellow% IS NOT FUNCTIONING NORMALLY AT THIS TIME - TRY AGAIN LATER %blue% & ECHO: & ECHO: & ECHO:
+PAUSE
+GOTO :startover
+
+:skipmavenoopsforge
+:: If Forge get newest version available of the selected minecraft version.
 IF /I !MODLOADER!==FORGE (
   SET /a idx=0
   SET "ARRAY[!idx!]="
-  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-forge-metadata.xml); $data.metadata.versioning.versions.version"') DO (
     IF %%A==%MINECRAFT% (
         SET ARRAY[!idx!]=%%B
         SET /a idx+=1
     )
   )
   SET NEWESTFORGE=!ARRAY[0]!
-  IF "!ARRAY[0]!" EQU "" (
+  IF [!ARRAY[0]!] EQU [] (
     CLS
     ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% NO FORGE VERSIONS EXIST FOR THIS MINECRAFT VERSION %blue% - !MINECRAFT! & ECHO:
     ECHO   %yellow% PRESS ANY KEY TO TRY A DIFFERENT COMBINATION OF MINECRAFT VERSION AND MODLOADER TYPE %blue% & ECHO: & ECHO: & ECHO:
@@ -916,21 +995,25 @@ IF /I !MODLOADER!==FORGE (
   )
 )
 
-:: If Neoforge get newest Forge version available of the selected minecraft version.
+REM If Neoforge get newest version available of the selected minecraft version.
 IF /I !MODLOADER!==NEOFORGE (
   SET "NEWESTNEOFORGE="
-  IF !MINECRAFT!==1.20.1 FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  REM This is the initial versions maven that Neoforge used - only for MC 1.20.1
+  IF !MINECRAFT!==1.20.1 FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-neoforge-1.20.1-metadata.xml); $data.metadata.versioning.versions.version"') DO (
     IF %%A==%MINECRAFT% (
         SET NEWESTNEOFORGE=%%B
     )
   )
-  IF !MINECRAFT! NEQ 1.20.1 FOR /F "tokens=1-4 delims=.-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  REM Neoforge changed how they version number their installer files starting with MC 1.20.2 - this is the new system.
+  IF !MINECRAFT! NEQ 1.20.1 FOR /F "tokens=1-4 delims=.-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-neoforge-metadata.xml); $data.metadata.versioning.versions.version"') DO (
+    REM If the current Minecraft version contains a minor version
     IF %%A==%MCMAJOR% IF %%B==%MCMINOR% (
         SET NEWESTNEOFORGE=%%A.%%B.%%C
-        IF %%D NEQ "" SET NEWESTNEOFORGE=!NEWESTNEOFORGE!-%%D
+        IF [%%D] NEQ [] SET NEWESTNEOFORGE=!NEWESTNEOFORGE!-%%D
     )
   )
-  IF "!NEWESTNEOFORGE!" EQU "" (
+  REM If looking through the maven xml file results in NEWESTNEOFORGE being blank then it found no matches with the current minecraft version.
+  IF [!NEWESTNEOFORGE!] EQU [] (
     CLS
     ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% NO NEOFORGE VERSIONS EXIST FOR THIS MINECRAFT VERSION %blue% - !MINECRAFT! & ECHO:
     ECHO   %yellow% PRESS ANY KEY TO TRY A DIFFERENT COMBINATION OF MINECRAFT VERSION AND MODLOADER TYPE %blue% & ECHO: & ECHO: & ECHO:
@@ -951,7 +1034,7 @@ IF NOT EXIST settings-universalator.txt (
   ) ELSE (
       ECHO: & ECHO: & ECHO:
     )
-  ECHO   %yellow% FORGE VERSION - FORGE VERSION %blue% & ECHO:
+  ECHO   %yellow% !MODLOADER! VERSION - !MODLOADER! VERSION %blue% & ECHO:
 
 ECHO     THE NEWEST VERSION OF !MODLOADER! FOR MINECRAFT VERSION !MINECRAFT!
 ECHO     WAS DETECTED TO BE:
@@ -962,20 +1045,20 @@ ECHO     -ENTER %green% 'Y' %blue% TO USE THIS NEWEST VERSION & ECHO: & ECHO    
 ECHO     -ENTER A VERSION NUMBER TO USE INSTEAD
 ECHO        example: 14.23.5.2860
 ECHO        example: 47.1.3
-ECHO: & ECHO   %yellow% FORGE VERSION - FORGE VERSION %blue% & ECHO:
+ECHO: & ECHO   %yellow% !MODLOADER! VERSION - !MODLOADER! VERSION %blue% & ECHO:
 SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "FROGEENTRY="
 IF NOT DEFINED FROGEENTRY GOTO :redoenterforge
+:: Skips ahead if Y to select the already found newest version was entered
 IF /I "!FROGEENTRY!"=="Y" (
   IF !MODLOADER!==FORGE SET FORGE=!NEWESTFORGE!
   IF !MODLOADER!==NEOFORGE SET NEOFORGE=!NEWESTNEOFORGE!
-  :: Skips ahead if Y to select the already found newest version was entered
   GOTO :setjava
 )
 :: Checks if any blank spaces were in the entry.
 IF "!FROGEENTRY!" NEQ "!FROGEENTRY: =!" GOTO :redoenterforge
 
-:: Checks to see if there were any a-z or A-Z characters in the entry.
+:: Checks to see if there were any a-z or A-Z characters in the entry - but only for Forge because Neoforge has some versions with -beta in the name now.
 ECHO:
 SET FORGEENTRYCHECK=IDK
 IF !MODLOADER!==FORGE ECHO !FROGEENTRY! | FINDSTR "[a-z] [A-Z]" && SET FORGEENTRYCHECK=LETTER
@@ -988,28 +1071,32 @@ IF !MODLOADER!==FORGE ECHO !FROGEENTRY! | FINDSTR "[a-z] [A-Z]" && SET FORGEENTR
   GOTO :redoenterforge
 )
 
-:: Checks maven website to determine if non-newest version entered does in fact exist
-:: Compares the Minecraft version and FORGE/NEOFORGE entry input above to the Maven manifest file for either modloader that is selected
+:: Checks maven metadata file to determine if any manually entered version entered does in fact exist
 IF /I !MODLOADER!==FORGE (
-  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-forge-metadata.xml); $data.metadata.versioning.versions.version"') DO (
     IF %%A==!MINECRAFT! IF %%B==!FROGEENTRY! GOTO :foundvalidforgeversion
     )
 )
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 (
-  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
+  FOR /F "tokens=1,2 delims=-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-neoforge-1.20.1-metadata.xml); $data.metadata.versioning.versions.version"') DO (
     IF %%A==!MINECRAFT! IF %%B==!FROGEENTRY! GOTO :foundvalidforgeversion
   )
 )
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 (
-  FOR /F "tokens=1-3 delims=." %%A IN ('powershell -Command "$url = 'https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml'; $data =[xml](New-Object System.Net.WebClient).DownloadString($url); $data.metadata.versioning.versions.version"') DO (
-    IF %%A==%MCMAJOR% IF %%B==%MCMINOR% IF !FROGEENTRY!==%%A.%%B.%%C  GOTO :foundvalidforgeversion
+  FOR /F "tokens=1-4 delims=.-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-neoforge-metadata.xml); $data.metadata.versioning.versions.version"') DO (
+    IF [%%D]==[] IF %%A==%MCMAJOR% IF %%B==%MCMINOR% IF !FROGEENTRY!==%%A.%%B.%%C  GOTO :foundvalidforgeversion
+    IF [%%D] NEQ [] IF %%A==%MCMAJOR% IF %%B==%MCMINOR% IF !FROGEENTRY!==%%A.%%B.%%C-%%D  GOTO :foundvalidforgeversion
   )
 )
+
+
+
 :: If no valid version was detected on the maven file server XML list then no skip ahead was done to the foundvalidforgeversion label - display error and go back to enter another version
 CLS
-ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS - THE VERSION OF %yellow% !MODLOADER! %red% ENTERED : %yellow% %MINECRAFT% - %FROGEENTRY% %blue% & ECHO:
-ECHO   %red% DOES NOT SEEM TO EXIST ON THE FORGE FILE SERVER %blue% & ECHO:
-ECHO   %red% ENTER A DIFFERENT VERSION NUMBER THAT IS KNOWN TO EXIST %blue% & ECHO: & ECHO:
+ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & 
+ECHO   %red% OOPS - THE VERSION OF %yellow% !MODLOADER! %red% ENTERED : %yellow% %MINECRAFT% - %FROGEENTRY% %blue% & ECHO:
+ECHO   %red% DOES NOT SEEM TO EXIST ON THE !MODLOADER! FILE SERVER %blue% & ECHO:
+ECHO   %red% ENTER A DIFFERENT VERSION NUMBER THAT IS KNOWN TO EXIST FOR YOUR ENTERED MINECRAFT VERSION !MINECRAFT! %blue% & ECHO: & ECHO:
 PAUSE
 GOTO :redoenterforge
 
@@ -1202,9 +1289,10 @@ FOR /F "tokens=1" %%A IN ('DIR /B univ-utils\java') DO (
       )
       :: If True that means that it is older than 2.5 months old and is marked as OLD and folder value stored for testing vs the current published release later.
       IF %%G==True (
-        ECHO   Java folder is older than 3 months - checking for newer available versions for Java !JAVAVERSION!
+        ECHO   Java folder is older than 3 months - checking for newer available versions for Java !JAVAVERSION! & ECHO:
         %DELAY%
         SET FOUNDJAVA=OLD
+
         GOTO :javaold
       )
     )
@@ -1225,8 +1313,8 @@ IF !JAVAVERSION! NEQ 16 SET "IMAGETYPE=jre"
 
 :: If the old flag was put on FOUNDJAVA then test the the folder name of the existing old version found versus what the adoptium API says the newest release is for that Java version.
 IF !FOUNDJAVA!==OLD (
-  :: Uses the Adoptium URL Api to return the JSON for the parameters specified, and then the FOR loop pulls the last value printed which is that value in the JSON variable that got made.
-  :: Java 8 used a bit of a different format for it's version information so a different value is used form the JSON.
+  REM Uses the Adoptium URL Api to return the JSON for the parameters specified, and then the FOR loop pulls the last value printed which is that value in the JSON variable that got made.
+  REM Java 8 used a bit of a different format for it's version information so a different value is used form the JSON.
   IF !JAVAVERSION!==8 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/8/ga?architecture=x64&heap_size=normal&image_type=jre&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.release_name"') DO SET NEWESTJAVA=%%A
   IF !JAVAVERSION! NEQ 8 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/!JAVAVERSION!/ga?architecture=x64&heap_size=normal&image_type=!IMAGETYPE!&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.version_data.openjdk_version"') DO SET NEWESTJAVA=%%A
 
@@ -1240,9 +1328,8 @@ IF !FOUNDJAVA!==OLD (
     GOTO :javafileisset
   ) ELSE (
     :: Removes the old java folder if the test failed and the newest release was not found in the folder name.
-    ECHO   Java folder !JAVAFOLDER! is not the newest version available.  Replacing with the newest Java !JAVAVERSION! version from Adoptium! & ECHO:
-    %DELAY%
-    RD /s /q "%HERE%\univ-utils\java\!JAVAFOLDER!"
+    ECHO   Java folder !JAVAFOLDER! is not the newest version available.  & ECHO   Replacing with the newest Java !JAVAVERSION! version from Adoptium^^! & ECHO:
+    RD /s /q "%HERE%\univ-utils\java\!JAVAFOLDER!" >nul
   ) 
 )
 
@@ -1300,10 +1387,12 @@ SET "JAVANUM=!JAVANUM:-jre=!"
 
 :: END JAVA SETUP SECTION
 
+SET "MCMINOR="
 FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
     SET /a MCMAJOR=%%E
     SET /a MCMINOR=%%F
 )
+IF NOT DEFINED MCMINOR SET /a MCMINOR=0
 
 :: BEGIN SPLIT BETWEEN SETUP FOR DIFFERENT MODLOADERS - SENDS SCRIPT TO THE NEXT PLACE DEPENDING ON WHICH
 IF /I !MODLOADER!==FABRIC GOTO :preparefabric
@@ -1900,7 +1989,7 @@ TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Unsupported class file major version
 )
 
   :: Search if the standard client side mod message was found.  Ignore if certain mod file names of server-needed mods are found that are known to have unsilenced messages regarding.
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul && DIR /B | FINDSTR /i "auxiliaryblocks farmersdelight ispawner findme modernfix obscuria's the_vault" >nul && (
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul && DIR /B | FINDSTR /i "auxiliaryblocks farmersdelight ispawner findme obscuria's strawgolem the_vault wildbackport" >nul && (
   ECHO: & ECHO        %red% --- SPECIAL MESSAGE --- %blue%
   ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
   ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER - OTHERWISE SOME MOD AUTHORS DID NOT SILENCE THAT MESSAGE.
@@ -2937,7 +3026,7 @@ IF /I !ASKUPNPDOWNLOAD!==M GOTO :mainmenu
 :: If entry is allowed and exists then it adds +1 to ZIPCOUNT a new pseudo array ZIPFILE variable for the entry.
 IF /I "!ASKUPNPDOWNLOAD:~0,3!"=="ADD" (
   SET "TEMP=!ASKUPNPDOWNLOAD:~4!"
-  ECHO !TEMP! | FINDSTR /I ".fabric libraries versions .jar" >nul
+  ECHO !TEMP! | FINDSTR /I "univ-utils .fabric libraries versions logs .jar" >nul
   IF !ERRORLEVEL!==0 (
     ECHO   %red% You tried to add '!TEMP!' - this will not be added because it should be either installed %blue% & ECHO   %red% by script / user or will be generated when server files first run. %blue% & ECHO:
     PAUSE
