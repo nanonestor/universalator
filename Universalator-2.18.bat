@@ -117,6 +117,9 @@ IF %major% GEQ 10 (
   SET green=[93;42m
   SET red=[93;101m
 )
+:: Gets the license txt file from the Universalator github website if not present yet.  This is primarily done as a test to see if any aggressive antivirus programs or system permissions are not allowing downloaded files to keep.
+:: Later on it will be tested to see if it still exists - do other tests in the meantime so that it gives other programs and the OS some time.  Tests for powershell existing first, since the checking of that is handled later.
+IF NOT EXIST "%HERE%\univ-utils\license.txt" WHERE powershell >nul && powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/universalator/main/LICENSE', 'univ-utils/license.txt')" >nul && SET GOTLICENSE=Y
 
 :: Checks the last character of the folder name the script was run from.  If that last character is found in a FINDSTR to not contain an a-z, A-Z, or 0-9 character then prompt user to change the folder name or move the server files and pause/exit.
 :: Handling the character needs to be done carefully because it will be null in some cases without character escaping ^ or echo without entering variables as string.  Special characters at the end of the working folder breaks certain CMD commands.
@@ -564,6 +567,15 @@ IF NOT DEFINED LOCALIP (
 :exitlocalipset
 :: END GETTING LOCAL IPV4 ADDRESS TO BE USED
 
+:: If license.txt didn't exist and was downloaded with a successful errorlevel earlier, test to see that it still exists - if not something is forcefully deleting downloaded files.
+IF DEFINED GOTLICENSE IF NOT EXIST "%HERE%\univ-utils\license.txt" (
+  CLS
+  ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% IT LOOKS LIKE SOMETHING ON YOUR COMPUTER IS NOT ALLOWING THE SCRIPT TO DOWNLOAD FILES AND KEEP THEM. %blue% & ECHO:
+  ECHO            ^(The license.txt for the project downloaded but something on the computer removed it^)  & ECHO:
+  ECHO   %yellow% DOWNLOADING FILES IS NECESSARY TO SET UP YOUR SERVER. %blue% & ECHO   %yellow% THIS PROBLEM NEEDS TO BE RESOLVED FOR THE UNIVERSALATOR TO WORK. %blue% & ECHO:
+  ECHO   %yellow% POSSIBLE REASONS COULD BE ANTIVIRUS PROGRAMS OR WINDOWS USER PERMISSIONS. %blue% & ECHO: & ECHO: & ECHO: & ECHO:
+  PAUSE & EXIT [\B]
+)
 
 :: If no settings file exists yet then go directly to entering settings (first setting being Minecraft version)
 IF NOT EXIST settings-universalator.txt GOTO :startover
