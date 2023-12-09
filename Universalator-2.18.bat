@@ -514,10 +514,11 @@ ver > nul
 :: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
 
 :: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-FOR /F %%B IN ('powershell -Command "Invoke-RestMethod https://api.ipify.org"') DO SET PUBLICIP=%%B
 
-REM Another different method to return the public IP from the same website
-REM FOR /F %%B IN ('curl -w "\n" -s https://api.ipify.org') DO SET PUBLICIP=%%B
+:: Obtains the computer's public IP address by poking a website API service which specifically exists for this purpose - api.bigdatacloud.net is now used, it seems reliably fasteer than the older api.ipify.org used
+FOR /F %%B IN ('powershell -Command "$data = ((New-Object System.Net.WebClient).DownloadString('https://api.bigdatacloud.net/data/client-ip') | Out-String | ConvertFrom-Json); $data.ipString"') DO SET PUBLICIP=%%B
+:: If trying api.bigdatacloud.net failed to get the public IP then try this different web service at ip-api.com
+IF NOT DEFINED PUBLICIP FOR /F %%B IN ('powershell -Command "$data = ((New-Object System.Net.WebClient).DownloadString('http://ip-api.com/json/?fields=query') | Out-String | ConvertFrom-Json); $data.query"') DO SET PUBLICIP=%%B
 
 FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
 IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
