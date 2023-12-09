@@ -119,7 +119,7 @@ IF %major% GEQ 10 (
 )
 :: Gets the license txt file from the Universalator github website if not present yet.  This is primarily done as a test to see if any aggressive antivirus programs or system permissions are not allowing downloaded files to keep.
 :: Later on it will be tested to see if it still exists - do other tests in the meantime so that it gives other programs and the OS some time.  Tests for powershell existing first, since the checking of that is handled later.
-IF NOT EXIST "%HERE%\univ-utils\license.txt" WHERE powershell >nul && powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/universalator/main/LICENSE', 'univ-utils/license.txt')" >nul && SET GOTLICENSE=Y
+IF NOT EXIST "%HERE%\univ-utils\license.txt" WHERE powershell >nul && MD univ-utils >nul 2>&1 & powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/universalator/main/LICENSE', 'univ-utils/license.txt')" >nul && SET GOTLICENSE=Y
 
 :: Checks the last character of the folder name the script was run from.  If that last character is found in a FINDSTR to not contain an a-z, A-Z, or 0-9 character then prompt user to change the folder name or move the server files and pause/exit.
 :: Handling the character needs to be done carefully because it will be null in some cases without character escaping ^ or echo without entering variables as string.  Special characters at the end of the working folder breaks certain CMD commands.
