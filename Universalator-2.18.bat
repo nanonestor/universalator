@@ -125,8 +125,8 @@ SET "LASTCHAR=%cd:~-1%"
 ECHO ^%LASTCHAR% | FINDSTR "[a-z] [A-Z] [0-9]" >nul || (
   CLS
   ECHO. & ECHO. & ECHO. & ECHO   %yellow% PROBLEM DETECTED %blue% & ECHO. & ECHO      %red% "%cd%" %blue% & ECHO. & ECHO      THE ABOVE FOLDER LOCATION ENDS IN A SPECIAL CHARACTER - %red% ^!LASTCHAR! %blue% & ECHO:
-  ECHO      REMOVE THIS SPECIAL CHARACTER FROM THE END OF OF THE FOLDER NAME OR USE A DIFFERENT FOLDER
-  ECHO      SPECIAL CHARACTERS AT THE END OF FOLDER NAMES BREAKS CERTAIN COMMAND FUNCTIONS THE SCRIPT USES
+  ECHO      REMOVE THIS SPECIAL CHARACTER FROM THE END OF OF THE FOLDER NAME OR USE A DIFFERENT FOLDER & ECHO: & ECHO: & ECHO:
+  ECHO        ** SPECIAL CHARACTERS AT THE END OF FOLDER NAMES BREAKS CERTAIN COMMAND FUNCTIONS THE SCRIPT USES
   ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & ECHO:
   PAUSE & EXIT [\B]
 )
@@ -199,46 +199,24 @@ IF DEFINED JAVA_TOOL_OPTIONS (
   )
 :skipjavatooloptions
 
-:: Checks to see if the end of this BAT file name ends in ) which is a special case that causes problems with command executions!
-SET THISNAME="%~n0"
-SET LASTCHAR="%THISNAME:~-2,1%"
-IF %LASTCHAR%==")" (
-  CLS
-  ECHO:
-  ECHO   This BAT file was detected to have a file name ending in a closed parentheses character " ) "
-  ECHO:
-  ECHO    This is a special case character that causes problems with command executions in BAT scripts.
-  ECHO    Please rename this file to remove at least that name ending character and try again.
-  ECHO:
-  PAUSE & EXIT [\B]
-)
-
-
-:: Checks to see if CMD is working by checking WHERE for some commands
-:testcmdagain
-
-WHERE FINDSTR >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
-WHERE CERTUTIL >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
-WHERE NETSTAT >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
-WHERE PING >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
-WHERE CURL >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
-WHERE TAR >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 SET CMDBROKEN=Y
 
 :: The below SET PATH only applies to this command window launch and isn't permanent to the system's PATH.
-:: It's only done if the above tests fail, after the second round of tests if still fail prompt user with message.
+:: It's only done if the tests fail to find the entries in the 'System PATH' environment variable, which they should be as default in Windows.
+:: Fun fact - in a FINDSTR search string, backslash \ is the special character escape character.
 
-IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y IF NOT DEFINED CMDFIX (
-  SET "PATH=%PATH%C:\Windows\System32;"
-  SET "PATH=%PATH%C:\Windows\SysWOW64;"
-  SET CMDFIX=TRIED
-  GOTO :testcmdagain
-)
+ECHO %PATH% | FINDSTR /L /C:C\:\Windows\System32\; >nul 2>&1 || SET "PATH=%PATH%C:\Windows\System32;"
+ECHO %PATH% | FINDSTR /L /C:C\:\Windows\System32\Wbem\; >nul 2>&1 || SET "PATH=%PATH%C:\Windows\System32\Wbem;"
+ECHO %PATH% | FINDSTR /L /C:C\:\Windows\SysWOW64\; >nul 2>&1 || SET "PATH=%PATH%C:\Windows\SysWOW64;"
+ECHO %PATH% | FINDSTR /L /C:C\:\Windows\System32\WindowsPowerShell\v1.0\\; >nul 2>&1 || SET "PATH=%PATH%C:\Windows\System32\WindowsPowerShell\v1.0\;"
+
+:: Checks to see if CMD is working by checking WHERE for some commands - if the WHERE fails then a variable is set.
+WHERE FINDSTR >nul 2>&1 || SET CMDBROKEN=Y
+WHERE CERTUTIL >nul 2>&1 || SET CMDBROKEN=Y
+WHERE NETSTAT >nul 2>&1 || SET CMDBROKEN=Y
+WHERE PING >nul 2>&1 || SET CMDBROKEN=Y
+WHERE CURL >nul 2>&1 || SET CMDBROKEN=Y
+WHERE TAR >nul 2>&1 || SET CMDBROKEN=Y
+
 IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y (
   ECHO:
   ECHO        %yellow% WARNING - PROBLEM DETECTED %blue%
@@ -247,7 +225,7 @@ IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y (
   ECHO             FOR REPAIR SOLUTIONS
   ECHO             SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
   ECHO:
-  ECHO             https://github.com/nanonestor/universalator/wiki
+  ECHO             %green% https://github.com/nanonestor/universalator/wiki/4-Troubleshooting %blue%
   ECHO:
   ECHO             or
   ECHO             Web search for fixing / repairing Windows Command prompt function.
@@ -260,32 +238,28 @@ IF DEFINED CMDBROKEN IF !CMDBROKEN!==Y (
 
 :: Checks to see if Powershell is installed.  If the powershell command isn't found then an attempt is made to add it to the path for this command window session.
 :: If still not recognized as command user is prompted with a message about the problem.
-
-WHERE powershell >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 SET "PATH=%PATH%C:\Windows\System32\WindowsPowerShell\v1.0\;"
 ver >nul
-WHERE powershell >nul 2>&1
-IF %ERRORLEVEL% NEQ 0 (
+WHERE powershell >nul 2>&1 || (
   ECHO:
-  ECHO   Uh oh - POWERSHELL is not detected as installed to your system - or not installed correctly to system PATH.
+  ECHO   %yellow% Uh oh - POWERSHELL is not detected as installed to your system - %red% or %yellow% is not installed correctly to system PATH. %blue%
   ECHO:          
-  ECHO   'Microsoft Powershell' is required for this program to function.
-  ECHO   Web search to find an installer for this product!
-  ECHO:
+  ECHO   %yellow% 'Microsoft Powershell' program is required for this program to function. %blue% & ECHO:
+  ECHO   %yellow% Web search 'Install Microsoft Powershell' to find an installer for this product! %blue%
+  ECHO: & ECHO: & ECHO:
   ECHO   FOR ADDITIONAL INFORMATION - SEE THE UNIVERSALATOR WIKI / TROUBLESHOOTING AT:
-  ECHO   https://github.com/nanonestor/universalator/wiki
+  ECHO            https://github.com/nanonestor/universalator/wiki
   ECHO: & ECHO:
   PAUSE & EXIT [\B]
 )
 
-:: This is to fix an edge case issue with folder paths ending in ).  Yes this is worked on already above - including this anyways!
+:: This is to fix an edge case issue with folder paths containing parentheses messing up echoing the path the warning message below.
 SET LOC=%cd:)=]%
 
 SET FOLDER=GOOD
 :: Checks folder location this BAT is being run from for various system folders.  Sends appropriate messages if needed.
-ECHO "%LOC%" | FINDSTR /i "onedrive documents desktop downloads .minecraft" 1>NUL && SET FOLDER=BAD
-ECHO "%LOC%" | FINDSTR /i "desktop" 1>NUL && SET DESKTOP=Y
-ECHO "%LOC%" | FINDSTR /C:"Program Files" >nul 2>&1 && SET FOLDER=BAD
+ECHO %LOC% | FINDSTR /i "onedrive documents desktop downloads .minecraft" 1>NUL && SET FOLDER=BAD
+ECHO %LOC% | FINDSTR /i "desktop" 1>NUL && SET DESKTOP=Y
+ECHO %LOC% | FINDSTR /C:"Program Files" >nul 2>&1 && SET FOLDER=BAD
 IF "%cd%"=="C:\" SET FOLDER=BAD
 
 IF !FOLDER!==BAD (
@@ -1989,7 +1963,7 @@ TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Unsupported class file major version
 )
 
   :: Search if the standard client side mod message was found.  Ignore if certain mod file names of server-needed mods are found that are known to have unsilenced messages regarding.
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul && DIR /B | FINDSTR /i "auxiliaryblocks farmersdelight ispawner findme obscuria's strawgolem the_vault wildbackport" >nul && (
+TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul && DIR /B | FINDSTR /i "auxiliaryblocks farmersdelight ispawner findme modernfix obscuria's strawgolem the_vault wildbackport" >nul && (
   ECHO: & ECHO        %red% --- SPECIAL MESSAGE --- %blue%
   ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
   ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER - OTHERWISE SOME MOD AUTHORS DID NOT SILENCE THAT MESSAGE.
