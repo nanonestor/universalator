@@ -1948,9 +1948,16 @@ IF !MINECRAFT!==1.10.2 (
 IF !MCMAJOR! LEQ 16 IF !MINECRAFT! NEQ 1.6.4 IF !MINECRAFT! NEQ 1.7.10 IF !MINECRAFT! NEQ 1.8.9 IF !MINECRAFT! NEQ 1.9.4 IF !MINECRAFT! NEQ 1.10.2 (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar forge-!MINECRAFT!-!FORGE!.jar nogui
 ) 
-:: General case for NEW (1.17 and newer) Minecraft versions.
-IF !MCMAJOR! GEQ 17 (
-%JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/win_args.txt nogui %*
+:: Launching Minecraft versions 1.17 and newer.  As of 1.20.4 Forge went back to an executable JAR file that gets put in the main directory.
+IF !MCMAJOR! GEQ 17 SET LAUNCHFORGE=NEWOLD
+IF !MCMAJOR! EQU 20 IF !MCMINOR! GEQ 4 SET LAUNCHFORGE=NEWNEW
+IF !MCMAJOR! GEQ 21 SET LAUNCHFORGE=NEWNEW
+
+IF !LAUNCHFORGE!==NEWOLD (
+  %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/minecraftforge/forge/!MINECRAFT!-!FORGE!/win_args.txt nogui %*
+)
+IF !LAUNCHFORGE!==NEWNEW (
+  %JAVAFILE% -server !MAXRAM! %ARGS% %OTHERARGS% -jar forge-!MINECRAFT!-!FORGE!-shim.jar nogui
 )
 
 :actuallylaunchneoforge
