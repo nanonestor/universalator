@@ -787,17 +787,19 @@ IF /I !MODLOADER!==VANILLA GOTO :setjava
 
 :: If XMLAGE is True then a new maven metadata file is obtained.  Any existing is silently deleted.  If the maven is unreachable by ping then no file delete and download is done, so any existing old file is preserved.
 IF /I !MODLOADER!==FABRIC IF /I !XMLAGE!==True (
-  ping -n 2 maven.fabricmc.net >nul
+  ping -n 1 maven.fabricmc.net >nul || ping -n 6 maven.fabricmc.net >nul
   IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-fabric-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-fabric-metadata.xml" https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml >nul 2>&1
+    IF NOT EXIST "%HERE%\univ-utils\maven-fabric-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml', 'univ-utils\maven-fabric-metadata.xml')" >nul
   )
 )
 IF /I !MODLOADER!==QUILT IF /I !XMLAGE!==True (
-  ping -n 2 maven.quiltmc.org >nul
+  ping -n 1 maven.quiltmc.org >nul || ping -n 6 maven.quiltmc.org >nul
   IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-quilt-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-quilt-metadata.xml" https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml >nul 2>&1
+    IF NOT EXIST "%HERE%\univ-utils\maven-quilt-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml', 'univ-utils\maven-quilt-metadata.xml')" >nul
   )
 )
 :: Skips over the oops message if a maven metadata file was found
@@ -929,24 +931,28 @@ IF !MODLOADER!==QUILT GOTO :enterquilt
 
 :: If XMLAGE is True then a new maven metadata file is obtained.  Any existing is silently deleted.  If the maven is unreachable by ping then no file delete and download is done, so any existing old file is preserved.
 IF /I !MODLOADER!==FORGE IF /I !XMLAGE!==True (
-  ping -n 2 maven.minecraftforge.net >nul
+  ping -n 1 maven.minecraftforge.net >nul ||  ping -n 6 maven.minecraftforge.net >nul
   IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-forge-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-forge-metadata.xml" https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml >nul 2>&1
+    IF NOT EXIST "%HERE%\univ-utils\maven-forge-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml', 'univ-utils\maven-forge-metadata.xml')" >nul
   )
 )
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 IF /I !XMLAGE!==True (
-  ping -n 2 maven.neoforged.net >nul
+  ping -n 1 maven.neoforged.net >nul || ping -n 6 maven.neoforged.net >nul
   IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml" https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml >nul 2>&1
+    IF NOT EXIST "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml', 'univ-utils\maven-neoforge-1.20.1-metadata.xml')" >nul
+
   )
 )
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 IF /I !XMLAGE!==True (
-  ping -n 2 maven.neoforged.net >nul
+  ping -n 1 maven.neoforged.net >nul || ping -n 6 maven.neoforged.net >nul
   IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-neoforge-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-neoforge-metadata.xml" https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml >nul 2>&1
+    IF NOT EXIST "%HERE%\univ-utils\maven-neoforge-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml', 'univ-utils\maven-neoforge-metadata.xml')" >nul
   )
 )
 :: Skips over the oops message if a maven metadata file was found
@@ -1425,8 +1431,8 @@ IF !MCMAJOR! LEQ 16 IF NOT EXIST minecraft_server.!MINECRAFT!.jar GOTO :getvanil
 :pingforgeagain
 :: Pings the Forge files server to see it can be reached - decides to ping if forge file not present - accounts for extremely annoyng changes in filenames depending on OLD version names.
 ECHO   Pinging !MODLOADER! file server... & ECHO:
-IF /I !MODLOADER!==FORGE ping -n 2 maven.minecraftforge.net >nul
-IF /I !MODLOADER!==NEOFORGE ping -n 2 maven.neoforged.net >nul
+IF /I !MODLOADER!==FORGE ping -n 2 maven.minecraftforge.net >nul || ping -n 6 maven.minecraftforge.net >nul
+IF /I !MODLOADER!==NEOFORGE ping -n 2 maven.neoforged.net >nul || ping -n 6 maven.neoforged.net >nul
 IF %ERRORLEVEL% NEQ 0 (
   CLS
   ECHO:
@@ -2011,7 +2017,7 @@ IF NOT EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar (
 
 :: Pings the Fabric file server
 :fabricserverpingagain
- ping -n 2 maven.fabricmc.net >nul
+ ping -n 2 maven.fabricmc.net >nul || ping -n 6 maven.fabricmc.net >nul
 IF %ERRORLEVEL% NEQ 0 (
   CLS
   ECHO:
@@ -2107,7 +2113,7 @@ IF NOT EXIST fabric-server-launch-!MINECRAFT!-!QUILTLOADER!.jar (
 
 :: Pings the Quilt file server
 :quiltserverpingagain
- ping -n 2 maven.quiltmc.org >nul
+ ping -n 2 maven.quiltmc.org >nul || ping -n 6 maven.quiltmc.org >nul
 IF %ERRORLEVEL% NEQ 0 (
   CLS
   ECHO:
@@ -2440,7 +2446,7 @@ SET /a pingmojang=1
 :pingmojangagain
 
 ECHO   Pinging Mojang file server - Attempt # !pingmojang! ... & ECHO:
-ping -n 2 launchermeta.mojang.com >nul
+ping -n 2 launchermeta.mojang.com >nul || ping -n 6 launchermeta.mojang.com >nul
 IF %ERRORLEVEL% NEQ 0 (
   SET pingmojang+=1
   CLS
