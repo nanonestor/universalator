@@ -774,6 +774,70 @@ IF /I !MODLOADER!==FORGE IF !MCMAJOR! LSS 10 IF !MINECRAFT! NEQ 1.6.4 IF !MINECR
   PAUSE
   GOTO :startover
 )
+
+:: At this point, since a modloader type is entered and the script will be getting the maven metadata file next, see if DNS can find the maven repository IP.
+IF /I !MODLOADER!==FORGE SET "MAVENURL=maven.minecraftforge.net"
+IF /I !MODLOADER!==FABRIC SET "MAVENURL=maven.fabricmc.net"
+IF /I !MODLOADER!==QUILT SET "MAVENURL=maven.quiltmc.org"
+IF /I !MODLOADER!==NEOFORGE SET "MAVENURL=maven.neoforged.net"
+
+:: Uses a powershell command to see if the DNS resolves the URL for whichever modloader.  Can't just use it to grab an IP address to use later, using DNS 1.1.1.1 etc, 
+:: because cloudflare blocks using the websites with direct IPs and they could not be used later on.
+IF !MODLOADER! NEQ VANILLA FOR /F %%A IN ('powershell -Command "Resolve-DnsName -Name !MAVENURL!; $?"') DO SET DIDMODLOADERRESOLVE=%%A
+IF !DIDMODLOADERRESOLVE!==False SET DNSFAIL=Y & SET DNSFAILMODLOADER=Y
+
+
+:: If these tests have already passed before in this script session, then bypass checking vanilla DNS again to speed things up.
+IF DEFINED DNSANDPINGPASSEDBEFORE GOTO :skipvanilladnstest
+
+:: Checks to see if the Mojang servers are showing up.
+FOR /F %%A IN ('powershell -Command "Resolve-DnsName -Name 'launchermeta.mojang.com'; $?"') DO SET DIDLAUNCHERMETARESOLVE=%%A
+IF !DIDLAUNCHERMETARESOLVE!==False SET DNSFAIL=Y & SET DNSFAILMOJ1=Y
+
+FOR /F %%A IN ('powershell -Command "Resolve-DnsName -Name 'piston-meta.mojang.com'; $?"') DO SET DIDPISTONMETARESOLVE=%%A
+IF !DIDPISTONMETARESOLVE!==False SET DNSFAIL=Y & SET DNSFAILMOJ2=Y
+
+:skipvanilladnstest
+
+:: Tells the user the bad news if any of the tests fail.
+IF DEFINED DNSFAIL (
+  CLS
+  ECHO: & ECHO: & ECHO:
+  ECHO   %red% OOPS - THE FOLLOWING WEBSITE IP ADDRESSES COULD NOT BE FOUND USING YOUR CURRENTLY SET DNS SERVER %blue% & ECHO:
+  IF DEFINED DNSFAILMODLOADER ECHO   %yellow% !MAVENURL! %blue%
+  IF DEFINED DNSFAILMOJ1 ECHO   %yellow% launchermeta.mojang.com %blue%
+  IF DEFINED DNSFAILMOJ2 ECHO   %yellow% piston-meta.mojang.com %blue% 
+  ECHO:
+  ECHO   %red% THE SOLUTION IS CHANGING YOUR COMPUTER SETTINGS TO USE A PUBLIC DNS SERVER. %blue% 
+  ECHO   %red% THIS IS EASILY DONE, FOR INSTRUCTIONS ON WHERE TO FIND THIS SETTING, SEARCH THE INTERNET %blue% 
+  ECHO   %red% FOR: ^"windows change dns server^" %blue% & ECHO: & ECHO: & ECHO:
+  ECHO   %yellow% SUGGESTEED PUBLIC DNS SERVERS TO USE: %blue%
+  ECHO   %yellow% 1.1.1.1 ^(Cloudflare^) %blue%
+  ECHO   %yellow% 8.8.8.8 ^(Google^) %blue% & ECHO: & ECHO:
+  PAUSE & EXIT [\B]
+)
+
+:: Try pinging the file server for whichever modloader type.  The mojang file servers are pinged for later on installation of either VANILLA, FABRIC, or QUILT.
+:pingmodloaderagain
+IF /I !MODLOADER!==FORGE ping -n 1 maven.minecraftforge.net >nul ||  ping -n 6 maven.minecraftforge.net >nul
+IF /I !MODLOADER!==FABRIC ping -n 1 maven.fabricmc.net >nul || ping -n 6 maven.fabricmc.net >nul
+IF /I !MODLOADER!==QUILT ping -n 1 maven.quiltmc.org >nul || ping -n 6 maven.quiltmc.org >nul
+IF /I !MODLOADER!==NEOFORGE ping -n 1 maven.neoforged.net >nul || ping -n 6 maven.neoforged.net >nul
+IF /I !MODLOADER!==VANILLA ver >nul
+
+IF !ERRORLEVEL! NEQ 0 (
+  CLS
+  ECHO: & ECHO: & ECHO:
+  ECHO   %red% PING FAIL - - - PING FAIL - - - PING FAIL %blue% & ECHO:
+  ECHO   %yellow% A PING TO THE !MODLOADER! FILE SERVER HAS FAILED %blue%
+  ECHO   %yellow% EITHER YOUR CONNECTION IS POOR OR THE FILE SERVER IS OFFLINE %blue%
+  ECHO   %yellow% PRESS ANY KEY TO TRY TO PING FILESERVER AGAIN %blue% & ECHO: & ECHO:
+  PAUSE
+  GOTO :pingmodloaderagain
+) ELSE (
+  SET DNSANDPINGPASSEDBEFORE=Y
+)
+
 :: Skips to different modloader version entry if type is not Fabric or Quilt, or just go to java setup for Vanilla
 IF /I !MODLOADER!==FORGE GOTO :enterforge
 IF /I !MODLOADER!==NEOFORGE GOTO :enterforge
@@ -787,20 +851,14 @@ IF /I !MODLOADER!==VANILLA GOTO :setjava
 
 :: If XMLAGE is True then a new maven metadata file is obtained.  Any existing is silently deleted.  If the maven is unreachable by ping then no file delete and download is done, so any existing old file is preserved.
 IF /I !MODLOADER!==FABRIC IF /I !XMLAGE!==True (
-  ping -n 1 maven.fabricmc.net >nul || ping -n 6 maven.fabricmc.net >nul
-  IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-fabric-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-fabric-metadata.xml" https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml >nul 2>&1
     IF NOT EXIST "%HERE%\univ-utils\maven-fabric-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml', 'univ-utils\maven-fabric-metadata.xml')" >nul
-  )
 )
 IF /I !MODLOADER!==QUILT IF /I !XMLAGE!==True (
-  ping -n 1 maven.quiltmc.org >nul || ping -n 6 maven.quiltmc.org >nul
-  IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-quilt-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-quilt-metadata.xml" https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml >nul 2>&1
     IF NOT EXIST "%HERE%\univ-utils\maven-quilt-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml', 'univ-utils\maven-quilt-metadata.xml')" >nul
-  )
 )
 :: Skips over the oops message if a maven metadata file was found
 IF EXIST "%HERE%\univ-utils\maven-fabric-metadata.xml" IF /I !MODLOADER!==FABRIC GOTO :skipmavenoopsfabric
@@ -808,8 +866,9 @@ IF EXIST "%HERE%\univ-utils\maven-quilt-metadata.xml" IF /I !MODLOADER!==QUILT G
 
 :: If script gets here then either no maven metadata file ever existed, or an old file was deleted, and none was obtained from the maven either due to download problems or because the maven is offline.
 CLS
-ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% IT LOOKS LIKE THE MAVEN FILE REPOSITORY FOR YOUR MODLOADER TYPE %blue% - %green% !MODLOADER! %blue% & ECHO:
-ECHO   %yellow% IS NOT FUNCTIONING NORMALLY AT THIS TIME - TRY AGAIN LATER %blue% & ECHO: & ECHO: & ECHO:
+ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% A DOWNLOAD OF THE MAVEN METADATA FILE WAS ATTEMPTED FOR THE %green% !MODLOADER! %yellow% FILE SERVER %blue% & ECHO:
+ECHO   %yellow% BUT THE FILE WAS NOT FOUND AFTER THE DOWNLOAD ATTEMPT. %blue%
+ECHO   %yellow% MAYBE YOUR WINDOWS USER DOES NOT HAVE SUFFIENT PERMISSIONS?  OR YOU MAY HAVE AN OVERLY AGGRESSIVE ANTIVIRUS PROGRAM. %blue% & ECHO: & ECHO   %yellow% PRESS ANY KEY TO START OVER. %blue% & ECHO: & ECHO: & ECHO:
 PAUSE
 GOTO :startover
 
@@ -931,29 +990,19 @@ IF !MODLOADER!==QUILT GOTO :enterquilt
 
 :: If XMLAGE is True then a new maven metadata file is obtained.  Any existing is silently deleted.  If the maven is unreachable by ping then no file delete and download is done, so any existing old file is preserved.
 IF /I !MODLOADER!==FORGE IF /I !XMLAGE!==True (
-  ping -n 1 maven.minecraftforge.net >nul ||  ping -n 6 maven.minecraftforge.net >nul
-  IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-forge-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-forge-metadata.xml" https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml >nul 2>&1
     IF NOT EXIST "%HERE%\univ-utils\maven-forge-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml', 'univ-utils\maven-forge-metadata.xml')" >nul
-  )
 )
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 IF /I !XMLAGE!==True (
-  ping -n 1 maven.neoforged.net >nul || ping -n 6 maven.neoforged.net >nul
-  IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml" https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml >nul 2>&1
     IF NOT EXIST "%HERE%\univ-utils\maven-neoforge-1.20.1-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml', 'univ-utils\maven-neoforge-1.20.1-metadata.xml')" >nul
-
-  )
 )
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 IF /I !XMLAGE!==True (
-  ping -n 1 maven.neoforged.net >nul || ping -n 6 maven.neoforged.net >nul
-  IF !ERRORLEVEL!==0 (
     DEL "%HERE%\univ-utils\maven-neoforge-metadata.xml" >nul 2>&1
     curl -sLfo "%HERE%\univ-utils\maven-neoforge-metadata.xml" https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml >nul 2>&1
     IF NOT EXIST "%HERE%\univ-utils\maven-neoforge-metadata.xml"  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml', 'univ-utils\maven-neoforge-metadata.xml')" >nul
-  )
 )
 :: Skips over the oops message if a maven metadata file was found
 IF EXIST "%HERE%\univ-utils\maven-forge-metadata.xml" IF /I !MODLOADER!==FORGE GOTO :skipmavenoopsforge
@@ -962,8 +1011,9 @@ IF EXIST "%HERE%\univ-utils\maven-neoforge-metadata.xml" IF /I !MODLOADER!==NEOF
 
 :: If script gets here then either no maven metadata file ever existed, or an old file was deleted, and none was obtained from the maven either due to download problems or because the maven is offline.
 CLS
-ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% IT LOOKS LIKE THE MAVEN FILE REPOSITORY FOR YOUR MODLOADER TYPE %blue% - %green% !MODLOADER! %blue% & ECHO:
-ECHO   %yellow% IS NOT FUNCTIONING NORMALLY AT THIS TIME - TRY AGAIN LATER %blue% & ECHO: & ECHO: & ECHO:
+ECHO: & ECHO: & ECHO: & ECHO   %red% OOPS %blue% - %yellow% A DOWNLOAD OF THE MAVEN METADATA FILE WAS ATTEMPTED FOR THE %green% !MODLOADER! %yellow% FILE SERVER %blue% & ECHO:
+ECHO   %yellow% BUT THE FILE WAS NOT FOUND AFTER THE DOWNLOAD ATTEMPT. %blue%
+ECHO   %yellow% MAYBE YOUR WINDOWS USER DOES NOT HAVE SUFFIENT PERMISSIONS?  OR YOU MAY HAVE AN OVERLY AGGRESSIVE ANTIVIRUS PROGRAM. %blue% & ECHO: & ECHO   %yellow% PRESS ANY KEY TO START OVER. %blue% & ECHO: & ECHO: & ECHO:
 PAUSE
 GOTO :startover
 
@@ -1000,7 +1050,7 @@ IF /I !MODLOADER!==NEOFORGE (
   REM Neoforge changed how they version number their installer files starting with MC 1.20.2 - this is the new system.
   IF !MINECRAFT! NEQ 1.20.1 FOR /F "tokens=1-4 delims=.-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-neoforge-metadata.xml); $data.metadata.versioning.versions.version"') DO (
     REM If the current Minecraft version contains a minor version
-    IF %%A==%MCMAJOR% IF %%B==%MCMINOR% (
+    IF %%A==!MCMAJOR! IF %%B==!MCMINOR! (
         SET NEWESTNEOFORGE=%%A.%%B.%%C
         IF [%%D] NEQ [] SET NEWESTNEOFORGE=!NEWESTNEOFORGE!-%%D
     )
@@ -1077,8 +1127,8 @@ IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 (
 )
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 (
   FOR /F "tokens=1-4 delims=.-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-neoforge-metadata.xml); $data.metadata.versioning.versions.version"') DO (
-    IF [%%D]==[] IF %%A==%MCMAJOR% IF %%B==%MCMINOR% IF !FROGEENTRY!==%%A.%%B.%%C  GOTO :foundvalidforgeversion
-    IF [%%D] NEQ [] IF %%A==%MCMAJOR% IF %%B==%MCMINOR% IF !FROGEENTRY!==%%A.%%B.%%C-%%D  GOTO :foundvalidforgeversion
+    IF [%%D]==[] IF %%A==!MCMAJOR! IF %%B==!MCMINOR! IF !FROGEENTRY!==%%A.%%B.%%C  GOTO :foundvalidforgeversion
+    IF [%%D] NEQ [] IF %%A==!MCMAJOR! IF %%B==!MCMINOR! IF !FROGEENTRY!==%%A.%%B.%%C-%%D  GOTO :foundvalidforgeversion
   )
 )
 
@@ -1098,12 +1148,12 @@ GOTO :redoenterforge
 :: Pre-sets Java versions as default set versions in case any funny business happens later
 :setjava
 
-IF %MCMAJOR% LEQ 16 SET JAVAVERSION=8
-IF %MCMAJOR%==17 SET JAVAVERSION=16
-IF %MCMAJOR% GEQ 18 SET JAVAVERSION=17
+IF !MCMAJOR! LEQ 16 SET JAVAVERSION=8
+IF !MCMAJOR!==17 SET JAVAVERSION=16
+IF !MCMAJOR! GEQ 18 SET JAVAVERSION=17
 
 :: Minecraft Forge 1.16.5 is a special version that a few different Javas can work with
-IF %MCMAJOR%==16 IF %MCMINOR%==5 IF /I !MODLOADER!==FORGE (
+IF !MCMAJOR!==16 IF !MCMINOR!==5 IF /I !MODLOADER!==FORGE (
   CLS
   ECHO: & ECHO: & ECHO: & ECHO:
   ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
@@ -1265,10 +1315,10 @@ IF !JAVAVERSION!==17 SET FINDFOLDER=jdk-17
 
 :checkforjava
 IF NOT EXIST "%HERE%\univ-utils\java" MD "%HERE%\univ-utils\java"
+ver >nul
 
-
-FOR /F "tokens=1" %%A IN ('DIR /B univ-utils\java') DO (
-  ECHO %%A | FINDSTR !FINDFOLDER! >nul
+FOR /F "delims=" %%A IN ('DIR /B univ-utils\java') DO (
+  ECHO %%A | FINDSTR "!FINDFOLDER!" >nul
   IF !ERRORLEVEL!==0 (
     SET JAVAFOLDER=%%A
     ECHO   Found existing Java !JAVAVERSION! folder - %%A & ECHO:
@@ -2446,8 +2496,10 @@ SET /a pingmojang=1
 :pingmojangagain
 
 ECHO   Pinging Mojang file server - Attempt # !pingmojang! ... & ECHO:
-ping -n 2 launchermeta.mojang.com >nul || ping -n 6 launchermeta.mojang.com >nul
-IF %ERRORLEVEL% NEQ 0 (
+SET PINGMOJANG=IDK
+ping -n 2 launchermeta.mojang.com >nul || ping -n 6 launchermeta.mojang.com >nul || SET PINGMOJANG=F
+ping -n 2 piston-meta.mojang.com >nul || ping -n 6 piston-meta.mojang.com >nul || SET PINGMOJANG=F
+IF !PINGMOJANG!==F (
   SET pingmojang+=1
   CLS
   ECHO:
