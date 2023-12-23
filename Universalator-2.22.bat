@@ -89,6 +89,29 @@ SET "HERE=%cd%"
 
 SET "DELAY=ping -n 2 127.0.0.1 >nul"
 
+:: BEGIN CHECKING OPERATING SYSTEM TYPE
+:: Sets a variable to figure out which OS the script is being run from.  Because powershell for Linux exists!  It can be used later to determine whether to run various things.
+:: IF the BAT is run from Linux or OSX it's intended that it's run through powershell with a parameter %1 to set the OSTYPE.
+:: Using the Linux/OSX powershell is unreiable at figuring out it's own OSTYPE, so this is the easiest option to set that.
+IF [%1] NEQ [] (
+  SET "OSTYPE=%1" 
+) ELSE (
+  :: If no %1 parameter was passed then default to WINDOWS
+  SET "OSTYPE=WINDOWS"
+)
+:: If a non wanted parameter was passed give error message - entering 'windows' as a parameter passes this test also
+IF /I "!OSTYPE!" NEQ "WINDOWS" IF /I "!OSTYPE!" NEQ "LINUX" IF /I "!OSTYPE!" NEQ "OSX" IF /I "!OSTYPE!" NEQ "TUX" (
+  CLS
+  ECHO: & ECHO: & ECHO   THIS BAT FILE WAS LAUNCHED WITH AN EXTRA PARAMETER THAT WAS NOT RECOGNIZED: & ECHO   '!OSTYPE!' & ECHO: & ECHO   THE ONLY RECOGNIZED PARAMETERS ARE 'linux' AND 'osx' & ECHO: & ECHO:
+  PAUSE
+  COLOR 07 & CLS & EXIT [\B]
+)
+:: Reformat the variables to guarantee all caps
+IF /I "!OSTYPE!" EQU "LINUX" SET "OSTYPE=LINUX"
+IF /I "!OSTYPE!" EQU "TUX" SET "OSTYPE=LINUX"
+IF /I "!OSTYPE!" EQU "OSX" SET "OSTYPE=OSX"
+IF /I "!OSTYPE!" EQU "WINDOWS" SET "OSTYPE=WINDOWS"
+
 :: TEST LINES FOR WINDOW RESIZING - KIND OF SCREWEY NEEDS FURTHER CHECKS
 ::mode con: cols=160 lines=55
 ::powershell -command "&{$H=get-host;$W=$H.ui.rawui;$B=$W.buffersize;$B.width=160;$B.height=9999;$W.buffersize=$B;}
@@ -260,8 +283,8 @@ SET LOC=%cd:)=]%
 
 SET FOLDER=GOOD
 :: Checks folder location this BAT is being run from for various system folders.  Sends appropriate messages if needed.
-ECHO %LOC% | FINDSTR /i "onedrive documents desktop downloads .minecraft" 1>NUL && SET FOLDER=BAD
-ECHO %LOC% | FINDSTR /i "desktop" 1>NUL && SET DESKTOP=Y
+ECHO %LOC% | FINDSTR /i "onedrive documents desktop downloads .minecraft" >nul 2>&1 && SET FOLDER=BAD
+ECHO %LOC% | FINDSTR /i "desktop" >nul 2>&1 && SET DESKTOP=Y
 ECHO %LOC% | FINDSTR /C:"Program Files" >nul 2>&1 && SET FOLDER=BAD
 IF "%cd%"=="C:\" SET FOLDER=BAD
 
@@ -317,8 +340,51 @@ ECHO "%LOC%" | FINDSTR /i "curseforge atlauncher at_launcher gdlauncher gd_launc
   PAUSE
 )
 
-:: The following line is purely done to guarantee the current ERRORLEVEL is reset
-ver >nul
+:: BEGIN CHECKING HARD DRIVE FREE SPACE
+:: Returns True if more than the amount of hard drive space is free, False if not
+FOR /F "usebackq delims=" %%A IN (`powershell -Command "IF (( Get-WMIObject Win32_Logicaldisk -filter ""deviceID = '%~d0'"""").FreeSpace -gt 20GB) {'True'} ELSE {'False'}"`) DO SET "DISKGBFREE=%%A" & IF "!DISKGBFREE!"=="False" SET DISKWORRY=Y
+:: Returns the percent of hard drive space free
+FOR /F %%A IN ('powershell -Command "$data = get-psdrive %CD:~0,1%; $result = ($data.used/($data.free+$data.used)); $percent = $result.ToString().SubString(2,2); $percent"') DO SET DISKPERCENT=%%A & IF !DISKPERCENT! GTR 95 SET DISKWORRY=Y
+
+:: If either of the above is of concern then show a bypassable warning message
+IF DEFINED DISKWORRY (
+  CLS
+  ECHO: & ECHO: & ECHO:
+  ECHO   %red% DISK SPACE WARNING - DISK SPACE WARNING - DISK SPACE WARNING %blue% & ECHO: & ECHO:
+  ECHO       %yellow% IT WAS FOUND THAT THE HARD DRIVE THIS FOLDER LOCATION IS IN, IS LOW ON FREE / AVAILABLE SPACE: %blue% & ECHO:
+  IF DEFINED DISKGBFREE IF "!DISKGBFREE!"=="False" ECHO       %red% HARD DRIVE HAS LESS THAN 20gb OF FREE SPACE %blue%
+  IF DEFINED DISKPERCENT IF !DISKPERCENT! GTR 95 ECHO       %red% PERCENT OF HARD DRIVE %~d0 USED IS !DISKPERCENT!%% %blue%
+  ECHO: & ECHO       %yellow% YOU CAN PRESS ANY KEY TO BYPASS THIS WARNING AND CONTINUE, %blue%
+  ECHO       %yellow% HOWEVER YOU SHOULD FREE UP MORE SPACE IF YOU ARE GOING TO BE RUNNING SERVER FILES^^! %blue% & ECHO: & ECHO:
+  ECHO   %red% DISK SPACE WARNING - DISK SPACE WARNING - DISK SPACE WARNING %blue% & ECHO: & ECHO: & ECHO:
+  PAUSE
+)
+
+:: BEGIN CHECKING HOSTS FILE FOR IP REDIRECTS
+:: Detects if the OS is Windows, if it isn't, then skip checking the hosts file
+IF !OSTYPE! NEQ WINDOWS GOTO :skiphostscheck
+:: Loops through the lines inside the hosts file and looks for lines with the replacement detection strings
+IF EXIST "%WINDIR%\System32\drivers\etc\hosts" FOR /F "delims=" %%A IN ('type "%WINDIR%\System32\drivers\etc\hosts"') DO (
+  SET TEMP=%%A
+  IF "!TEMP!" NEQ "!TEMP:launchermeta.mojang=x!" SET FOUNDREDIR=Y
+  IF "!TEMP!" NEQ "!TEMP:piston-meta.mojang=x!" SET FOUNDREDIR=Y
+)
+IF DEFINED FOUNDREDIR (
+  SET "DNSFLUSH=ipconfig /dnsflush"
+  CLS
+  ECHO: & ECHO:
+  ECHO   %red% IP REDIRECTION FOUND - IP REDIRECTION FOUND %blue% & ECHO:
+  ECHO     %yellow% IT WAS FOUND THAT YOUR WINDOWS HOSTS FILE CONTAINS IP ADDRESS REDIRECTION %blue%
+  ECHO     %yellow% FOR MOJANG ^(MINECRAFT^) URL FILE SERVER ADDRESSES. %blue% & ECHO:
+  ECHO     %yellow% TO CONTACT THE FILE SERVERS CORRECTLY, YOU MUST REMOVE THESE REDIRECTS BY OPENING THE HOSTS %blue%
+  ECHO     %yellow% FILE AS ADMINISTRATOR, REMOVING THE URL / IP REDIRECTION LINES, AND SAVING THE FILE WITHOUT THEM. %blue% & ECHO:
+  ECHO     THE FILE IS LOCATED AT %WINDIR%\System32\drivers\etc\hosts & ECHO:
+  ECHO   %red% IP REDIRECTION FOUND - IP REDIRECTION FOUND %blue% & ECHO: & ECHO: & ECHO: & ECHO: & ECHO:
+  ECHO     %yellow% * AFTER SAVING THE HOSTS FILE WITH REDIRECTS REMOVED, IT IS A GOOD IDEA TO DO A DNS FLUSH %blue% & ECHO:
+  ECHO     To do a DNS flush, open a CMD ^(Terminal^) window and enter the command %green% !DNSFLUSH! %blue% & ECHO: & ECHO: & ECHO:
+  PAUSE & EXIT [\B]
+)
+:skiphostscheck
 
 IF EXIST settings-universalator.txt (
   RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
@@ -636,10 +702,11 @@ ECHO                                                           %green% A %blue% 
 SET /P SCRATCH="%blue%  %green% ENTER A MENU OPTION:%blue% " <nul
 SET /P "MAINMENU="
 
-IF /I !MAINMENU!==Q ( EXIT [\B] )
+IF /I !MAINMENU!==Q COLOR 07 & CLS & EXIT [\B]
 IF /I !MAINMENU!==UPNP GOTO :upnpmenu
 IF /I !MAINMENU!==R GOTO :justsetram
 IF /I !MAINMENU!==S GOTO :startover
+IF /I !MAINMENU!==J GOTO :javaselect
 IF /I !MAINMENU!==L IF EXIST settings-universalator.txt IF DEFINED MINECRAFT IF DEFINED MODLOADER IF DEFINED JAVAVERSION GOTO :actuallylaunch
 IF /I !MAINMENU!==SCAN IF EXIST "%HERE%\mods" GOTO :getmcmajor
 IF /I !MAINMENU!==SCAN IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
@@ -664,6 +731,7 @@ ECHO:    %green% M %blue% = MAIN MENU
 ECHO:    %green% S %blue% = RE-ENTER ALL SETTINGS
 ECHO:    %green% L %blue% = LAUNCH SERVER
 ECHO:    %green% R %blue% = SET RAM MAXIMUM AMOUNT
+ECHO:    %green% J %blue% = SET JAVA VERSION
 ECHO:    %green% Q %blue% = QUIT
 ECHO:
 ECHO:    %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT ONLY MODS & ECHO:
@@ -1172,6 +1240,42 @@ IF !MCMAJOR!==16 IF !MCMINOR!==5 IF /I !MODLOADER!==FORGE (
   IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :setjava
 )
 
+:javaselect
+IF DEFINED MAINMENU IF /I !MAINMENU!==J (
+  SET INITIALJAVA=!JAVAVERSION!
+  IF NOT DEFINED MCMAJOR (
+    SET "MCMINOR="
+    FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO SET /a MCMAJOR=%%E & SET /a MCMINOR=%%F
+    IF NOT DEFINED MCMINOR SET /a MCMINOR=0
+  )
+  CLS
+  ECHO: & ECHO: & ECHO: & ECHO:
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO:
+  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
+  ECHO:
+  IF !MCMAJOR! LSS 16 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 8 %blue%
+  IF !MCMAJOR! EQU 16 IF !MCMINOR! LEQ 4 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 8 %blue%
+  IF !MCMAJOR! EQU 16 IF !MCMINOR! EQU 5 ECHO   THE OPTIONS FOR MINECRAFT !MINECRAFT! BASED LAUNCHING ARE %green% 8 %blue% AND %green% 11 %blue%
+  IF !MCMAJOR! EQU 17 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 16 %blue%
+  IF !MCMAJOR! GEQ 18 ECHO   THE OPTIONS FOR MINECRAFT !MINECRAFT! BASED LAUNCHING ARE %green% 17 %blue% AND %green% 21 %blue%
+  ECHO:
+  ECHO   * USING THE NEWER VERSION OPTION IF GIVEN A CHOICE %green% MAY %blue% OR %red% MAY NOT %blue% WORK DEPENDING ON MODS BEING LOADED
+  ECHO   * IF A SERVER FAILS TO LAUNCH, YOU SHOULD CHANGE BACK TO THE LOWER DEFAULT VERSION^^! & ECHO: & ECHO:
+  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+  ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
+  SET /P JAVAVERSION=
+IF !MCMAJOR! LSS 16 IF !JAVAVERSION! NEQ 8 GOTO :javaselect
+IF !MCMAJOR! EQU 16 IF !MCMINOR! LEQ 4 IF !JAVAVERSION! NEQ 8 GOTO :javaselect
+IF !MCMAJOR! EQU 16 IF !MCMINOR! EQU 5 IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :javaselect
+IF !MCMAJOR! EQU 17 IF !JAVAVERSION! NEQ 16 GOTO :javaselect
+IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 21 GOTO :javaselect
+:: If the java version was changed, then bypass the eventual firewall rule check for the rest of this window session
+IF !INITIALVERSION! NEQ !JAVAVERSION! SET BYPASSFIREWALLRULECHECK=Y
+GOTO :setconfig
+)
+
 
 :: BEGIN RAM / MEMORY SETTING
 :justsetram
@@ -1269,6 +1373,7 @@ IF EXIST settings-universalator.txt DEL settings-universalator.txt
 
 :: Returns to main menu if menu option was only to enter java or ram values
 IF /I !MAINMENU!==R GOTO :mainmenu
+IF /I !MAINMENU!==J GOTO :mainmenu
 
 SET MAXRAM=-Xmx!MAXRAMGIGS!G
 
@@ -1312,6 +1417,7 @@ IF !JAVAVERSION!==8 SET FINDFOLDER=jdk8u
 IF !JAVAVERSION!==11 SET FINDFOLDER=jdk-11
 IF !JAVAVERSION!==16 SET FINDFOLDER=jdk-16
 IF !JAVAVERSION!==17 SET FINDFOLDER=jdk-17
+IF !JAVAVERSION!==21 SET FINDFOLDER=jdk-21
 
 :checkforjava
 IF NOT EXIST "%HERE%\univ-utils\java" MD "%HERE%\univ-utils\java"
@@ -1427,6 +1533,40 @@ SET "JAVANUM=!JAVAFOLDER:-jdk=!"
 SET "JAVANUM=!JAVAFOLDER:jdk-=!"
 SET "JAVANUM=!JAVANUM:jdk=!"
 SET "JAVANUM=!JAVANUM:-jre=!"
+
+:: If it looks like the server has been run successfully once before, uses the determined java file/folder location to look for a firewall rule set to use the java.exe
+:: This is done by looking at the latest.log file for a successful world spawn gen, which usually means that the server fully loaded at least once, giving the user time to accept the firewall 'allow'.
+
+:: If the java version was changed earlier in this window session skip this check entirely
+IF DEFINED BYPASSFIREWALLRULECHECK GOTO :bypassfirewallcheck
+:: If the Private firewall is turned off, skip this check entirely
+FOR /F "delims=" %%A IN ('powershell -Command "$data = Get-NetFirewallProfile -Name Private; $data.Enabled"') DO IF "%%A" NEQ "True" GOTO :bypassfirewallcheck
+
+SET "LONGJAVAFOLDER=%HERE%\univ-utils\java\!JAVAFOLDER!\bin\java.exe"
+IF EXIST "%HERE%\logs\latest.log" FINDSTR /i "Preparing spawn area" "logs\latest.log" >nul 2>&1 && FINDSTR /i "!MINECRAFT!" "logs\latest.log" >nul 2>&1 && (
+  FOR /F "delims=" %%A IN ('powershell -Command "$data = Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow; $data.name"') DO (
+    SET TEMP=%%A
+    IF "!TEMP!" NEQ "!TEMP:TCP=x!" IF "!TEMP!" NEQ "!TEMP:%LONGJAVAFOLDER%=x!" SET FOUNDGOODFIREWALLRULE=Y
+  )
+)
+IF NOT DEFINED FOUNDGOODFIREWALLRULE (
+  CLS
+  ECHO: & ECHO: & ECHO:
+  ECHO   %red% CONCERN - NO WINDOWS FIREWALL PASS RULE FOR THE INSTALLED JAVA DETECTED - CONCERN %blue% & ECHO:
+  ECHO   %yellow% IT LOOKS LIKE THIS SERVER FOLDER HAS SUCCESSFULLY RUN PREVIOUSLY WITH THE SAME MINECRAFT VERSION, %blue%
+  ECHO   %yellow% BUT NO WINDOWS FIREWALL RULE WAS FOUND FOR THE java.exe SET TO: %blue%
+  ECHO   %yellow% 'Direction:Inbound' / 'Action':'Allow' / 'Enabled':'True' %blue% & ECHO:
+  ECHO     %LONGJAVAFOLDER% & ECHO:
+  ECHO   %yellow% YOU SHOULD GO TO WINDOWS FIREWALL SETTINGS AND REMOVE ANY EXISTING FIREWALL RULES COVERING %blue%
+  ECHO   %yellow% THIS java.exe LOCATION ^(LISTED ABOVE^), AND ANY RULES COVERING THE PORT YOU HAVE SET. %blue%
+  ECHO   %yellow% THEN LAUNCH THE SERVER AGAIN AND PRESS 'Allow' ON THE WINDOWS POP-UP THAT COMES UP WHILE LAUNCHING. %blue%
+
+  ECHO: & ECHO: & ECHO: & ECHO:
+  ECHO   %green% * IF YOU THINK THIS MESSAGE IS INCORRECT YOU CAN STILL PRESS ANY KEY TO CONTINUE %blue% & ECHO: & ECHO:
+  PAUSE
+)
+
+:bypassfirewallcheck
 
 :: END JAVA SETUP SECTION
 
