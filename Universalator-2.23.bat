@@ -741,9 +741,7 @@ ECHO:    %green% OVERRIDE %blue% = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF
 ECHO:    %green% ZIP %blue% = MENU FOR CREATING SERVER PACK ZIP FILE & ECHO: & ECHO: & ECHO:
 GOTO :allcommandsentry
 
-
 :: END MAIN MENU
-
 
 :startover
 :: User entry for Minecraft version
@@ -1242,6 +1240,7 @@ IF !MCMAJOR!==16 IF !MCMINOR!==5 IF /I !MODLOADER!==FORGE (
 
 :javaselect
 IF DEFINED MAINMENU IF /I !MAINMENU!==J (
+
   SET INITIALJAVA=!JAVAVERSION!
   IF NOT DEFINED MCMAJOR (
     SET "MCMINOR="
@@ -1272,7 +1271,7 @@ IF !MCMAJOR! EQU 16 IF !MCMINOR! EQU 5 IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! N
 IF !MCMAJOR! EQU 17 IF !JAVAVERSION! NEQ 16 GOTO :javaselect
 IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 21 GOTO :javaselect
 :: If the java version was changed, then bypass the eventual firewall rule check for the rest of this window session
-IF !INITIALVERSION! NEQ !JAVAVERSION! SET BYPASSFIREWALLRULECHECK=Y
+IF !INITIALJAVA! NEQ !JAVAVERSION! SET BYPASSFIREWALLRULECHECK=Y
 GOTO :setconfig
 )
 
@@ -1428,7 +1427,7 @@ FOR /F "delims=" %%A IN ('DIR /B univ-utils\java') DO (
   IF !ERRORLEVEL!==0 (
     SET JAVAFOLDER=%%A
     ECHO   Found existing Java !JAVAVERSION! folder - %%A & ECHO:
-    %DELAY%
+    ping -n 1 127.0.0.1 >nul
     :: Runs a FOR loop with a powershell command to check the age of the found java folder.  If it's older than 3 months result is 'True'.  If it's newer than 3 months result is 'False'.
     FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\java\%%A' -OlderThan (Get-Date).AddMonths(-2.5)"') DO (
       :: If False then that means the folder is newer than 3 months - go ahead and use that folder for java, then move on!
@@ -1439,7 +1438,7 @@ FOR /F "delims=" %%A IN ('DIR /B univ-utils\java') DO (
       :: If True that means that it is older than 2.5 months old and is marked as OLD and folder value stored for testing vs the current published release later.
       IF %%G==True (
         ECHO   Java folder is older than 3 months - checking for newer available versions for Java !JAVAVERSION! & ECHO:
-        %DELAY%
+        ping -n 1 127.0.0.1 >nul
         SET FOUNDJAVA=OLD
 
         GOTO :javaold
@@ -1464,11 +1463,18 @@ IF !JAVAVERSION! NEQ 16 SET "IMAGETYPE=jre"
 IF !FOUNDJAVA!==OLD (
   REM Uses the Adoptium URL Api to return the JSON for the parameters specified, and then the FOR loop pulls the last value printed which is that value in the JSON variable that got made.
   REM Java 8 used a bit of a different format for it's version information so a different value is used form the JSON.
+
   IF !JAVAVERSION!==8 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/8/ga?architecture=x64&heap_size=normal&image_type=jre&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.release_name"') DO SET NEWESTJAVA=%%A
   IF !JAVAVERSION! NEQ 8 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/!JAVAVERSION!/ga?architecture=x64&heap_size=normal&image_type=!IMAGETYPE!&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.version_data.openjdk_version"') DO SET NEWESTJAVA=%%A
 
+:: Strips out the extraneous parts of version strings so that just the number remains
+SET "NEWESTJAVANUM=!NEWESTJAVA:-jdk=!"
+SET "NEWESTJAVA=!NEWESTJAVA:jdk-=!"
+SET "NEWESTJAVA=!NEWESTJAVA:-jre=!"
+SET "NEWESTJAVA=!NEWESTJAVA:-LTS=!"
+
   :: Test if the found newest relaease is found in the folder name then test passes and the JAVAFILE is set to that found.
-  ECHO !JAVAFOLDER! | FINDSTR !NEWESTJAVA! >nul
+  ECHO !JAVAFOLDER! | FINDSTR "!NEWESTJAVA!" >nul
   :: If test passes then java folder version is current - use it and move on!
   IF !ERRORLEVEL!==0 (
     ECHO   Java folder !JAVAFOLDER! is in fact the newest version available - using it for Java !JAVAVERSION! & ECHO:
@@ -1513,6 +1519,8 @@ SET FILECHECKSUM=!OUT[1]!
 IF !JAVACHECKSUM!==!FILECHECKSUM! (
   tar -xf javabinaries.zip
   DEL javabinaries.zip
+  REM Sets a variable to skip checking for firewall rules on a just installed version / folder.
+  SET BYPASSFIREWALLRULECHECK=Y
   ECHO   The downloaded Java binary and hashfile value match - file downloaded correctly is valid & ECHO:
   %DELAY%
 )
@@ -1525,7 +1533,7 @@ IF !JAVACHECKSUM! NEQ !FILECHECKSUM! (
 )
 POPD
 
-:: Sends the script back to the beginning of the java section to check for and set as JAVAFILE the hopefully unzipped new java folder - if passes then comes back to javafileisset
+REM Sends the script back to the beginning of the java section to check for and set as JAVAFILE the hopefully unzipped new java folder - if passes then comes back to javafileisset
 GOTO :checkforjava
 :javafileisset
 
@@ -1534,40 +1542,51 @@ SET "JAVANUM=!JAVAFOLDER:jdk-=!"
 SET "JAVANUM=!JAVANUM:jdk=!"
 SET "JAVANUM=!JAVANUM:-jre=!"
 
-:: If it looks like the server has been run successfully once before, uses the determined java file/folder location to look for a firewall rule set to use the java.exe
-:: This is done by looking at the latest.log file for a successful world spawn gen, which usually means that the server fully loaded at least once, giving the user time to accept the firewall 'allow'.
+REM BEGIN FIREWALL RULE CHECKING
+REM Skips past the firewall check - when user launches from launch screen the script comes back here to check.
+GOTO :passthroughcheck
 
-:: If the java version was changed earlier in this window session skip this check entirely
-IF DEFINED BYPASSFIREWALLRULECHECK GOTO :bypassfirewallcheck
-:: If the Private firewall is turned off, skip this check entirely
-FOR /F "delims=" %%A IN ('powershell -Command "$data = Get-NetFirewallProfile -Name Private; $data.Enabled"') DO IF "%%A" NEQ "True" GOTO :bypassfirewallcheck
+:firewallcheck
 
+REM Uses the determined java file/folder location to look for a firewall rule set to use the java.exe
+REM This is done by looking at the latest.log file for a successful world spawn gen, which usually means that the server fully loaded at least once, giving the user time to accept the firewall 'allow'.
+REM If the java version / folder was just installed in this window session, skip this check entirely.  The variable could be un-set but it's easier to avoid shennanigans if it's just disabled for the rest of the session.
+REM If the Private firewall is turned off, skip this check entirely
+FOR /F "delims=" %%A IN ('powershell -Command "$data = Get-NetFirewallProfile -Name Private; $data.Enabled"') DO IF "%%A" NEQ "True" SET FOUNDGOODFIREWALLRULE=Y & GOTO :skipfirewallcheck
+REM Checks for firewall rulees set for {inbound / true / allow}, with the strings {TCP} and {JAVAFOLDERPATH} in the line.
 SET "LONGJAVAFOLDER=%HERE%\univ-utils\java\!JAVAFOLDER!\bin\java.exe"
-IF EXIST "%HERE%\logs\latest.log" FINDSTR /i "Preparing spawn area" "logs\latest.log" >nul 2>&1 && FINDSTR /i "!MINECRAFT!" "logs\latest.log" >nul 2>&1 && (
-  FOR /F "delims=" %%A IN ('powershell -Command "$data = Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow; $data.name"') DO (
-    SET TEMP=%%A
-    IF "!TEMP!" NEQ "!TEMP:TCP=x!" IF "!TEMP!" NEQ "!TEMP:%LONGJAVAFOLDER%=x!" SET FOUNDGOODFIREWALLRULE=Y
-  )
+:: Set a high bar for checking firewall only when latest.log file present, had a world spawn prepare event, and had the same minecraft version - if either turns out false then skip.
+IF EXIST "%HERE%\logs\latest.log" TYPE "logs\latest.log" | FINDSTR /i "Preparing spawn area" >nul 2>&1 && TYPE "logs\latest.log" | FINDSTR /i "!MINECRAFT!" >nul 2>&1 || GOTO :skipfirewallcheck
+
+FOR /F "delims=" %%A IN ('powershell -Command "$data = Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow; $data.name"') DO (
+  REM Uses string replacement to check for TCP in the line, and if found echos the string to a FINDSTR to look for the java folder path.
+  SET TEMP=%%A
+  IF "!TEMP!" NEQ "!TEMP:TCP=x!" IF "!TEMP!" NEQ "!TEMP:%LONGJAVAFOLDER%=x!" SET FOUNDGOODFIREWALLRULE=Y & GOTO :skipfirewallcheck
 )
 IF NOT DEFINED FOUNDGOODFIREWALLRULE (
   CLS
   ECHO: & ECHO: & ECHO:
   ECHO   %red% CONCERN - NO WINDOWS FIREWALL PASS RULE FOR THE INSTALLED JAVA DETECTED - CONCERN %blue% & ECHO:
-  ECHO   %yellow% IT LOOKS LIKE THIS SERVER FOLDER HAS SUCCESSFULLY RUN PREVIOUSLY WITH THE SAME MINECRAFT VERSION, %blue%
-  ECHO   %yellow% BUT NO WINDOWS FIREWALL RULE WAS FOUND FOR THE java.exe SET TO: %blue%
-  ECHO   %yellow% 'Direction:Inbound' / 'Action':'Allow' / 'Enabled':'True' %blue% & ECHO:
+  ECHO   %blue% IT LOOKS LIKE THIS SERVER FOLDER HAS SUCCESSFULLY RUN PREVIOUSLY WITH THE SAME MINECRAFT VERSION, %blue%
+  ECHO   %blue% BUT NO WINDOWS FIREWALL RULE WAS FOUND FOR THE java.exe SET TO: %blue%
+  ECHO   %blue% 'Direction:Inbound' / 'Action':'Allow' / 'Enabled':'True' %blue% & ECHO:
   ECHO     %LONGJAVAFOLDER% & ECHO:
-  ECHO   %yellow% YOU SHOULD GO TO WINDOWS FIREWALL SETTINGS AND REMOVE ANY EXISTING FIREWALL RULES COVERING %blue%
-  ECHO   %yellow% THIS java.exe LOCATION ^(LISTED ABOVE^), AND ANY RULES COVERING THE PORT YOU HAVE SET. %blue%
-  ECHO   %yellow% THEN LAUNCH THE SERVER AGAIN AND PRESS 'Allow' ON THE WINDOWS POP-UP THAT COMES UP WHILE LAUNCHING. %blue%
-
+  ECHO   %blue% YOU SHOULD GO TO WINDOWS FIREWALL SETTINGS AND REMOVE ANY EXISTING FIREWALL RULES COVERING %blue%
+  ECHO   %blue% THIS java.exe LOCATION ^(LISTED ABOVE^), AND ANY RULES COVERING THE PORT YOU HAVE SET. %blue%
+  ECHO   %blue% THEN LAUNCH THE SERVER AGAIN AND PRESS 'Allow' ON THE WINDOWS POP-UP THAT COMES UP WHILE LAUNCHING. %blue%
   ECHO: & ECHO: & ECHO: & ECHO:
   ECHO   %green% * IF YOU THINK THIS MESSAGE IS INCORRECT YOU CAN STILL PRESS ANY KEY TO CONTINUE %blue% & ECHO: & ECHO:
   PAUSE
 )
 
-:bypassfirewallcheck
+:skipfirewallcheck
+IF /I !MODLOADER!==FORGE GOTO :reallydoforge
+IF /I !MODLOADER!==NEOFORGE GOTO :reallydoforge
+IF /I !MODLOADER!==FABRIC GOTO :reallydofabric
+IF /I !MODLOADER!==QUILT GOTO :reallydofabric
+IF /I !MODLOADER!==VANILLA GOTO :reallydofabric
 
+:passthroughcheck
 :: END JAVA SETUP SECTION
 
 SET "MCMINOR="
@@ -2085,7 +2104,6 @@ GOTO :mainmenu
 :: FINALLY LAUNCH FORGE SERVER!
 :launchforge
 :launchneoforge
-
 CLS
 ECHO ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ECHO            %yellow%   Universalator - Server launcher script    %blue%
@@ -2115,6 +2133,10 @@ SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "FORGELAUNCH="
 IF /I !FORGELAUNCH!==M GOTO :mainmenu
 
+REM Goes to firewall rule checking if nothing bypasses going there
+IF NOT DEFINED FOUNDGOODFIREWALLRULE IF NOT DEFINED BYPASSFIREWALLRULECHECK GOTO :firewallcheck
+REM Script comes back after firewall rule checking
+:reallydoforge
 
 ECHO: & ECHO   Launching... & ping -n 2 127.0.0.1 > nul & ECHO   Launching.. & ping -n 2 127.0.0.1 > nul & ECHO   Launching. & ECHO:
 :: Starts forge depending on what java version is set.  Only correct combinations will launch - others will crash.
@@ -2163,7 +2185,7 @@ IF /I !MODLOADER!==NEOFORGE (
 )
 
 :: Complaints to report in console output if launch attempt crashes
-
+IF NOT EXIST "%HERE%\logs\latest.log" GOTO :skipforgelogs
 :: Looks for the stopping the server text to decide if the server was shut down on purpose.  If so goes to main menu.
 TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Stopping the server" >nul && (
   PAUSE
@@ -2189,21 +2211,20 @@ TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul 
 )
 ECHO: & ECHO   IF THIS MESSAGE IS VISIBLE SERVER MAY HAVE CRASHED / STOPPED & ECHO: & ECHO   CHECK LOG FILES - PRESS ANY KEY TO GO BACK TO MAIN MENU & ECHO: & ECHO:
 PAUSE
+:skipforgelogs
 GOTO :mainmenu
 :: END FORGE LAUNCH SECTION
 
 
 :: BEGIN FABRIC INSTALLATION SECTION
 :preparefabric
-:: Skips installation if already present
-IF EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar GOTO :launchfabric
+:: Skips installation if already present, if either file is not present then assume a reinstallation is needed.
+IF EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar IF EXIST "libraries\net\fabricmc\fabric-loader\!FABRICLOADER!\fabric-loader-!FABRICLOADER!.jar" GOTO :launchfabric
 
 :: Deletes existing core files and folders if this specific desired Fabric launch file not present.  This forces a fresh installation and prevents getting a mis-match of various minecraft and/or fabric version files conflicting.
-IF NOT EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar (
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  DEL *.jar >nul 2>&1
-)
+IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+DEL *.jar >nul 2>&1
 
 :: Pings the Fabric file server
 :fabricserverpingagain
@@ -2292,14 +2313,12 @@ IF EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar (
 :: BEGIN QUILT INSTALLATION SECTION
 :preparequilt
 :: Skips installation if already present
-IF EXIST quilt-server-launch-!MINECRAFT!-!QUILTLOADER!.jar GOTO :launchquilt
+IF EXIST quilt-server-launch-!MINECRAFT!-!QUILTLOADER!.jar IF EXIST "libraries\org\quiltmc\quilt-loader\!QUILTLOADER!\quilt-loader-!QUILTLOADER!.jar" GOTO :launchquilt
 
 :: Deletes existing core files and folders if this specific desired Fabric launch file not present.  This forces a fresh installation and prevents getting a mis-match of various minecraft and/or fabric version files conflicting.
-IF NOT EXIST fabric-server-launch-!MINECRAFT!-!QUILTLOADER!.jar (
-  IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
-  IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
-  DEL *.jar >nul 2>&1
-)
+IF EXIST "%HERE%\.fabric" RD /s /q "%HERE%\.fabric\"
+IF EXIST "%HERE%\libraries" RD /s /q "%HERE%\libraries\"
+DEL *.jar >nul 2>&1
 
 :: Pings the Quilt file server
 :quiltserverpingagain
@@ -2732,6 +2751,8 @@ SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
 SET /P "FABRICLAUNCH="
 IF /I !FABRICLAUNCH!==M GOTO :mainmenu
 
+IF NOT DEFINED FOUNDGOODFIREWALLRULE IF NOT DEFINED BYPASSFIREWALLRULECHECK GOTO :firewallcheck
+:reallydofabric
 
 ECHO: & ECHO   Launching... & ping -n 2 127.0.0.1 >nul & ECHO   Launching.. & ping -n 2 127.0.0.1 >nul & ECHO   Launching. & ECHO:
 
@@ -2749,7 +2770,9 @@ IF /I !MODLOADER!==VANILLA (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar minecraft_server.!MINECRAFT!.jar nogui
 )
 
+PAUSE
 :: Complains in console output if launch attempt crashes
+IF NOT EXIST "%HERE%\logs\latest.log" GOTO :skipfabriclogs
 :: Looks for the stopping the server text to decide if the server was shut down on purpose.  If so goes to main menu.
 TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Stopping the server" >nul 2>&1 && PAUSE && GOTO :mainmenu
 
@@ -2773,8 +2796,8 @@ IF !ERRORLEVEL!==0 (
   ECHO    TRY USING THE UNIVERSALATOR %green% 'SCAN' %blue% OPTION TO FIND CLIENT MODS.
   ECHO        %red% --- SPECIAL MESSAGE --- %blue% & ECHO:
 )
-
 PAUSE
+:skipfabriclogs
 GOTO :mainmenu
 
 :: BEGIN UPNP SECTION
