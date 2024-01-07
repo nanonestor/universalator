@@ -471,140 +471,91 @@ IF DEFINED IPLINE IF /I !CHOOSE_IP!==CORRECT (
 :skipserverproperties
 :: END CHECKING server.properties FILE FOR IP ENTRY AND OTHER
 
-:portcheckup
-:: BEGIN CHECKING IF CURRENT PORT SET IN server.properties IS ALREADY IN USE
-:: Assume server.properties exists
-FOR /F %%A IN ('findstr server-port server.properties') DO SET PROPSPORT=%%A
-IF DEFINED PROPSPORT IF "%PROPSPORT%" NEQ "" SET PORTSET=%PROPSPORT:~12%
-IF NOT DEFINED PROPSPORT SET PORTSET=25565
+:: BEGIN PORT CHECKING
 
-ver > nul
-NETSTAT -o -n -a | FINDSTR %PORTSET%
-:: If port was not found already after checking netstat entries then assume it's being used and run warning/process kill screen
-IF %ERRORLEVEL%==1 GOTO :skipportclear
-
-IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.txt DEL pid3.txt
-
-
-for /F "delims=" %%A IN ('netstat -aon') DO (
-    ECHO %%A>>pid.txt
-)
-
-set idx=0
-FOR /F "delims=" %%A IN ('findstr %PORTSET% pid.txt') DO (
-    SET BEE[!idx!]=%%A
-    set /a idx+=1
-)
-IF NOT DEFINED BEE[0] GOTO :skipportclear
-
-
-FOR /F "tokens=5 delims= " %%B IN ("!BEE[0]!") DO (
-    SET PIDNUM=%%B
-)
-
-FOR /F "delims=" %%C IN ('TASKLIST /fi "pid eq !PIDNUM!"') DO (
-    ECHO %%C>>pid3.txt
-)
-SET idx=0
-FOR /F "delims=" %%D IN ('findstr !PIDNUM! pid3.txt') DO (
-    SET BOO[!idx!]=%%D
-    set /a idx+=1
-)
-FOR /F "tokens=1,3,4 delims= " %%E IN ("!BOO[0]!") DO (
-    SET IMAGENAME=%%E
-    SET SESSIONNAME=%%F
-    SET SESSIONNUM=%%G
-)
-
-
-IF EXIST pid.txt DEL pid.txt && IF EXIST pid2.txt DEL pid2.txt && IF EXIST pid3.txt DEL pid3.txt
-
-:portwarning
-  CLS
-  ECHO: & ECHO:
-  ECHO   %yellow% WARNING - PORT ALREADY IN USE - WARNING %blue%
-  ECHO:
-  ECHO   CURRENT %yellow% PORT SET = %PORTSET% %blue%
-  ECHO:
-  ECHO   IT IS DETECTED THAT THE PORT CURRENTLY SET (SHOWN ABOVE)
-  ECHO   IN THE SETTINGS FILE server.properties %yellow% IS ALREADY IN USE %blue%
-  ECHO:
-  ECHO   THE FOLLOWING IS THE PROCESS RUNNING THAT APPEARS TO BE USING THE PORT
-  ECHO   MINECRAFT SERVERS WILL USUALLY CONTAIN THE NAMES java.exe AND Console
-  ECHO:
-  ECHO   IMAGE NAME - %IMAGENAME%
-  ECHO   SESSION NAME - %SESSIONNAME%
-  ECHO   PID NUMBER - %PIDNUM%
-  ECHO:
-  ECHO   %yellow% WARNING - PORT ALREADY IN USE - WARNING %blue%
-  ECHO:
-  ECHO   Type 'KILL' to try and let the script close the program using the port already.
-  ECHO   Type 'Q' to close the script program if you'd like to try and solve the issue on your own.
-  ECHO:
-  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
-  SET /P "KILLIT="
-  IF /I !KILLIT! NEQ KILL IF /I !KILLIT! NEQ Q GOTO :portwarning
-  IF /I !KILLIT!==Q (
-    PAUSE & EXIT [\B]
-  )
-  IF /I !KILLIT!==KILL (
-    CLS
-    ECHO:
-    ECHO   ATTEMPTING TO KILL TASK PLEASE WAIT...
-    ECHO:
-    TASKKILL /F /PID %PIDNUM%
-    %DELAY%
-  )
-ver > nul
-NETSTAT -o -n -a | FINDSTR %PORTSET%
-IF %ERRORLEVEL%==0 (
-  CLS
-  ECHO:
-  ECHO   OOPS - THE ATTEMPT TO KILL THE TASK PROCESS USING THE PORT SEEMS TO HAVE FAILED
-  ECHO:
-  ECHO   FURTHER OPTIONS:
-  ECHO   --SET A DIFFERENT PORT, OR CLOSE KNOWN SERVERS/PROGRAMS USING THIS PORT.
-  ECHO   --IF YOU THINK PORT IS BEING KEPT OPEN BY A BACKGROUND PROGRAM TRY RESTARTING COMPUTER.
-  ECHO   --TRY RUNNING THE UNIVERSALATOR SCRIPT AGAIN.
-  ECHO: & ECHO: & ECHO: 
-  PAUSE & EXIT [\B]
-)
-IF %ERRORLEVEL%==1 (
-  ECHO:
-  ECHO   SUCCESS!
-  ECHO   IT SEEMS LIKE KILLING THE PROGRAM WAS SUCCESSFUL IN CLEARING THE PORT!
-  ECHO:
-  %DELAY%
-)
-
-:: Below line is purely done to guarantee that the current ERRORLEVEL is reset to 0
-:skipportclear
-ver > nul
-:: END CHECKING IF CURRENT PORT SET IN server.properties IS ALREAY IN USE
-
-:: BEGIN SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
-
-:: Obtains the computer's public IP address by poking a website API service which specifically exists for this purpose - api.bigdatacloud.net is now used, it seems reliably fasteer than the older api.ipify.org used
-FOR /F %%B IN ('powershell -Command "$data = ((New-Object System.Net.WebClient).DownloadString('https://api.bigdatacloud.net/data/client-ip') | Out-String | ConvertFrom-Json); $data.ipString"') DO SET PUBLICIP=%%B
-:: If trying api.bigdatacloud.net failed to get the public IP then try this different web service at ip-api.com
-IF NOT DEFINED PUBLICIP FOR /F %%B IN ('powershell -Command "$data = ((New-Object System.Net.WebClient).DownloadString('http://ip-api.com/json/?fields=query') | Out-String | ConvertFrom-Json); $data.query"') DO SET PUBLICIP=%%B
-
-FOR /F %%A IN ('findstr server-port server.properties') DO SET PORTLINE=%%A
-IF DEFINED PORTLINE SET PORT=%PORTLINE:~12%
+:: Sets which port to use for the check
+FOR /F "tokens=2 delims==" %%A IN ('findstr server-port server.properties') DO SET PORT=%%A
 IF NOT DEFINED PORT SET PORT=25565
 
-IF !PORT! LSS 10000 (
+:: Checks to see if the port is set to some low possibly conflicting numbered port
+IF %PORT% LSS 10000 (
   CLS
   ECHO: & ECHO: & ECHO   %red% CURRENT PORT SET IN server.properties FILE - %blue%%yellow% !PORT! %blue%
   ECHO: & ECHO   %red% DO NOT SET THE PORT TO BE USED BELOW 10000 - BELOW THAT NUMBER IS NOT A GOOD IDEA %blue%
   ECHO: & ECHO   %red% OTHER CRITICAL PROCESSES MAY ALREADY USE PORTS BELOW THIS NUMBER %blue% & ECHO:
   PAUSE & EXIT [\B]
 )
-:: END SETTING VARIABLES TO PUBLIC IP AND PORT SETTING
 
-:: BEGIN GETTING LOCAL IPV4 ADDRESS TO BE USED
+:: Checks to see if the port is found as currently in-use with netstat
+( netstat -aon | findstr %PORT% >nul 2>&1 ) && SET FOUNDOPENPORT=Y
+
+:: If no entry was found SKIP this section entirely
+IF NOT DEFINED FOUNDOPENPORT GOTO :skipportclear
+
+:: Sets the PID number
+IF DEFINED FOUNDOPENPORT FOR /F "tokens=5 delims= " %%A IN ('netstat -aon ^| findstr %PORT%') DO SET PIDNUM=%%A
+
+:: Gets the relevant information about the found task PID number
+FOR /F "tokens=1,3,4 delims= " %%E IN ('tasklist /fi "pid eq %PIDNUM%"') DO ( SET IMAGENAME=%%E & SET SESSIONNAME=%%F & SET SESSIONNUM=%%G )
+
+:: If 'system' is found in the session name then skip
+( ECHO %SESSIONNAME% | FINDSTR /I "system" >nul 2>&1 ) && GOTO :skipportclear
+GOTO :skipportclear
+:portwarning
+  CLS
+  ECHO: & ECHO:
+  ECHO   %red% WARNING - PORT ALREADY IN USE - WARNING %blue% & ECHO: & ECHO       %yellow% CURRENT PORT SET = %PORT% %blue% & ECHO:
+  ECHO       IT IS DETECTED THAT THE PORT CURRENTLY SET (SHOWN ABOVE),
+  ECHO       IN THE SETTINGS FILE server.properties %yellow% IS ALREADY IN USE %blue% & ECHO:
+  ECHO       THE FOLLOWING IS THE PROCESS RUNNING THAT APPEARS TO BE USING THE PORT & ECHO:
+  ECHO             - IMAGE NAME - %IMAGENAME%
+  ECHO             - SESSION NAME - %SESSIONNAME%
+  ECHO             - PID NUMBER - %PIDNUM%
+  ECHO: &   ECHO       MINECRAFT SERVERS WILL USUALLY CONTAIN THE NAMES java.exe AND/OR Console & ECHO:
+  ECHO   %red% WARNING - PORT ALREADY IN USE - WARNING %blue% & ECHO: & ECHO:
+  ECHO       %yellow% Enter 'KILL' %blue% to try and let the script close the program already using the port. & ECHO:
+  ECHO       %yellow% Enter 'Q' %blue% to close the script program if you'd like to try and solve the issue on your own. & ECHO:
+  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
+  SET /P "KILLIT="
+  IF /I !KILLIT! NEQ KILL IF /I !KILLIT! NEQ Q GOTO :portwarning
+  IF /I !KILLIT!==Q (
+    PAUSE & EXIT [\B]
+  )
+IF /I !KILLIT!==KILL (
+  CLS
+  ECHO: & ECHO   ATTEMPTING TO KILL TASK PLEASE WAIT... & ECHO: & ECHO   IF THIS METHOD SEEMS TO FAIL TO CLEAR THE PORT IN USE, & ECHO     TRY RESTARTING YOUR COMPUTER & ECHO:
+  TASKKILL /F /PID %PIDNUM%
+  ping -n 6 127.0.0.1 >nul
+)
+ver > nul
+NETSTAT -o -n -a | FINDSTR %PORT%
+IF %ERRORLEVEL%==0 (
+  CLS
+  ECHO: & ECHO   %red% OOPS %blue% - THE ATTEMPT TO KILL THE TASK PROCESS USING THE PORT SEEMS TO HAVE FAILED & ECHO: & ECHO   FURTHER OPTIONS:
+  ECHO   --SET A DIFFERENT PORT, OR CLOSE KNOWN SERVERS/PROGRAMS USING THIS PORT. & ECHO: & ECHO   --IF YOU THINK PORT IS BEING KEPT OPEN BY A BACKGROUND PROGRAM,
+  ECHO     OR WINDOWS IS STUCK SHUTTING DOWN WHATEVER WAS HOLDING THE PORT OPEN%green%:%blue% & ECHO      %green% TRY RESTARTING COMPUTER. %blue% & ECHO: & ECHO: & ECHO: 
+  PAUSE & EXIT [\B]
+)
+IF %ERRORLEVEL%==1 (
+  ECHO: & ECHO  %green% SUCCESS^^! %blue% & ECHO: & ECHO   IT SEEMS LIKE KILLING THE PROGRAM WAS SUCCESSFUL IN CLEARING THE PORT^^! & ECHO:
+  ping -n 4 127.0.0.1 >nul
+)
+:: Below line is purely done to guarantee that the current ERRORLEVEL is reset to 0
+:skipportclear
+ver > nul
+:: END PORT CHECKING
+
+:: BEGIN PUBLIC IP DETECTION
+
+:: Obtains the computer's public IP address by poking a website API service which specifically exists for this purpose - api.bigdatacloud.net is now used, it seems reliably fasteer than the older api.ipify.org used
+FOR /F %%B IN ('powershell -Command "$data = ((New-Object System.Net.WebClient).DownloadString('https://api.bigdatacloud.net/data/client-ip') | Out-String | ConvertFrom-Json); $data.ipString"') DO SET PUBLICIP=%%B
+:: If trying api.bigdatacloud.net failed to get the public IP then try this different web service at ip-api.com
+IF NOT DEFINED PUBLICIP FOR /F %%B IN ('powershell -Command "$data = ((New-Object System.Net.WebClient).DownloadString('http://ip-api.com/json/?fields=query') | Out-String | ConvertFrom-Json); $data.query"') DO SET PUBLICIP=%%B
+
+:: BEGIN LOCAL IPV4 ADDRESS DETECTION
 
 :: If file present (upnp port forwarding = loaded') check to see if port forwarding is activated or not using it.
+:: This is to ensure that whichever type of connection's address that UPnP may be using is used (wifi IP vs ethernet IP, etc.)
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
   SET ISUPNPACTIVE=N
   FOR /F "delims=" %%E IN ('univ-utils\miniupnp\upnpc-static.exe -l') DO (
@@ -612,24 +563,23 @@ IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" (
     IF "!CHECKUPNPSTATUS!" NEQ "!CHECKUPNPSTATUS:%PORT%=PORT!" SET ISUPNPACTIVE=Y
     IF "!CHECKUPNPSTATUS!" NEQ "!CHECKUPNPSTATUS:Local LAN ip address=replace!" SET LANLINE=%%E
   )
-)
-IF DEFINED LANLINE (
   FOR /F "tokens=5 delims=: " %%T IN ("!LANLINE!") DO SET LOCALIP=%%T
 )
 
 :: If no UPnP setting of LOCALIP was done - then use ipconfig to get the local IP address
 IF NOT DEFINED LOCALIP (
-  FOR /F "delims=" %%G IN ('ipconfig') DO (
-      SET LOOKFORIPV4=%%G
-      :: If the string marking the IPv4 address is found then record it using delims and tokens to get the right string
-      IF "!LOOKFORIPV4!" NEQ "!LOOKFORIPV4:IPv4 Address=replace!" (
-        FOR /F "tokens=13 delims=: " %%T IN ("!LOOKFORIPV4!") DO SET LOCALIP=%%T
-      )
-      :: If ethernet and WiFi are both active then the first entry recorded will be ethernet which is probably preferred
-      :: Ethernet is listed first always in ipconfig - so if LOCALIP becomes defined the loop gets exited by going to the exitlocalipset label
-      IF DEFINED LOCALIP GOTO :exitlocalipset
+  FOR /F "tokens=1,2 delims=:" %%G IN ('ipconfig') DO (
+    SET "LOOKFORIPV4=%%G"
+    :: If ethernet and WiFi are both active then the first entry recorded will be ethernet which is probably preferred
+    :: Ethernet is listed first always in ipconfig - so if LOCALIP becomes defined the loop gets exited by going to the exitlocalipset label
+    IF "!LOOKFORIPV4!" NEQ "!LOOKFORIPV4:IPv4 Address=replace!" (
+      SET "FOUNDLOCALIP=%%H"
+      SET "LOCALIP=!FOUNDLOCALIP: =!"
+      GOTO :exitlocalipset
+    )
   )
 )
+
 :exitlocalipset
 :: END GETTING LOCAL IPV4 ADDRESS TO BE USED
 
@@ -652,8 +602,11 @@ IF NOT EXIST settings-universalator.txt GOTO :startover
 
 TITLE Universalator
 IF EXIST settings-universalator.txt (
-  RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
-  IF DEFINED MAXRAMGIGS IF !MAXRAMGIGS! NEQ "" SET MAXRAM=-Xmx!MAXRAMGIGS!G
+  :: Reads off the contents of the settings file if it's present, to set current setting values.  Doing it this way avoids needing to rename the file to a .bat or .cmd to perform a CALL.
+  FOR /F "delims=" %%A IN (settings-universalator.txt) DO SET "TEMP=%%A" & IF "!TEMP:~0,2!" NEQ "::" %%A
+  :: Sets a string variable for passing -Xmx JVM startup argument to java launches, based on the integer entered for number of gigs.
+  IF DEFINED MAXRAMGIGS IF [!MAXRAMGIGS!] NEQ [] SET MAXRAM=-Xmx!MAXRAMGIGS!G
+  :: The settings txt file has one entry for MODLOADER version.  Depending on the value of MODLOADER, set the variable for whichever modloader type is set equal to the MODLOADERVERSION.
   IF /I !MODLOADER!==FORGE SET FORGE=!MODLOADERVERSION!
   IF /I !MODLOADER!==NEOFORGE SET NEOFORGE=!MODLOADERVERSION!
   IF /I !MODLOADER!==FABRIC SET FABRICLOADER=!MODLOADERVERSION!
@@ -706,7 +659,7 @@ IF /I !MAINMENU!==Q COLOR 07 & CLS & EXIT [\B]
 IF /I !MAINMENU!==UPNP GOTO :upnpmenu
 IF /I !MAINMENU!==R GOTO :justsetram
 IF /I !MAINMENU!==S GOTO :startover
-IF /I !MAINMENU!==J GOTO :javaselect
+IF /I !MAINMENU!==J GOTO :setjava
 IF /I !MAINMENU!==L IF EXIST settings-universalator.txt IF DEFINED MINECRAFT IF DEFINED MODLOADER IF DEFINED JAVAVERSION GOTO :actuallylaunch
 IF /I !MAINMENU!==SCAN IF EXIST "%HERE%\mods" GOTO :getmcmajor
 IF /I !MAINMENU!==SCAN IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
@@ -1191,14 +1144,13 @@ IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT!==1.20.1 (
     IF %%A==!MINECRAFT! IF %%B==!FROGEENTRY! GOTO :foundvalidforgeversion
   )
 )
+
 IF /I !MODLOADER!==NEOFORGE IF !MINECRAFT! NEQ 1.20.1 (
   FOR /F "tokens=1-4 delims=.-" %%A IN ('powershell -Command "$data = [xml](Get-Content -Path univ-utils\maven-neoforge-metadata.xml); $data.metadata.versioning.versions.version"') DO (
     IF [%%D]==[] IF %%A==!MCMAJOR! IF %%B==!MCMINOR! IF !FROGEENTRY!==%%A.%%B.%%C  GOTO :foundvalidforgeversion
     IF [%%D] NEQ [] IF %%A==!MCMAJOR! IF %%B==!MCMINOR! IF !FROGEENTRY!==%%A.%%B.%%C-%%D  GOTO :foundvalidforgeversion
   )
 )
-
-
 
 :: If no valid version was detected on the maven file server XML list then no skip ahead was done to the foundvalidforgeversion label - display error and go back to enter another version
 CLS
@@ -1214,57 +1166,38 @@ GOTO :redoenterforge
 :: Pre-sets Java versions as default set versions in case any funny business happens later
 :setjava
 
-IF !MCMAJOR! LEQ 16 SET JAVAVERSION=8
-IF !MCMAJOR!==17 SET JAVAVERSION=16
-IF !MCMAJOR! GEQ 18 SET JAVAVERSION=17
-
-:: Minecraft Forge 1.16.5 is a special version that a few different Javas can work with
-IF !MCMAJOR!==16 IF !MCMINOR!==5 IF /I !MODLOADER!==FORGE (
-  CLS
-  ECHO: & ECHO: & ECHO: & ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
-  ECHO:
-  ECHO   THE ONLY VERSIONS AVAILABLE THAT WORK WITH MINECRAFT / FORGE 1.16.5 ARE %green% 8 %blue% AND %green% 11 %blue%
-  ECHO:
-  ECHO   USING JAVA 11 %green% MAY %blue% OR %red% MAY NOT %blue% WORK DEPENDING ON MODS BEING LOADED
-  ECHO   %green% BUT IT PROBABLY WILL %blue%
-  ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
-  SET /P JAVAVERSION=
-  IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :setjava
+IF NOT DEFINED MCMAJOR (
+  SET "MCMINOR="
+  FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO SET /a MCMAJOR=%%E & SET /a MCMINOR=%%F
+  IF NOT DEFINED MCMINOR SET /a MCMINOR=0
 )
 
-:javaselect
-IF DEFINED MAINMENU IF /I !MAINMENU!==J (
+IF NOT DEFINED MAINMENU ( 
+  IF !MCMAJOR! LEQ 16 SET JAVAVERSION=8
+  IF !MCMAJOR!==17 SET JAVAVERSION=16
+  IF !MCMAJOR! GEQ 18 SET JAVAVERSION=17
+)
+IF DEFINED MAINMENU SET INITIALJAVA=!JAVAVERSION!
 
-  SET INITIALJAVA=!JAVAVERSION!
-  IF NOT DEFINED MCMAJOR (
-    SET "MCMINOR="
-    FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO SET /a MCMAJOR=%%E & SET /a MCMINOR=%%F
-    IF NOT DEFINED MCMINOR SET /a MCMINOR=0
-  )
-  CLS
-  ECHO: & ECHO: & ECHO: & ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
-  ECHO:
-  IF !MCMAJOR! LSS 16 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 8 %blue%
-  IF !MCMAJOR! EQU 16 IF !MCMINOR! LEQ 4 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 8 %blue%
-  IF !MCMAJOR! EQU 16 IF !MCMINOR! EQU 5 ECHO   THE OPTIONS FOR MINECRAFT !MINECRAFT! BASED LAUNCHING ARE %green% 8 %blue% AND %green% 11 %blue%
-  IF !MCMAJOR! EQU 17 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 16 %blue%
-  IF !MCMAJOR! GEQ 18 ECHO   THE OPTIONS FOR MINECRAFT !MINECRAFT! BASED LAUNCHING ARE %green% 17 %blue% AND %green% 21 %blue%
-  ECHO:
-  ECHO   * USING THE NEWER VERSION OPTION IF GIVEN A CHOICE %green% MAY %blue% OR %red% MAY NOT %blue% WORK DEPENDING ON MODS BEING LOADED
-  ECHO   * IF A SERVER FAILS TO LAUNCH, YOU SHOULD CHANGE BACK TO THE LOWER DEFAULT VERSION^^! & ECHO: & ECHO:
-  ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
-  ECHO:
-  SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
-  SET /P JAVAVERSION=
+:javaselect
+CLS
+ECHO: & ECHO: & ECHO: & ECHO:
+ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+ECHO:
+ECHO   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON
+ECHO:
+IF !MCMAJOR! LSS 16 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 8 %blue%
+IF !MCMAJOR! EQU 16 IF !MCMINOR! LEQ 4 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 8 %blue%
+IF !MCMAJOR! EQU 16 IF !MCMINOR! EQU 5 ECHO   THE OPTIONS FOR MINECRAFT !MINECRAFT! BASED LAUNCHING ARE %green% 8 %blue% AND %green% 11 %blue%
+IF !MCMAJOR! EQU 17 ECHO   THE ONLY OPTION FOR MINECRAFT !MINECRAFT! BASED LAUNCHING IS %green% 16 %blue%
+IF !MCMAJOR! GEQ 18 ECHO   THE OPTIONS FOR MINECRAFT !MINECRAFT! BASED LAUNCHING ARE %green% 17 %blue% AND %green% 21 %blue%
+ECHO:
+ECHO   * USING THE NEWER VERSION OPTION IF GIVEN A CHOICE %green% MAY %blue% OR %red% MAY NOT %blue% WORK DEPENDING ON MODS BEING LOADED
+ECHO   * IF A SERVER FAILS TO LAUNCH, YOU SHOULD CHANGE BACK TO THE LOWER DEFAULT VERSION^^! & ECHO: & ECHO:
+ECHO  %yellow% ENTER JAVA VERSION TO LAUNCH THE SERVER WITH %blue%
+ECHO:
+SET /P SCRATCH="%blue%  %green% ENTRY: %blue% " <nul
+SET /P JAVAVERSION=
 IF !MCMAJOR! LSS 16 IF !JAVAVERSION! NEQ 8 GOTO :javaselect
 IF !MCMAJOR! EQU 16 IF !MCMINOR! LEQ 4 IF !JAVAVERSION! NEQ 8 GOTO :javaselect
 IF !MCMAJOR! EQU 16 IF !MCMINOR! EQU 5 IF !JAVAVERSION! NEQ 8 IF !JAVAVERSION! NEQ 11 GOTO :javaselect
@@ -1272,8 +1205,8 @@ IF !MCMAJOR! EQU 17 IF !JAVAVERSION! NEQ 16 GOTO :javaselect
 IF !MCMAJOR! GEQ 18 IF !JAVAVERSION! NEQ 17 IF !JAVAVERSION! NEQ 21 GOTO :javaselect
 :: If the java version was changed, then bypass the eventual firewall rule check for the rest of this window session
 IF !INITIALJAVA! NEQ !JAVAVERSION! SET BYPASSFIREWALLRULECHECK=Y
-GOTO :setconfig
-)
+IF DEFINED MAINMENU IF /I !MAINMENU!==J GOTO :setconfig
+
 
 
 :: BEGIN RAM / MEMORY SETTING
@@ -1340,12 +1273,11 @@ IF NOT EXIST settings-universalator.txt (
   SET ASKMODSCHECK=Y
 )
 :setconfig
-:: Generates settings-universalator.txt file if settings-universalator.txt does not exist
-IF EXIST settings-universalator.txt DEL settings-universalator.txt
+:: Generates settings-universalator.txt file according to the current settings values.  The first value only having one > overwrites any existing file text with one single line
 
     ECHO :: To reset this file - delete and run launcher again.>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
-    ECHO :: Minecraft version below - example: MINECRAFT=1.18.2 >>settings-universalator.txt
+    ECHO :: Minecraft version - example: MINECRAFT=1.18.2>>settings-universalator.txt
     ECHO SET MINECRAFT=!MINECRAFT!>>settings-universalator.txt
     ECHO ::>>settings-universalator.txt
     ECHO :: Modloader type - FORGE / NEOFORGE / FABRIC / QUILT / VANILLA>>settings-universalator.txt
@@ -1537,10 +1469,10 @@ REM Sends the script back to the beginning of the java section to check for and 
 GOTO :checkforjava
 :javafileisset
 
-SET "JAVANUM=!JAVAFOLDER:-jdk=!"
 SET "JAVANUM=!JAVAFOLDER:jdk-=!"
-SET "JAVANUM=!JAVANUM:jdk=!"
+SET "JAVANUM=!JAVANUM:-jdk=!"
 SET "JAVANUM=!JAVANUM:-jre=!"
+SET "JAVANUM=!JAVANUM:-LTS=!"
 
 REM BEGIN FIREWALL RULE CHECKING
 REM Skips past the firewall check - when user launches from launch screen the script comes back here to check.
@@ -1553,7 +1485,7 @@ REM This is done by looking at the latest.log file for a successful world spawn 
 REM If the java version / folder was just installed in this window session, skip this check entirely.  The variable could be un-set but it's easier to avoid shennanigans if it's just disabled for the rest of the session.
 REM If the Private firewall is turned off, skip this check entirely
 FOR /F "delims=" %%A IN ('powershell -Command "$data = Get-NetFirewallProfile -Name Private; $data.Enabled"') DO IF "%%A" NEQ "True" SET FOUNDGOODFIREWALLRULE=Y & GOTO :skipfirewallcheck
-REM Checks for firewall rulees set for {inbound / true / allow}, with the strings {TCP} and {JAVAFOLDERPATH} in the line.
+REM Checks for firewall rules set for {inbound / true / allow}, with the strings {TCP} and {JAVAFOLDERPATH} in the line.
 SET "LONGJAVAFOLDER=%HERE%\univ-utils\java\!JAVAFOLDER!\bin\java.exe"
 :: Set a high bar for checking firewall only when latest.log file present, had a world spawn prepare event, and had the same minecraft version - if either turns out false then skip.
 IF EXIST "%HERE%\logs\latest.log" TYPE "logs\latest.log" | FINDSTR /i "Preparing spawn area" >nul 2>&1 && TYPE "logs\latest.log" | FINDSTR /i "!MINECRAFT!" >nul 2>&1 || GOTO :skipfirewallcheck
@@ -1561,21 +1493,25 @@ IF EXIST "%HERE%\logs\latest.log" TYPE "logs\latest.log" | FINDSTR /i "Preparing
 FOR /F "delims=" %%A IN ('powershell -Command "$data = Get-NetFirewallRule -Direction Inbound -Enabled True -Action Allow; $data.name"') DO (
   REM Uses string replacement to check for TCP in the line, and if found echos the string to a FINDSTR to look for the java folder path.
   SET TEMP=%%A
-  IF "!TEMP!" NEQ "!TEMP:TCP=x!" IF "!TEMP!" NEQ "!TEMP:%LONGJAVAFOLDER%=x!" SET FOUNDGOODFIREWALLRULE=Y & GOTO :skipfirewallcheck
+  IF "!TEMP!" NEQ "!TEMP:TCP=x!" IF "!TEMP!" NEQ "!TEMP:%LONGJAVAFOLDER%=x!" SET FOUNDGOODFIREWALLRULE=Y && GOTO :skipfirewallcheck
 )
+
 IF NOT DEFINED FOUNDGOODFIREWALLRULE (
   CLS
   ECHO: & ECHO: & ECHO:
-  ECHO   %red% CONCERN - NO WINDOWS FIREWALL PASS RULE FOR THE INSTALLED JAVA DETECTED - CONCERN %blue% & ECHO:
+  ECHO   %red% CONCERN - NO WINDOWS FIREWALL PASS RULE FOR THE INSTALLED JAVA DETECTED - CONCERN %blue%
+  ECHO   %green% ** IF YOU THINK THIS MESSAGE IS INCORRECT YOU CAN STILL PRESS ANY KEY TO CONTINUE ** %blue% & ECHO:
   ECHO   %blue% IT LOOKS LIKE THIS SERVER FOLDER HAS SUCCESSFULLY RUN PREVIOUSLY WITH THE SAME MINECRAFT VERSION, %blue%
-  ECHO   %blue% BUT NO WINDOWS FIREWALL RULE WAS FOUND FOR THE java.exe SET TO: %blue%
+  ECHO   %blue% BUT NO WINDOWS FIREWALL RULE WAS FOUND FOR THE java.exe SET TO: %blue% & ECHO:
   ECHO   %blue% 'Direction:Inbound' / 'Action':'Allow' / 'Enabled':'True' %blue% & ECHO:
-  ECHO     %LONGJAVAFOLDER% & ECHO:
-  ECHO   %blue% YOU SHOULD GO TO WINDOWS FIREWALL SETTINGS AND REMOVE ANY EXISTING FIREWALL RULES COVERING %blue%
-  ECHO   %blue% THIS java.exe LOCATION ^(LISTED ABOVE^), AND ANY RULES COVERING THE PORT YOU HAVE SET. %blue%
-  ECHO   %blue% THEN LAUNCH THE SERVER AGAIN AND PRESS 'Allow' ON THE WINDOWS POP-UP THAT COMES UP WHILE LAUNCHING. %blue%
-  ECHO: & ECHO: & ECHO: & ECHO:
-  ECHO   %green% * IF YOU THINK THIS MESSAGE IS INCORRECT YOU CAN STILL PRESS ANY KEY TO CONTINUE %blue% & ECHO: & ECHO:
+  ECHO    %LONGJAVAFOLDER% & ECHO:
+  ECHO        %yellow% - YOU SHOULD GO TO WINDOWS FIREWALL SETTINGS AND REMOVE ANY EXISTING FIREWALL RULES COVERING %blue%
+  ECHO        %yellow%   THIS java.exe LOCATION ^(LISTED ABOVE^), AND ANY RULES COVERING THE PORT YOU HAVE SET. %blue%
+  ECHO        %yellow% - THEN LAUNCH THE SERVER AGAIN AND. JUST. PRESS. 'Allow' ON THE %blue%
+  ECHO        %yellow%   WINDOWS NOTIFICATION POP-UP THAT COMES UP WHILE LAUNCHING. %blue% & ECHO:
+  ECHO     HINT - The default Java that Universalator uses is published by Adoptium.net and
+  ECHO     will be named 'OpenJDK Platform binary' & ECHO: & ECHO: & ECHO:
+  ECHO   %green% ** IF YOU THINK THIS MESSAGE IS INCORRECT YOU CAN STILL PRESS ANY KEY TO CONTINUE ** %blue% & ECHO: & ECHO:
   PAUSE
 )
 
@@ -1846,7 +1782,7 @@ IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt
 
   REM Checks if the just downloaded file's first line is empty or not.  Better never save that webfile with the first line empty!
   IF EXIST clientonlymods.txt SET /P EMPTYCHECK=<clientonlymods.txt
-  IF NOT EXIST clientonlymods.txt SET EMPTYCHECK=""
+  IF NOT EXIST "univ-utils\clientonlymods.txt" SET EMPTYCHECK=""
   IF [!EMPTYCHECK!]==[] (
     CLS
     ECHO:
@@ -2101,7 +2037,7 @@ DEL univ-utils\allmodidsandfiles.txt >nul 2>&1
 PAUSE
 GOTO :mainmenu
 
-:: FINALLY LAUNCH FORGE SERVER!
+:: BEGIN FORGE / NEOFORGE LAUNCH SECTION
 :launchforge
 :launchneoforge
 CLS
@@ -2184,37 +2120,10 @@ IF /I !MODLOADER!==NEOFORGE (
   IF !MINECRAFT! NEQ 1.20.1 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% @libraries/net/neoforged/neoforge/!NEOFORGE!/win_args.txt nogui %*
 )
 
-:: Complaints to report in console output if launch attempt crashes
-IF NOT EXIST "%HERE%\logs\latest.log" GOTO :skipforgelogs
-:: Looks for the stopping the server text to decide if the server was shut down on purpose.  If so goes to main menu.
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Stopping the server" >nul && (
-  PAUSE
-  GOTO :mainmenu
-)
+:: Go to common scan logs section
+GOTO :logsscan
 
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Unsupported class file major version" >nul && (
-  ECHO: & ECHO        %red% --SPECIAL NOTE-- %blue%
-  ECHO    %yellow% FROM SCANNING THE LOGS IT LOOKS LIKE YOUR SERVER MAY HAVE CRASHED FOR ONE OF TWO REASONS:  %blue%
-  ECHO    %yellow% --YOUR SELECTED JAVA VERSION IS CRASHING WITH THE CURRENT FORGE AND MODS VERSIONS %blue%
-  ECHO    %yellow% --AT LEAST ONE MOD FILE IN THE MODS FOLDER IS FOR A DIFFERENT VERSION OF FORGE / MINECRAFT %blue% & ECHO:
-  ECHO        %red% --SPECIAL NOTE-- %blue% & ECHO:
-)
-
-  :: Search if the standard client side mod message was found.  Ignore if certain mod file names of server-needed mods are found that are known to have unsilenced messages regarding.
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul && DIR /B | FINDSTR /i "auxiliaryblocks farmersdelight ispawner findme modernfix obscuria's strawgolem the_vault wildbackport" >nul && (
-  ECHO: & ECHO        %red% --- SPECIAL MESSAGE --- %blue%
-  ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
-  ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER - OTHERWISE SOME MOD AUTHORS DID NOT SILENCE THAT MESSAGE.
-  ECHO:
-  ECHO    TRY USING THE UNIVERSALATOR %green% 'SCAN' %blue% OPTION TO FIND CLIENT MODS.
-  ECHO        %red% --- SPECIAL MESSAGE --- %blue% & ECHO:
-)
-ECHO: & ECHO   IF THIS MESSAGE IS VISIBLE SERVER MAY HAVE CRASHED / STOPPED & ECHO: & ECHO   CHECK LOG FILES - PRESS ANY KEY TO GO BACK TO MAIN MENU & ECHO: & ECHO:
-PAUSE
-:skipforgelogs
-GOTO :mainmenu
-:: END FORGE LAUNCH SECTION
-
+:: END LAUNCH FORGE / NEOFORGE SECTION
 
 :: BEGIN FABRIC INSTALLATION SECTION
 :preparefabric
@@ -2638,7 +2547,6 @@ GOTO :mainmenu
 
 :: BEGIN VANILLA INSTALLATION SECTION
 
-
 :preparevanilla
 :: Downloads the Minecraft server JAR if version is 1.16 and older.  Some old Forge installer files point to dead URL links for this file.  This gets ahead of that and gets the vanilla server JAR first.
 
@@ -2685,7 +2593,6 @@ FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).D
 :: Looks at the version JSON URL at the Mojang file server to get the SHA1 checksum for the server JAR file
 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('!MOJANGVERSIONURL2!') | Out-String | ConvertFrom-Json)); $data.downloads.server.sha1"') DO SET SERVERSHA1REAL=%%A
 
-
 :: Gets the SHA1 checksum for the downloaded server JAR.
 SET /a idm=0 
 FOR /F %%F  IN ('certutil -hashfile minecraft_server.!MINECRAFT!.jar SHA1') DO (
@@ -2716,7 +2623,7 @@ GOTO :eula
 
 :: END VANILLA INSTALLATION SECTION
 
-:: FINALLY LAUNCH FABRIC / QUILT / VANILLA SERVER!
+:: BEGIN LAUNCH FABRIC / QUILT / VANILLA SECTION
 :launchvanilla
 :launchfabric
 :launchquilt
@@ -2770,35 +2677,9 @@ IF /I !MODLOADER!==VANILLA (
 %JAVAFILE% !MAXRAM! %ARGS% %OTHERARGS% -jar minecraft_server.!MINECRAFT!.jar nogui
 )
 
-PAUSE
-:: Complains in console output if launch attempt crashes
-IF NOT EXIST "%HERE%\logs\latest.log" GOTO :skipfabriclogs
-:: Looks for the stopping the server text to decide if the server was shut down on purpose.  If so goes to main menu.
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Stopping the server" >nul 2>&1 && PAUSE && GOTO :mainmenu
+GOTO :logsscan
 
-:: Search if java version mismatch is found
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"Unsupported class file major version" >nul 2>&1
-IF !ERRORLEVEL!==0 (
-  ECHO: & ECHO        %red% --SPECIAL NOTE-- %blue%
-  ECHO    %yellow% FROM SCANNING THE LOGS IT LOOKS LIKE YOUR SERVER MAY HAVE CRASHED FOR ONE OF TWO REASONS:  %blue%
-  ECHO    %yellow% --YOUR SELECTED JAVA VERSION IS CRASHING WITH THE CURRENT FORGE AND MODS VERSIONS %blue%
-  ECHO    %yellow% --AT LEAST ONE MOD FILE IN THE MODS FOLDER IS FOR A DIFFERENT VERSION OF FORGE / MINECRAFT %blue% & ECHO:
-  ECHO        %red% --SPECIAL NOTE-- %blue% & ECHO:
-)
-
-:: Search if the standard client side mod message was found.  Ignore if java 19 is detected as probably the more important item.
-TYPE "%HERE%\logs\latest.log" | FINDSTR /C:"invalid dist DEDICATED_SERVER" >nul 2>&1
-IF !ERRORLEVEL!==0 (
-  ECHO: & ECHO        %red% --- SPECIAL MESSAGE --- %blue%
-  ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
-  ECHO    THIS COULD MEAN YOU HAVE CLIENT MODS CRASHING THE SERVER - OTHERWISE SOME MOD AUTHORS DID NOT SILENCE THAT MESSAGE.
-  ECHO:
-  ECHO    TRY USING THE UNIVERSALATOR %green% 'SCAN' %blue% OPTION TO FIND CLIENT MODS.
-  ECHO        %red% --- SPECIAL MESSAGE --- %blue% & ECHO:
-)
-PAUSE
-:skipfabriclogs
-GOTO :mainmenu
+:: END LAUNCH FABRIC / QUILT / VANILLA SECTION
 
 :: BEGIN UPNP SECTION
 :upnpmenu
@@ -2927,7 +2808,6 @@ IF !FOUNDVALIDUPNP!==Y (
 GOTO :upnpmenu
 :: END UPNP LOOK FOR VALID & ENABLED UPNP ROUTER
 
-
 :: BEGIN UPNP ACTIVATE PORT FOWARD
 :upnpactivate
 CLS
@@ -2997,7 +2877,6 @@ GOTO :upnpmenu
 
 :: END UPNP ACTIVATE PORT FORWARD
 
-
 :: BEGIN UPNP CHECK STATUS
 :upnpstatus
 :: Loops through the lines in the -l flag to list MiniUPNP active ports - looks for a line that is different with itself compated to itself but
@@ -3026,7 +2905,6 @@ IF !ISUPNPACTIVE!==N ECHO   %red% NOT ACTIVE - Port forwarding using UPnP is not
 PAUSE
 GOTO :upnpmenu
 :: END UPNP CHECK STATUS
-
 
 :: BEGIN UPNP DEACTIVATE AND CHECK STATUS AFTER
 :upnpdeactivate
@@ -3071,7 +2949,6 @@ IF /I !DEACTIVATEUPNP!==Y (
     )
 )
 :: END UPNP DEACTIVATE AND CHECK STATUS AFTER
-
 
 :: BEGIN UPNP FILE DOWNLOAD
 :upnpdownload
@@ -3213,8 +3090,6 @@ FOR /F %%A IN ('DIR /B') DO (
   )
 )
 
-
-
 :zipit2
 CLS
 ECHO: & ECHO    ZIP SERVER PACK - ZIP SERVER PACK %blue% & ECHO:
@@ -3292,6 +3167,48 @@ IF /I "!ASKUPNPDOWNLOAD:~0,6!"=="ZIPIT " (
   PAUSE
   GOTO :mainmenu
 )
-
 GOTO :zipit2
+
 :: END ZIP SERVERPACK SECTION
+
+:: BEGIN LOGS SCANNING SECTION
+:logsscan
+IF NOT EXIST "%HERE%\logs\latest.log" GOTO :skiplogchecking
+:: Looks for the stopping the server text to decide if the server was shut down on purpose.  If so goes to main menu and do not bother checking anything else.
+TYPE "%HERE%\logs\latest.log" | FINDSTR /I /C:"Stopping the server" >nul && GOTO :skiplogchecking
+:: Search if any mods are compiled against a newe MC version than currently used
+TYPE "%HERE%\logs\latest.log" | FINDSTR /I /C:"Unsupported class file major version" >nul && (
+  ECHO: & ECHO        %red% --SPECIAL NOTE-- %blue%
+  ECHO    %yellow% FROM SCANNING THE LOGS IT LOOKS LIKE YOUR SERVER MAY HAVE CRASHED FOR ONE OF TWO REASONS:  %blue%
+  ECHO    %yellow% --YOUR SELECTED JAVA VERSION IS NOT COMPATIBLE WITH THE CURRENT FORGE VERSION OR MOD FILE^(S^) %blue%
+  ECHO    %yellow% --AT LEAST ONE MOD FILE IN THE MODS FOLDER IS MEANT FOR A DIFFERENT VERSION OF FORGE / MINECRAFT %blue% & ECHO:
+  ECHO        %red% --SPECIAL NOTE-- %blue% & ECHO:
+)
+  :: Search if the standard client side mod message was found.
+TYPE "%HERE%\logs\latest.log" | FINDSTR /I /C:"invalid dist DEDICATED_SERVER" >nul && (
+  ECHO: & ECHO        %red% --- SPECIAL NOTE --- %blue%
+  ECHO    THE TEXT 'invalid dist DEDICATED_SERVER' WAS FOUND IN THE LOG FILE
+  ECHO    This could mean you have CLIENT SIDE mods crashing the server.
+  ECHO       %yellow% OR  OR  OR  OR  OR %blue%
+  ECHO    The authors of some of mod files did not silence that message and they are not the crash cause.
+  ECHO:
+  ECHO   %yellow% TRY USING THE UNIVERSALATOR %green% 'SCAN' %yellow% OPTION TO FIND CLIENT MODS. %blue%
+  ECHO        %red% --- SPECIAL MESSAGE --- %blue% & ECHO:
+)
+  :: Search if the standard client side mod message was found.
+TYPE "%HERE%\logs\latest.log" | FINDSTR /I /C:"FAILED TO BIND TO PORT" >nul && (
+  ECHO: & ECHO        %red% --- SPECIAL NOTE --- %blue%
+  ECHO   %yellow% THE TEXT %red%'FAILED TO BIND TO PORT'%yellow% WAS FOUND IN THE LOG FILE %blue%
+  ECHO   %yellow% THIS MEANS THAT ANOTHER PROGRAM / PROCESS IS CURRENTLY USING THE PORT %blue% 
+  ECHO   %yellow% SET IN SETTINGS- MAYBE ANOTHER SERVER? %blue%
+  ECHO: & ECHO   %yellow% IF YOU CANNOT SEEM TO CLOSE WHATEVER THE PROGRAM IS - RESTART YOUR COMPUTER AND TRY LAUNCHING AGAIN. %blue%
+  ECHO:
+  ECHO        %red% --- SPECIAL MESSAGE --- %blue% & ECHO:
+)
+ECHO: & ECHO   IF THIS MESSAGE IS VISIBLE SERVER MAY HAVE CRASHED / STOPPED & ECHO: & ECHO   CHECK LOG FILES - PRESS ANY KEY TO GO BACK TO MAIN MENU & ECHO:
+
+:skiplogchecking
+PAUSE
+GOTO :mainmenu
+
+:: END LOGS SCANNING SECTION
