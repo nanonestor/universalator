@@ -89,29 +89,6 @@ SET "HERE=%cd%"
 
 SET "DELAY=ping -n 2 127.0.0.1 >nul"
 
-:: BEGIN CHECKING OPERATING SYSTEM TYPE
-:: Sets a variable to figure out which OS the script is being run from.  Because powershell for Linux exists!  It can be used later to determine whether to run various things.
-:: IF the BAT is run from Linux or OSX it's intended that it's run through powershell with a parameter %1 to set the OSTYPE.
-:: Using the Linux/OSX powershell is unreiable at figuring out it's own OSTYPE, so this is the easiest option to set that.
-IF [%1] NEQ [] (
-  SET "OSTYPE=%1" 
-) ELSE (
-  :: If no %1 parameter was passed then default to WINDOWS
-  SET "OSTYPE=WINDOWS"
-)
-:: If a non wanted parameter was passed give error message - entering 'windows' as a parameter passes this test also
-IF /I "!OSTYPE!" NEQ "WINDOWS" IF /I "!OSTYPE!" NEQ "LINUX" IF /I "!OSTYPE!" NEQ "OSX" IF /I "!OSTYPE!" NEQ "TUX" (
-  CLS
-  ECHO: & ECHO: & ECHO   THIS BAT FILE WAS LAUNCHED WITH AN EXTRA PARAMETER THAT WAS NOT RECOGNIZED: & ECHO   '!OSTYPE!' & ECHO: & ECHO   THE ONLY RECOGNIZED PARAMETERS ARE 'linux' AND 'osx' & ECHO: & ECHO:
-  PAUSE
-  COLOR 07 & CLS & EXIT [\B]
-)
-:: Reformat the variables to guarantee all caps
-IF /I "!OSTYPE!" EQU "LINUX" SET "OSTYPE=LINUX"
-IF /I "!OSTYPE!" EQU "TUX" SET "OSTYPE=LINUX"
-IF /I "!OSTYPE!" EQU "OSX" SET "OSTYPE=OSX"
-IF /I "!OSTYPE!" EQU "WINDOWS" SET "OSTYPE=WINDOWS"
-
 :: TEST LINES FOR WINDOW RESIZING - KIND OF SCREWEY NEEDS FURTHER CHECKS
 ::mode con: cols=160 lines=55
 ::powershell -command "&{$H=get-host;$W=$H.ui.rawui;$B=$W.buffersize;$B.width=160;$B.height=9999;$W.buffersize=$B;}
@@ -361,8 +338,6 @@ IF DEFINED DISKWORRY (
 )
 
 :: BEGIN CHECKING HOSTS FILE FOR IP REDIRECTS
-:: Detects if the OS is Windows, if it isn't, then skip checking the hosts file
-IF !OSTYPE! NEQ WINDOWS GOTO :skiphostscheck
 :: Loops through the lines inside the hosts file and looks for lines with the replacement detection strings
 IF EXIST "%WINDIR%\System32\drivers\etc\hosts" FOR /F "delims=" %%A IN ('type "%WINDIR%\System32\drivers\etc\hosts"') DO (
   SET TEMP=%%A
@@ -387,7 +362,8 @@ IF DEFINED FOUNDREDIR (
 :skiphostscheck
 
 IF EXIST settings-universalator.txt (
-  RENAME settings-universalator.txt settings-universalator.bat && CALL settings-universalator.bat && RENAME settings-universalator.bat settings-universalator.txt
+  :: Reads off the contents of the settings file if it's present, to set current setting values.  Doing it this way avoids needing to rename the file to a .bat or .cmd to perform a CALL.
+  FOR /F "delims=" %%A IN (settings-universalator.txt) DO SET "TEMP=%%A" & IF "!TEMP:~0,2!" NEQ "::" %%A
 )
 IF /I !MODLOADER!==FORGE SET FORGE=!MODLOADERVERSION!
 IF /I !MODLOADER!==NEOFORGE SET NEOFORGE=!MODLOADERVERSION!
@@ -1666,10 +1642,19 @@ IF !MCMAJOR! GEQ 17 (
   IF EXIST "%HERE%\user_jvm_args.txt" DEL "%HERE%\user_jvm_args.txt"
 )
 
-::If eula.txt doens't exist yet user prompted to agree and sets the file automatically to eula=true.  The only entry that gets the user further is 'agree'.
-IF NOT EXIST eula.txt ping -n 4 127.0.0.1 >nul
 :eula
-IF NOT EXIST eula.txt ( 
+::If eula.txt doens't exist yet user prompted to agree and sets the file automatically to eula=true.  The only entry that gets the user further is 'agree'.
+SET GETEULA=N
+IF NOT EXIST eula.txt SET GETEULA=Y
+IF EXIST eula.txt FOR /F "delims=" %%A IN ('type eula.txt') DO (
+  :: Does string substitution using powershell repalce =, which is obnoxious to deal with in pure batch.
+  FOR /F "delims=" %%A IN ('powershell -Command "$oldstring ='%%A'; $newstring = $oldstring -replace '=', '#'; $newstring"') DO SET "TEMP=%%A"
+  :: Sets GETEULA if found string lines with 'eula' don't also contain true - the vanilla eula.txt file has comments with 'TRUE' instead of 'true' - so this works for any case.
+  IF "!TEMP!" NEQ "!TEMP:eula#=x!" IF NOT "!TEMP!" NEQ "!TEMP:eula#true=x!" SET GETEULA=Y
+)
+IF !GETEULA!==N GOTO :skipeula
+%DELAY%
+:eulaentry
   CLS
   ECHO: & ECHO:
   ECHO   Mojang's EULA has not yet been accepted. In order to run a Minecraft server, you must accept Mojang's EULA.
@@ -1686,9 +1671,10 @@ IF NOT EXIST eula.txt (
     %DELAY%
     ECHO eula=true> eula.txt
   ) ELSE (
-    GOTO :forgeeula
+    GOTO :eulaentry
   )
-)
+:skipeula
+
 IF /I !MODLOADER!==VANILLA GOTO :launchvanilla
 IF /I !MODLOADER!==FABRIC GOTO :eulafabricreturn
 IF /I !MODLOADER!==QUILT GOTO :eulaquiltreturn
@@ -2205,11 +2191,8 @@ IF EXIST fabric-server-launch.jar (
   RENAME fabric-server-launch.jar fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar
 )
 
-::If eula.txt doens't exist yet 
-IF NOT EXIST eula.txt (
-  %DELAY%
-  GOTO :eula
-)
+:: Go to eula checking
+GOTO :eula
 :eulafabricreturn
 
 IF EXIST fabric-server-launch-!MINECRAFT!-!FABRICLOADER!.jar (
@@ -2308,11 +2291,8 @@ IF EXIST quilt-server-launch.jar (
   RENAME quilt-server-launch.jar quilt-server-launch-!MINECRAFT!-!QUILTLOADER!.jar
 )
 
-::If eula.txt doens't exist yet 
-IF NOT EXIST eula.txt (
-  %DELAY%
-  GOTO :eula
-)
+:: Go to eula checking
+GOTO :eula
 :eulaquiltreturn
 
 IF EXIST quilt-server-launch-!MINECRAFT!-!QUILTLOADER!.jar GOTO :launchquilt
