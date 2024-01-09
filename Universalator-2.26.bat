@@ -1767,7 +1767,7 @@ IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt
 
 
   REM Checks if the just downloaded file's first line is empty or not.  Better never save that webfile with the first line empty!
-  IF EXIST clientonlymods.txt SET /P EMPTYCHECK=<clientonlymods.txt
+  IF EXIST "univ-utils\clientonlymods.txt" SET /P EMPTYCHECK=<"univ-utils\clientonlymods.txt"
   IF NOT EXIST "univ-utils\clientonlymods.txt" SET EMPTYCHECK=""
   IF [!EMPTYCHECK!]==[] (
     CLS
