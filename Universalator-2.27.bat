@@ -255,6 +255,22 @@ WHERE powershell >nul 2>&1 || (
   PAUSE & EXIT [\B]
 )
 
+FOR /F "usebackq delims=" %%J IN (`"tar --version 2>&1"`) DO (
+  ECHO %%J | FINDSTR /ic:"GNU tar" >nul && (
+  ECHO: & ECHO:
+  ECHO   %yellow% Uh oh - Somehow the TAR command function you OS is using, is the %red% GNU %yellow% made version. %blue%
+  ECHO:
+  ECHO   It is possible the OS has installed a program for additional system tools such as 'winAVR'.  & ECHO:
+  ECHO   If this seems to be the case you can: & ECHO       - Uninstall the program providing the GNU version of TAR
+  ECHO       - Edit the Windows 'PATH' environment variable to ensure that the C:\Windows\System32\ folder & ECHO         is at the top of the PATH list.
+  ECHO: & ECHO: & ECHO:
+  ECHO   For additional information or possible help if the above methods don't work, visit the wiki and discord through:
+  ECHO       https://github.com/nanonestor/universalator/wiki
+  ECHO: & ECHO: & ECHO: & ECHO: & ECHO: & ECHO:
+  PAUSE & EXIT [\B]
+  )
+)
+
 :: This is to fix an edge case issue with folder paths containing parentheses messing up echoing the path the warning message below.
 SET LOC=%cd:)=]%
 
@@ -616,17 +632,17 @@ ECHO: & ECHO:
 IF DEFINED MAXRAMGIGS ECHO   %yellow% MAX RAM / MEMORY %blue%  !MAXRAMGIGS!
 ECHO:
 ECHO:
-IF DEFINED PORT ECHO   %yellow% CURRENT PORT SET %blue%          !PORT!                            %green% MENU OPTIONS %blue%
+IF DEFINED PORT ECHO   %yellow% CURRENT PORT SET %blue%  !PORT!                                %green% MENU OPTIONS %blue%
 ECHO:
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==N ECHO   %yellow% UPNP STATUS %blue%       %red% NOT ACTIVATED %blue%
 IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" IF !ISUPNPACTIVE!==Y  ECHO   %yellow% UPNP STATUS %blue%  %green% ACTIVE - FORWARDING PORT %PORT% %blue%
-IF EXIST settings-universalator.txt ECHO                                                           %green% L %blue% = LAUNCH SERVER & ECHO:
-IF NOT EXIST settings-universalator.txt ECHO                                                           %green% S %blue% = SETTINGS ENTRY
-IF EXIST settings-universalator.txt ECHO                                                           %green% S %blue% = RE-ENTER ALL SETTINGS
-ECHO                                                           %green% R %blue%    = RAM MAX SETTING
-IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO                                                           %green% UPNP %blue% = UPNP PORT FORWARDING MENU
-ECHO                                                           %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT MODS & ECHO:
-ECHO                                                           %green% A %blue%    = (LIST) ALL POSSIBLE MENU OPTIONS
+IF EXIST settings-universalator.txt ECHO                                                        %green% L %blue%    = LAUNCH SERVER & ECHO:
+IF NOT EXIST settings-universalator.txt ECHO                                                        %green% S %blue%    = SETTINGS ENTRY
+IF EXIST settings-universalator.txt ECHO                                                        %green% S %blue%    = RE-ENTER ALL SETTINGS
+ECHO                                                        %green% R %blue%    = RAM MAX SETTING
+IF EXIST "%HERE%\univ-utils\miniupnp\upnpc-static.exe" ECHO                                                        %green% UPNP %blue% = UPNP PORT FORWARDING MENU
+ECHO                                                        %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT MODS & ECHO:
+ECHO                                                        %green% A %blue%    = (LIST) ALL POSSIBLE MENU OPTIONS
 :allcommandsentry
 SET /P SCRATCH="%blue%  %green% ENTER A MENU OPTION:%blue% " <nul
 SET /P "MAINMENU="
@@ -637,13 +653,14 @@ IF /I !MAINMENU!==R GOTO :justsetram
 IF /I !MAINMENU!==S GOTO :startover
 IF /I !MAINMENU!==J GOTO :setjava
 IF /I !MAINMENU!==L IF EXIST settings-universalator.txt IF DEFINED MINECRAFT IF DEFINED MODLOADER IF DEFINED JAVAVERSION GOTO :actuallylaunch
-IF /I !MAINMENU!==SCAN IF EXIST "%HERE%\mods" GOTO :getmcmajor
-IF /I !MAINMENU!==SCAN IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
+IF /I !MAINMENU!==SCAN GOTO :getmcmajor
 IF /I !MAINMENU!==OVERRIDE GOTO :override
 IF /I !MAINMENU!==MCREATOR IF EXIST "%HERE%\mods" GOTO :mcreator
 IF /I !MAINMENU!==MCREATOR IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
 IF /I !MAINMENU!==A GOTO :allcommands
 IF /I !MAINMENU!==ZIP GOTO :zipit
+IF /I !MAINMENU!==PORT GOTO :portedit
+IF /I !MAINMENU!==PROPS GOTO :editserverprops
 
 :: If no recognized entries were made then go back to main menu
 
@@ -663,11 +680,13 @@ ECHO:    %green% R %blue% = SET RAM MAXIMUM AMOUNT
 ECHO:    %green% J %blue% = SET JAVA VERSION
 ECHO:    %green% Q %blue% = QUIT
 ECHO:
-ECHO:    %green% SCAN %blue% = SCAN MOD FILES FOR CLIENT ONLY MODS & ECHO:
-ECHO:    %green% UPNP %blue% = UPNP PORT FORWARDING MENU & ECHO:
-ECHO:    %green% MCREATOR %blue% = SCAN MOD FILES FOR MCREATOR MADE MODS & ECHO:
-ECHO:    %green% OVERRIDE %blue% = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA & ECHO:
-ECHO:    %green% ZIP %blue% = MENU FOR CREATING SERVER PACK ZIP FILE & ECHO: & ECHO: & ECHO:
+ECHO:    %green% SCAN %blue%     = SCAN MOD FILES FOR CLIENT ONLY MODS
+ECHO:    %green% PORT %blue%     = CHANGE THE PORT NUMBER USED
+ECHO:    %green% PROPS %blue%    = CHANGE SERVER PROPERTIES
+ECHO:    %green% UPNP %blue%     = UPNP PORT FORWARDING MENU
+ECHO:    %green% MCREATOR %blue% = SCAN MOD FILES FOR MCREATOR MADE MODS
+ECHO:    %green% OVERRIDE %blue% = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF ADOPTIUM JAVA
+ECHO:    %green% ZIP %blue%      = MENU FOR CREATING SERVER PACK ZIP FILE & ECHO: & ECHO: & ECHO:
 GOTO :allcommandsentry
 
 :: END MAIN MENU
@@ -717,6 +736,7 @@ FOR /F "tokens=2,3 delims=." %%E IN ("!MINECRAFT!") DO (
 IF NOT DEFINED MCMINOR SET /a MCMINOR=0
 
 :: IF running SCAN from main menu now goto actual scan section
+
 IF /I !MAINMENU!==SCAN GOTO :actuallyscanmods
 
 :reentermodloader
@@ -1331,9 +1351,9 @@ IF NOT EXIST "%HERE%\univ-utils\java" MD "%HERE%\univ-utils\java"
 ver >nul
 
 FOR /F "delims=" %%A IN ('DIR /B univ-utils\java') DO (
-  ECHO %%A | FINDSTR "!FINDFOLDER!" >nul
+  ECHO "%%A" | FINDSTR "!FINDFOLDER!" >nul
   IF !ERRORLEVEL!==0 (
-    SET JAVAFOLDER=%%A
+    SET "JAVAFOLDER=%%A"
     ECHO   Found existing Java !JAVAVERSION! folder - %%A & ECHO:
     ping -n 1 127.0.0.1 >nul
     :: Runs a FOR loop with a powershell command to check the age of the found java folder.  If it's older than 3 months result is 'True'.  If it's newer than 3 months result is 'False'.
@@ -1375,11 +1395,11 @@ IF !FOUNDJAVA!==OLD (
   IF !JAVAVERSION!==8 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/8/ga?architecture=x64&heap_size=normal&image_type=jre&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.release_name"') DO SET NEWESTJAVA=%%A
   IF !JAVAVERSION! NEQ 8 FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://api.adoptium.net/v3/assets/feature_releases/!JAVAVERSION!/ga?architecture=x64&heap_size=normal&image_type=!IMAGETYPE!&jvm_impl=hotspot&os=windows&page_size=1&project=jdk&sort_method=DEFAULT&sort_order=DESC&vendor=eclipse') | Out-String | ConvertFrom-Json)); $data.version_data.openjdk_version"') DO SET NEWESTJAVA=%%A
 
-:: Strips out the extraneous parts of version strings so that just the number remains
-SET "NEWESTJAVANUM=!NEWESTJAVA:-jdk=!"
-SET "NEWESTJAVA=!NEWESTJAVA:jdk-=!"
-SET "NEWESTJAVA=!NEWESTJAVA:-jre=!"
-SET "NEWESTJAVA=!NEWESTJAVA:-LTS=!"
+  :: Strips out the extraneous parts of version strings so that just the number remains
+  SET "NEWESTJAVANUM=!NEWESTJAVA:-jdk=!"
+  SET "NEWESTJAVA=!NEWESTJAVA:jdk-=!"
+  SET "NEWESTJAVA=!NEWESTJAVA:-jre=!"
+  SET "NEWESTJAVA=!NEWESTJAVA:-LTS=!"
 
   :: Test if the found newest relaease is found in the folder name then test passes and the JAVAFILE is set to that found.
   ECHO !JAVAFOLDER! | FINDSTR "!NEWESTJAVA!" >nul
@@ -1696,8 +1716,29 @@ IF /I !MAINMENU!==L IF /I !MODLOADER!==FABRIC GOTO :fabricmain
 
 :: MODULE TO CHECK FOR CLIENT SIDE MODS
 :actuallyscanmods
+
+IF NOT EXIST mods (
+  CLS
+  ECHO: & ECHO: & ECHO: & ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% & ECHO: & ECHO:
+  ECHO     No folder named 'mods' was found in the directory that the Universalator program was run from! & ECHO:
+  ECHO     Either you have forgotten to copy a 'mods' folder to this folder location,
+  ECHO     or you did not copy and run this program to the server folder with the server files. & ECHO: & ECHO:
+  ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% & ECHO: & ECHO: & ECHO:
+  PAUSE
+  GOTO :mainmenu
+)
+
+DIR /b "mods\*.jar" 2>nul | FINDSTR .>nul || (
+  CLS
+  ECHO: & ECHO: & ECHO: & ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% & ECHO: & ECHO:
+  ECHO      A folder named 'mods' was found but it is empty! & ECHO: & ECHO:
+  ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% & ECHO: & ECHO: & ECHO:
+  PAUSE
+  GOTO :mainmenu
+)
+
+PAUSE
 SET ASKMODSCHECK=N
-IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   CLS
   ECHO: & ECHO:
   ECHO   %yellow% CLIENT MOD SCANNING - CLIENT MOD SCANNING %blue% & ECHO:
@@ -1719,13 +1760,16 @@ IF NOT EXIST "%HERE%\mods" GOTO :mainmenu
   IF /I !DOSCAN! NEQ N IF /I !DOSCAN! NEQ Y GOTO :actuallyscanmods
   IF /I !DOSCAN!==N GOTO :mainmenu
 
+
+
   ECHO Searching for client only mods . . .
-IF NOT EXIST univ-utils MD univ-utils
+IF NOT EXIST "%HERE%\univ-utils" MD "univ-utils"
   :: Goes to mods folder and gets file names lists.  FINDSTR prints only files with .jar found
-  
+
 :: Creates list of all mod file names.  Sends the working dir to the mods folder and uses a loop and the 'dir' command to create an array list of file names.
 :: A For loop is used with delayedexpansion turned off with a funciton called to record each filename because this allows capturing
 :: filenames with exclamation marks in the name.  eol=| ensures that filenames with some weird characters aren't ignored.
+
 SET /a SERVERMODSCOUNT=0
 PUSHD mods
 setlocal enableextensions
@@ -1733,7 +1777,6 @@ setlocal disabledelayedexpansion
  FOR /F "eol=| delims=" %%J IN ('"dir *.jar /b /a-d"') DO (
   IF %%J NEQ [] SET "FILENAME=%%J"
     CALL :functionfilenames
-
     )
 setlocal enabledelayedexpansion
 POPD
@@ -1761,12 +1804,13 @@ IF EXIST univ-utils\foundclients.txt DEL univ-utils\foundclients.txt
 IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt
 
 
-  REM Gets the client only list from github file, checks if it's empty or not after download attempt, then sends
-  REM to a new file masterclientids.txt with any blank lines removed.
-  powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/utilities/main/clientonlymods.txt', 'univ-utils/clientonlymods.txt')" >nul
+  REM Checks to see if clientonlymods.txt exists, if it does check the age and delete to refresh if older than 1 day.  Then downloads file if it does not exist.
+  IF EXIST "univ-utils\clientonlymods.txt" (
+    FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\clientonlymods.txt' -OlderThan (Get-Date).AddDays(-1)"') DO ( IF %%G==True DEL "univ-utils\clientonlymods.txt" )
+  )
+  IF NOT EXIST "univ-utils\clientonlymods.txt" powershell -Command "(New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/nanonestor/utilities/main/clientonlymods.txt', 'univ-utils/clientonlymods.txt')" >nul
 
-
-  REM Checks if the just downloaded file's first line is empty or not.  Better never save that webfile with the first line empty!
+  REM Checks if the file is empty.
   IF EXIST "univ-utils\clientonlymods.txt" SET /P EMPTYCHECK=<"univ-utils\clientonlymods.txt"
   IF NOT EXIST "univ-utils\clientonlymods.txt" SET EMPTYCHECK=""
   IF [!EMPTYCHECK!]==[] (
@@ -1780,8 +1824,6 @@ IF EXIST univ-utils\allmodidsandfiles.txt DEL univ-utils\allmodidsandfiles.txt
     ECHO:
     PAUSE & EXIT [\B]
   )
-
-
 
 :: If MC version is old (MC <1.12.2) then skips ahead to old mod info file.
 IF !MCMAJOR! LEQ 12 GOTO :scanmcmodinfo
@@ -2559,19 +2601,41 @@ IF !PINGMOJANG!==F (
 
 ECHO   Downloading Minecraft server JAR file... .. . & ECHO:
 
-:: Downloads the vanilla Minecraft server JAR from the Mojang file server
-powershell -Command "(New-Object Net.WebClient).DownloadFile(((Invoke-RestMethod -Method Get -Uri ((Invoke-RestMethod -Method Get -Uri "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json").versions | Where-Object -Property id -Value !MINECRAFT! -EQ).url).downloads.server.url), 'minecraft_server.!MINECRAFT!.jar')"
+:: Tests for whether to download missing manifest file
+SET GETMANIFEST=U
+IF NOT EXIST "univ-utils\version_manifest_v2.json" SET GETMANIFEST=Y
+:: If the manifest file already exists then evaluate whether it's older than the set age - delete/reinstall if older than
+IF EXIST "univ-utils\version_manifest_v2.json" (
+  FOR /F %%G IN ('powershell -Command "Test-Path '%HERE%\univ-utils\version_manifest_v2.json' -OlderThan (Get-Date).AddDays(-1)"') DO (
+    IF %%G==True (
+      DEL "univ-utils\version_manifest_v2.json"
+      SET GETMANIFEST=Y
+    )
+  )
+)
+IF !GETMANIFEST!==Y powershell -Command "(New-Object Net.WebClient).DownloadFile('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json', 'univ-utils\version_manifest_v2.json')" >nul
+
+:: Tests if the version.json file needs to be obtained
+IF NOT EXIST "univ-utils\versions" MD "univ-utils\versions"
+IF NOT EXIST "univ-utils\versions\!MINECRAFT!.json" (
+  FOR /F "delims=" %%A IN ('powershell -Command "$data=(Get-Content -Raw -Path 'univ-utils/version_manifest_v2.json' | Out-String | ConvertFrom-Json); $stuff=($data.versions | Where-Object -Property id -Value !MINECRAFT! -EQ); $stuff.url"') DO SET "MCVERSIONURL=%%A"
+  ver >nul
+  powershell -Command "(New-Object Net.WebClient).DownloadFile('!MCVERSIONURL!', 'univ-utils\versions\!MINECRAFT!.json')" >nul
+)
+
+:: Gets the JAR download URL and checksum value from the version.json file
+FOR /F "delims=" %%A IN ('powershell -Command "$data=(Get-Content -Raw -Path 'univ-utils/versions/!MINECRAFT!.json' | Out-String | ConvertFrom-Json); $data.downloads.server.url"') DO SET "MCJARURL=%%A"
+FOR /F "delims=" %%A IN ('powershell -Command "$data=(Get-Content -Raw -Path 'univ-utils/versions/!MINECRAFT!.json' | Out-String | ConvertFrom-Json); $data.downloads.server.sha1"') DO SET "MCJARCHECKSUM=%%A"
+
+:: Downloads the vanilla Minecraft server JAR from the Mojang file server, using the obtained MCJARURL
+powershell -Command "(New-Object Net.WebClient).DownloadFile('!MCJARURL!', 'minecraft_server.!MINECRAFT!.jar')" >nul
+
 :: If the download failed to get a file then try again
 IF NOT EXIST minecraft_server.!MINECRAFT!.jar (
   ECHO: & ECHO   OOPS - THE MINECRAFT SERVER JAR FAILED TO DOWNLOAD & ECHO: & ECHO   PRESS ANY KEY TO TRY DOWNLOADING AGAIN & ECHO: & ECHO:
   PAUSE
   GOTO :preparevanilla
 )
-
-:: Gets a URL for the version JSON from the Mojang file server
-FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json') | Out-String | ConvertFrom-Json)); $stuff=($data.versions | Where-Object -Property id -Value !MINECRAFT! -EQ); $stuff.url"') DO SET MOJANGVERSIONURL2=%%A
-:: Looks at the version JSON URL at the Mojang file server to get the SHA1 checksum for the server JAR file
-FOR /F %%A IN ('powershell -Command "$data=(((New-Object System.Net.WebClient).DownloadString('!MOJANGVERSIONURL2!') | Out-String | ConvertFrom-Json)); $data.downloads.server.sha1"') DO SET SERVERSHA1REAL=%%A
 
 :: Gets the SHA1 checksum for the downloaded server JAR.
 SET /a idm=0 
@@ -2582,7 +2646,7 @@ FOR /F %%F  IN ('certutil -hashfile minecraft_server.!MINECRAFT!.jar SHA1') DO (
 SET SERVERJARSHA1=!SHA1VAL[1]!
   
 :: Checks to see if the calculated checksum is the same as the value specified from Mojang information
-IF !SERVERSHA1REAL! NEQ !SERVERJARSHA1! (
+IF !MCJARCHECKSUM! NEQ !SERVERJARSHA1! (
   DEL minecraft_server.!MINECRAFT!.jar
   ECHO: & ECHO: & ECHO:
   ECHO   THE MINECRAFT SERVER JAR FILE CHECKSUM VALUE DID NOT MATCH THE CHECKSUM IT WAS SUPPOSED TO BE
@@ -3192,3 +3256,173 @@ PAUSE
 GOTO :mainmenu
 
 :: END LOGS SCANNING SECTION
+
+:: BEGIN Port editing menu
+:portedit
+CLS
+ECHO: & ECHO:
+ECHO   %yellow% ENTER THE PORT NUMBER TO USE FOR THE LAUNCHED SERVER %blue%
+ECHO:
+ECHO      DEFAULT VALUE IS %yellow% 25565 %blue%
+ECHO:
+ECHO      CURRENTLY SET VALUE IS - %green% %PORT% %blue%
+ECHO:
+ECHO      DO NOT SET THE PORT TO BE USED BELOW 10000 - BELOW THAT NUMBER IS NOT A GOOD IDEA
+ECHO      OTHER CRITICAL PROCESSES MAY ALREADY BE USING PORTS BELOW THAT NUMBER
+ECHO:
+ECHO   %yellow% ENTER THE PORT NUMBER TO USE FOR THE LAUNCHED SERVER %blue%
+ECHO:
+ECHO:
+SET /P SCRATCH="%blue% %green% ENTER new port number, 'default', or 'M' for main menu): %blue% " <nul
+SET /P newport=
+IF /I %newport%==M GOTO :mainmenu
+IF /I %newport%==default (
+  CALL :serverpropsedit server-port 25565
+  SET PORT=25565
+  GOTO :mainmenu
+)
+
+:: Evaluates if the entry was a number.  Unsets var and then tries to assign it to the result of the FOR delims.  If it is not defined then it is a number.  If it is defined then it is not a number
+SET "var=" & FOR /f "delims=0123456789" %%i IN ("%newport%") DO SET var=%%i
+:: If var defined then it's not a number
+IF DEFINED var ECHO: & ECHO   %red% Invalid entry - only options are a Port number, 'default', or 'M' ^^! %blue% & ECHO: & PAUSE & GOTO :portedit
+:: If var is defined then it's a number, check to see if it is in the allowed range
+IF NOT DEFINED var (
+  IF %newport% LSS 10000 ECHO: & ECHO   %red% Invalid entry - Port cannot be set below 10000 ^^! %blue% & ECHO: & PAUSE & GOTO :portedit
+
+  CALL :serverpropsedit server-port %newport%
+  SET PORT=%newport%
+  GOTO :mainmenu
+)
+GOTO :mainmenu
+:: END Port editing menu
+
+:: BEGIN server.properties FILE EDITING MENU
+:editserverprops
+CLS
+
+ECHO: & ECHO  %yellow% SERVER PROPERTIES - SERVER PROPERTIES %blue% & ECHO:
+:: Prints to screen the desired server properties to display.  
+set /a idk=0
+FOR /F tokens^=^1^,^2^ delims^=^= %%A IN (server.properties) DO (
+  ECHO %%A | FINDSTR # >nul || ECHO spawn-protection max-tick-time enforce-whitelist difficulty simulation-distance level-type enable-command-block max-players function-permission-level server-port level-name view-distance white-list level-seed motd | FINDSTR "%%A" >nul && (
+    SET /a idk+=1
+    SET PROP[!idk!]=%%A
+    SET VAL[!idk!]=%%B
+  )
+)
+
+:: The following code and function below it work to auto format printing two columns of text for the properties and values found.
+:: First iterate through the list to find the length of the longest modID string
+SET COLUMNWIDTH=0
+FOR /L %%p IN (1,1,!idk!) DO (
+  IF /I "!PROP[%%p]!" NEQ "" CALL :GetMaxStringLength COLUMNWIDTH "!PROP[%%p]!"
+)
+:: The equal sign is followed by 80 spaces and a doublequote
+SET "EightySpaces=                                                                                "
+FOR /L %%D IN (1,1,!idk!) DO (
+	:: Append 80 spaces after the modID value
+	SET "Column=!PROP[%%D]!%EightySpaces%"
+	:: Chop at maximum column width, using a FOR loop as a kind of "super delayed" variable expansion
+	FOR %%W IN (!COLUMNWIDTH!) DO (
+    SET "Column=!Column:~0,%%W!"
+  )
+  :: Finally echo the actual line for display using the now-length-formatted PROP[%D] which is now the Column variable. Comparing %D to a number is to account for spaces to keep nice formatting.
+	IF %%D LEQ 9 ECHO   ^[%%D^]  !Column!  -   !VAL[%%D]!
+	IF %%D GEQ 10 ECHO   ^[%%D^] !Column!  -   !VAL[%%D]!
+)
+GOTO :continue3
+:: Function used above for determining max character length of any of the modIDs.
+:GetMaxStringLength
+:: Usage : GetMaxStringLength OutVariableName StringToBeMeasured
+:: Note  : OutVariable may already have an initial value
+SET StrTest=%~2
+:: Just add zero, in case the initial value is empty
+SET /A %1+=0
+:: Maximum length we will allow, modify appended spaces accordingly
+SET MaxLength=80
+IF %MaxLength% GTR !%1! (
+	FOR /L %%e IN (!%1!,1,%MaxLength%) DO (
+		IF NOT "!StrTest:~%%e!"=="" (
+			SET /A %1=%%e+1
+		)
+	)
+)
+GOTO:EOF
+:continue3
+
+ECHO: & ECHO  %yellow% Current values of some select server properties.   %blue%
+ECHO   For full range of properties edit the file 'server.properties' manually with any text editor.
+ECHO   ----------------------------------- & ECHO:
+ECHO  %yellow% Enter a property number to edit, or 'M' for main menu. %blue%%red% Be sure values are valid^^! %blue% & ECHO:
+SET /P SCRATCH="%blue% %green% ENTRY (or 'M' for main menu): %blue% " <nul
+SET /P entry1=
+IF /I %entry1%==M GOTO :mainmenu
+
+:: Evaluates if the entry was a number.  Unsets var and then tries to assign it to the result of the FOR delims.  If it is not defined then it is a number.  If it is defined then it is not a number
+SET "var=" & FOR /f "delims=0123456789" %%i IN ("%entry1%") DO SET var=%%i
+IF DEFINED var ECHO: & ECHO   %red% Invalid entry - must enter a valid number option or M for main menu^^! %blue% & ECHO: & PAUSE & GOTO :editserverprops
+
+IF NOT DEFINED var (
+  IF %entry1% GTR !idk! ECHO   %red% Invalid entry - number is greater than available options! %blue% & ECHO: & PAUSE & GOTO :editserverprops
+  ECHO:
+  SET /P SCRATCH="%blue% %green% Enter new value for '!PROP[%entry1%]!': %blue% " <nul
+  SET /P entry2=
+
+  :: Uses the serverpropsedit function to edit the server.properties file
+  CALL :serverpropsedit !PROP[%entry1%]! !entry2!
+
+  :: If changed property is server-port then update the PORT variable. Must be done here because any variable setting in the function is discarded.
+  IF !PROP[%entry1%]!==server-port SET PORT=!entry2!
+
+  :: Unsets used variables to reset the setup
+	FOR /L %%e IN (0,1,%idk%) DO (
+    SET "PROP[!idk!]="
+    SET "VAL[!idk!]="
+    SET "entry2="
+  )
+  :: Now that entry was edited with function, go back to the editserverprops menu which will refresh the new changed server.properties for display.
+  GOTO :editserverprops
+)
+:: Just in case something goes wrong the script gets sent back to mainmenu
+GOTO :mainmenu
+
+:: END server.properties FILE EDITING MENU
+
+:: FUNCTIONS
+
+:: Function to edit the server.properties file.  The function is passed two parameters, a property %1 and value %2.  Only one entry is evaluated and changed.
+:: If the value is the same as what's in the file then nothing is actually changed.  Using setlocal and endlocal throws away any variables assigned in the funciton once it ends.
+:serverpropsedit
+setlocal
+SET /a idx=0
+SET changedvalue=N
+
+:: Sets equals sign as a delimeter
+FOR /F tokens^=^1^,^2^ delims^=^= %%A IN (server.properties) DO (
+  SET "property[!idx!]=%%A"
+  SET "value[!idx!]=%%B"
+  IF "%1"=="%%A" IF "%2" NEQ "%%B" (
+    SET "value[!idx!]=%2"
+    SET changedvalue=Y
+  )
+  SET /a idx+=1
+)
+IF !changedvalue!==Y (
+  type NUL > server.properties
+  FOR /L %%A IN (0,1,!idx!) DO (
+    REM If the value is not blank then print both as property=value to the temp file.
+    IF [!value[%%A]!] NEQ [] (
+      ECHO !property[%%A]!=!value[%%A]!>>server.properties
+    ) ELSE (
+      REM Only continues with blank values if property is not also blank (blank line).
+      IF [!property[%%A]!] NEQ [] (
+        REM Prints lines with comment # as only the first value.  Prints lines without # as property=value.
+        IF "!property[%%A]:#=x!"=="!property[%%A]!" ECHO !property[%%A]!=!value[%%A]!>>server.properties
+        IF "!property[%%A]:#=x!" NEQ "!property[%%A]!" ECHO !property[%%A]!>>server.properties
+      )
+    )
+  )
+)
+endlocal
+GOTO:EOF
