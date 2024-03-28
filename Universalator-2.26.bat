@@ -2043,7 +2043,7 @@ ECHO   %yellow% CURRENT NETWORK SETTINGS:%blue%
 ECHO:
 ECHO    PUBLIC IPv4 AND PORT      - %green% %PUBLICIP%:%PORT% %blue%
 ECHO    LAN IPv4 AND PORT         - %green% !LOCALIP!:%PORT% %blue%
-ECHO    TO CONNECT ON SAME PC USE - %green% localhost %blue% ^< This text
+ECHO    TO CONNECT ON SAME PC USE - %green% localhost %blue%
 ECHO:
 ECHO ============================================ & ECHO: & ECHO:
 ECHO   %yellow% READY TO LAUNCH FORGE SERVER! %blue%
