@@ -86,6 +86,8 @@ fi
     if [[ ! `command -v jq` ]]; then missing_util_name="jq"; missing_util_package="jq"; missing_lang="JSON file parsing"; fi
     if [[ ! `command -v curl` ]]; then missing_util_name="curl"; missing_util_package="curl"; missing_lang="download"; fi
     if [[ ! `command -v nslookup` ]]; then missing_util_name="nslookup"; missing_util_package="dnsutils"; missing_lang="network checking"; fi
+    if [[ ! `command -v shasum` ]]; then missing_util_name="shasum"; missing_util_package="libdigest-sha-perl"; missing_lang="checksum finding"; fi
+
 
     if [[ "$missing_util_name" != "u" ]]; then
         printf "\n   $lty Uh oh - it appears that '$missing_util_name', is not installed on your operating system. $norm\n   $lty This script for Linux/OSX requires that '$missing_util_name', a $missing_lang utility program, be installed. $norm\n\n"
@@ -1383,4 +1385,3 @@ done
 [[ -z "$param1" ]] && { printf "$norm"; clear; }
 exit 0
 # EXIT - DO NOT CHANGE ABOVE - NEEDED TO CLOSE SCRIPT
-
