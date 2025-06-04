@@ -648,7 +648,7 @@ upnpinit () {
 
     [[ "$ostype" == "linux" ]] && upnpOS="linux" || upnpOS="osx"
     [[ "$OSARCH" == "x64" ]] && upnpArch="x64" || upnpArch="arm64"
-    pfname="Portforwarder.Server-$pfrelease-$ostype-$OSARCH"
+    pfname="Portforwarder.Server-$pfrelease-$ostype-$upnpArch"
     portforwardedProg="univ-utils/Portforwarded/$pfname/Portforwarded.Server"
     dotnetversion=$(dotnet --version 2>/dev/null)
 }
