@@ -1767,7 +1767,7 @@ allcommands () {
     while [[ "$allmenu_entry" != "M" ]]; do
         clear
         printf "$univheader"
-        printf "   $green M $blue = MAIN MENU\n   $green S $blue = RE-ENTER ALL SETTINGS\n   $green L $blue = LAUNCH SERVER\n   $green V $blue = SET MODLOADER VERSION\n   $green R $blue = SET RAM MAXIMUM AMOUNT\n   $green J $blue = SET JAVA VERSION\n   $green ARCH $blue = SET SYSTEM ARCH TYPE FOR JAVA\n   $green PORT $blue = SET THE PORT TO USE\n\n   $green Q $blue = QUIT"
+        printf "\n   $green M $blue = MAIN MENU\n   $green S $blue = RE-ENTER ALL SETTINGS\n   $green L $blue = LAUNCH SERVER\n   $green V $blue = SET MODLOADER VERSION\n   $green R $blue = SET RAM MAXIMUM AMOUNT\n   $green J $blue = SET JAVA VERSION\n   $green ARCH $blue = SET SYSTEM ARCH TYPE FOR JAVA\n   $green PORT $blue = SET THE PORT TO USE\n\n   $green Q $blue = QUIT"
         printf "\n   $green SCAN $blue  = SCAN MOD FILES FOR CLIENT ONLY MODS\n   $green GENRUN $blue = GENERATE BASIC RUN.SH / RUN.BAT SCRIPTS\n   $green UPNP $blue  = UPNP PORT FORWARDING MENU\n   $green PROPS $blue = CHANGE SERVER PROPERTIES FILE\n   $green RESTART $blue  = TOGGLE AUTOMATIC RESTART ON UNPLANNED SHUTDOWN\n   $green LOG  $blue     = VIEW THE LAST LOG FILE MADE\n   $green MODS/SMOD$blue = VIEW ALL JAR FILES IN MODS FOLDER\n   $green MCREATOR $blue = SCAN MOD FILES FOR MCREATOR MADE MODS\n   $green OVERRIDE $blue = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA\n   $green ZIP $blue = MENU FOR CREATING SERVER PACK ZIP FILE\n\n"
         printf "  $green"; read -p " Enter a command: $blue " allmenu_entry; printf "$blue"
 
