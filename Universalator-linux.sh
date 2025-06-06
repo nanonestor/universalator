@@ -81,7 +81,8 @@ fi
     if [[ ! `command -v curl` ]]; then missing_util_name="curl"; missing_util_package="curl"; missing_lang="download"; fi
     if [[ ! `command -v nslookup` ]]; then missing_util_name="nslookup"; missing_util_package="dnsutils"; missing_lang="network checking"; fi
     if [[ ! `command -v shasum` ]]; then missing_util_name="shasum"; missing_util_package="libdigest-sha-perl"; missing_lang="checksum finding"; fi
-
+    if [[ ! `command -v zip` ]]; then missing_util_name="zip"; missing_util_package="zip"; missing_lang="file zip"; fi
+    if [[ ! `command -v unzip` ]]; then missing_util_name="unzip"; missing_util_package="unzip"; missing_lang="file unzip"; fi
 
     if [[ "$missing_util_name" != "u" ]]; then
         printf "\n   $lty Uh oh - it appears that '$missing_util_name', is not installed on your operating system. $norm\n   $lty This script for Linux/OSX requires that '$missing_util_name', a $missing_lang utility program, be installed. $norm\n\n"
@@ -145,7 +146,7 @@ pfrelease="3.0.0-alpha"
 [[ ! -d "./univ-utils" ]] && mkdir -p "univ-utils"
 
 # Gets the public IPv4 address of the computer using an web serivce API - if the result is an empty variable then set to unknown.
-PUBLICIP=`curl 'https://api.ipify.org?format=json' 2>nul`
+PUBLICIP=`curl 'https://api.ipify.org?format=json' 2>/dev/null`
 PUBLICIP=`echo $PUBLICIP | jq --raw-output '.ip'`
 [[ -z "$PUBLICIP" ]] && PUBLICIP="unknown"
 
@@ -423,6 +424,8 @@ settingscall () {
 }
 # function tree to get settings values with user entry, and then save settings.
 settingssetup () {
+    # First sets blue and clears screen so that even on initial running the script it looks nice.
+    printf "${blue}"; clear;
     MODLOADER="DUMMY"
     setminecraft
     setmodloader
@@ -710,10 +713,10 @@ upnpvalidate () {
     [[ ! -f "./univ-utils/Portforwarded/minecraft_server.1.4.2.jar" ]] && ( getvanillajar "1.4.2"; mv minecraft_server.1.4.2.jar "./univ-utils/Portforwarded/minecraft_server.1.4.2.jar"; )
     # Uses the UPNP program testmode to get an output to test against.
     CHECKPASS="IDK"
-    #"$portforwardedProg" executable:file="$JAVAFILE" executable:workingdirectory="univ-utils/Portforwarded" executable:parameters="-Xmx3G -jar minecraft_server.1.4.2.jar nogui" upnp:0:Protocol=Tcp upnp:0:LocalPort="$PORT" upnp:0:PublicPort="$PORT" testmode="true"
     
-    #output=$("$portforwardedProg" executable:file="$JAVAFILE" executable:workingdirectory="univ-utils/Portforwarded" executable:parameters="-Xmx3G -jar minecraft_server.1.4.2.jar nogui" upnp:0:Protocol=Tcp upnp:0:LocalPort="$PORT" upnp:0:PublicPort="$PORT" testmode="true")
-    output="Created map for IP"
+    output=$("$portforwardedProg" executable:file="$JAVAFILE" executable:workingdirectory="univ-utils/Portforwarded" executable:parameters="-Xmx3G -jar minecraft_server.1.4.2.jar nogui" upnp:0:Protocol=Tcp upnp:0:LocalPort="$PORT" upnp:0:PublicPort="$PORT" testmode="true")
+    # For a testmode that always makes a CHECKPASS Y, comment out the above line and uncomment the line below.
+    #output="Created map for IP"
     
     # Checks the output for a specific string to determine if the UPNP program was able to create a port forward mapping.
     [[ `echo "$output" | grep -i "Created map for IP"` ]] && CHECKPASS="Y" || CHECKPASS="N"
@@ -784,6 +787,328 @@ downloadupnpprogram () {
                 if [[ "$filechecksum" != "$pfchecksum" ]]; then
                     clear; printf "\n\n   $red Oops - it looks like the Portforwarded.Server program for UPNP failed to download correctly.$blue\n\n"; read -n1 -r -p "Press any key to continue..."; rm -f "./$portforwardedProg"; return;
                 fi
+}
+
+zipitfunction () {
+    choice="N"
+    while [[ "${choice^^}" != "Y" ]]; do
+        clear
+        printf "\n\n   $yellow ZIP SERVER PACK - ZIP SERVER PACK $blue\n\n"
+        printf "     Continue on to create a server pack ZIP file?\n\n"
+        printf "     Server packs are typically made by modpack authors wishing to share the files\n"
+        printf "     needed to correctly run a server for their modpack.\n\n"
+        printf "          $green - Include all required files and folders in the following menu. $blue\n\n"
+        printf "          $red - Do not include folders or files that aren't necessary / customized by you. $blue\n\n\n"
+        printf "   $yellow ZIP SERVER PACK - ZIP SERVER PACK $blue\n\n\n\n\n"
+        printf "         $green ENTER 'Y' TO CONTINUE OR 'M' FOR MAIN MENU: $blue"
+        printf "  $green"; read -p " Entry: $blue " choice; printf "$blue"
+
+        case "${choice^^}" in
+            (M) return ;;
+            (Y) zipitmenu; printf "\nzipitmenu finished\n"; return;;
+            (*) printf "\nInvalid option - please enter 'Y' or 'M'\n"; 
+            read -n1 -r -p "Press any key to continue..." ;;
+ 
+        esac
+    done
+}
+
+zipitmenu () {
+    # Initialize array to store files/folders to zip
+    unset zipfiles
+    unset available_items
+
+    zipfiles=()
+    # Add standard folders and files if they exist
+    for item in config defaultconfigs kubejs mods scripts server.properties settings-universalator.txt; do
+        if [ -e "$item" ]; then
+            zipfiles+=("$item")
+        fi
+    done
+    # Add any files starting with "Universalator"
+    for file in Universalator*; do
+        if [ -f "$file" ]; then
+            zipfiles+=("$file")
+        fi
+    done
+
+    choice="N"
+    while [[ "${choice^^}" != "M" ]]; do
+        clear
+        printf "\n    $yellow ZIP SERVER PACK - ZIP SERVER PACK $blue\n\n"
+        # Makes an array of all of the files and folders not yet added to the zipfiles array already.
+        # This is done to allow the user to add files and folders that are not already in the zipfiles array.
+        unset available_items
+        for item in *; do
+            if [[ -e "$item" ]] && [[ ! " ${zipfiles[@]} " =~ " $item " ]]; then
+                available_items+=("$item")
+            fi
+        done
+        # Sorts the available items array alphabetically, ignoring case
+        IFS=$'\n' sorted=($(sort -f <<<"${available_items[*]}"))
+        unset IFS
+        available_items=("${sorted[@]}")  # Re-index the array
+        # Print available items
+        printf "    Available items to add to the server pack ZIP:\n\n"
+        [ ! ${#available_items[@]} -eq 0 ] && {
+            for ((i=0; i<${#available_items[@]}; i++)); do
+                printf "   [$((i+1))] - ${available_items[$i]}\n"
+            done
+        } || printf "   $red All files/folders already included to be added to ZIP!$blue\n\n"
+
+
+        # Loop through array and print entries with order numbers
+        printf "\n   $yellow CURRENT SELECTIONS TO INCLUDE IN SERVER PACK ZIP:$blue\n\n"
+        [ ! ${#zipfiles[@]} -eq 0 ] || printf "   $red No files or folders selected to include in server pack ZIP!$blue\n\n"
+        for ((i=0; i<${#zipfiles[@]}; i++)); do
+            echo "   [$((i+1))] - $yellow ${zipfiles[$i]} $blue"
+        done
+        printf "\n"
+        printf "   Above are listed the current files and folders selected to include in making the server pack ZIP file.\n"
+        printf "   Use the commands listed to add or remove entries - use the number to act on after ADD/REM.\n\n"
+        printf "   Once you are finished editing, enter the ZIPIT command to generate your server pack ZIP.\n"
+        printf "   The name after the ZIPIT command will be the filename that gets created - do not include .zip at the end.\n\n\n"
+
+        printf "$green Entry options - $blue $green 'ADD <name>' $blue $green 'REM <number>' $blue $green 'ZIPIT <name>' $blue $green 'M' for main menu$blue\n\n"
+        printf "  $green"; read -p " Entry: $blue " choice; printf "$blue"
+        choice_caps="${choice^^}"
+        # set -x
+
+        if [[ "${choice_caps^^}" == "M" ]]; then
+            return
+        # ADD ENTRY
+        elif [[ "${choice_caps:0:4}" == "ADD " ]]; then
+
+        # Adds the entry to the list of files/folders to zip, using the number after ADD as the item to add.
+            if [[ -z "${choice:4}" ]]; then
+                printf "\n  $red No item specified to add!$blue\n\n"
+                read -n1 -r -p "   Press any key to continue..."
+                continue
+            fi
+            choice="${choice:4}"  # Remove the "ADD " part from the choice
+            choice="${choice%% }"  # Remove trailing spaces
+            # If the item is a number, it is treated as an index to the available_items array.
+            if [[ "$choice" =~ ^[0-9]+$ ]] && [[ $choice -gt 0 ]] && [[ $choice -le ${#available_items[@]} ]]; then
+                item_to_add="${available_items[$((choice - 1))]}"
+            else
+            # If the item is not a number, print an error message and continue.
+                printf "\n  $red Invalid entry - please enter a number corresponding to an available item!$blue\n\n"
+                read -n1 -r -p "   Press any key to continue..."
+                continue
+            fi
+
+            #Rejects a certain list of entries for files/folders which should never be added to server pack ZIPs, including any .JAR files.
+            { echo "univ-utils .fabric libraries versions logs CLIENTMODS" | grep -q -w "$item_to_add" || [[ "$item_to_add" == *.jar ]] || [[ "$item_to_add" == *.JAR ]]; } && { printf "\n   $red $item_to_add $blue Cannot be added to the server pack ZIP list, it should never be included! $blue\n\n"; read -n1 -r -p "   Press any key to continue..."; continue; }
+            
+            # Rejects add entries that already exist in the zipfiles array
+            [[ " ${zipfiles[@]} " =~ " $item_to_add " ]] && { printf "\n   $red $item_to_add $blue is already in the server pack ZIP list!$blue\n\n"; read -n1 -r -p "   Press any key to continue..."; continue; }
+  
+
+
+            if [ -e "$item_to_add" ]; then
+                zipfiles+=("$item_to_add")
+                # Sorts the array alphabetically, ignoring case
+                IFS=$'\n' sorted=($(sort -f <<<"${zipfiles[*]}"))
+                unset IFS
+                zipfiles=("${sorted[@]}")  # Re-index the array
+                
+
+                printf "\n  $green Added $item_to_add to the server pack ZIP list.$blue\n\n"
+                read -n1 -r -p "   Press any key to continue..."
+                continue
+            else
+                printf "\n  $red Item $item_to_add does not exist!$blue\n\n"
+                read -n1 -r -p "   Press any key to continue..."
+                continue
+            fi
+        # REM ENTRY
+        elif [[ "${choice_caps:0:4}" == "REM " ]]; then
+            # Remove an entry by number
+            index_to_remove=$(( ${choice:4} - 1 ))
+            if [[ $index_to_remove -ge 0 ]] && [[ $index_to_remove -lt ${#zipfiles[@]} ]]; then
+                removed_item=${zipfiles[$index_to_remove]}
+                unset 'zipfiles[index_to_remove]'
+                zipfiles=("${zipfiles[@]}")  # Re-index the array
+                printf "\n  $green Removed $removed_item from the server pack ZIP list.$blue\n\n"
+                read -n1 -r -p "   Press any key to continue..."
+            else
+                printf "\n  $red Invalid number for removal!$blue\n\n"
+                read -n1 -r -p "   Press any key to continue..."
+            fi
+        # ZIPIT ENTRY
+        elif [[ "${choice_caps:0:6}" == "ZIPIT " ]]; then
+            # Create readme file if it doesn't exist
+            if [ ! -f "univ-utils/readme-server.txt" ]; then
+                printf "Using this serverpack-\n" > "univ-utils/readme-server.txt"
+                printf "\n" >> "univ-utils/readme-server.txt"
+                printf "If using Windows - run the file named 'Universalator-<version>.bat', then launch. If changing any Minecraft or Modloader version settings, check that they are compatible with your server files.\n" >> "univ-utils/readme-server.txt"
+                printf "\n" >> "univ-utils/readme-server.txt"
+                printf "IF using Linux or macOS follow these steps via a terminal working in the server directory/folder, to install required tools and launch (Ubuntu distro example)-\n" >> "univ-utils/readme-server.txt"
+                printf "   sudo apt update                              < Updates the local package list\n" >> "univ-utils/readme-server.txt"
+                printf "   sudo apt upgrade                             < Updates your existing packages\n" >> "univ-utils/readme-server.txt"
+                printf "   sudo apt install xmlstarlet jq dnsutils zip unzip      < Installs required linux packages/tools\n" >> "univ-utils/readme-server.txt"
+                printf "   chmod +rwx Universalator-linux.sh            < Gives the script system permissions\n" >> "univ-utils/readme-server.txt"
+                printf "   bash Universalator-linux.sh                  < Runs the server script using bash\n" >> "univ-utils/readme-server.txt"
+                printf "\n" >> "univ-utils/readme-server.txt"
+                printf "For other Linux/macOS distro examples you view the Universalator linux wiki at - https://github.com/nanonestor/universalator/wiki/3-Using-Linux-&-MacOS\n" >> "univ-utils/readme-server.txt"
+                printf "\n" >> "univ-utils/readme-server.txt"
+            fi
+            # Create the zip file with the specified name, remove .zip extension if user included it
+            zip_base="${choice:6}"
+            zip_base="${zip_base%.zip}"
+            zip_name="${zip_base}.zip"
+
+            if [ ${#zipfiles[@]} -gt 0 ]; then
+                # Adds the array of files/folders to the zip file.
+                zip -r "$zip_name" "${zipfiles[@]}"
+
+                # Adds the readme file to the zip file.
+                [[ -f "./univ-utils/readme-server.txt" ]] && { mv "univ-utils/readme-server.txt" "readme-server.txt"; zip -u "$zip_name" "readme-server.txt"; mv "readme-server.txt" "univ-utils/readme-server.txt"; }
+
+                # Downloads a copy of the Windows version of the Universalator script from a github release tar file, extracts it, and adds it to the zip file.
+                [[ ! -f "./univ-utils/Universalator-2.9.bat" ]] && {
+                    curl -sLfo "./univ-utils/Universalator-windows.tar.gz" "https://github.com/nanonestor/universalator/archive/refs/tags/v2.49.tar.gz"
+                    if [[ -f "./univ-utils/Universalator-windows.tar.gz" ]]; then
+                        tar -xf "./univ-utils/Universalator-windows.tar.gz" -C "./univ-utils"
+                        rm -f "./univ-utils/Universalator-windows.tar.gz"
+                        mv "./univ-utils/universalator-2.49/Universalator-2.49.bat" "./univ-utils/Universalator-2.49.bat"
+                    fi
+                }
+                [[ -f "./univ-utils/Universalator-2.49.bat" ]] && { mv "./univ-utils/Universalator-2.49.bat" "Universalator-2.49.bat"; zip -u "$zip_name" "Universalator-2.49.bat"; mv "Universalator-2.49.bat" "./univ-utils/Universalator-2.49.bat"; }
+                
+                printf "\n  $green Created server pack ZIP file: $zip_name !$blue\n\n"
+                read -n1 -r -p "   Press any key to continue..."
+            else
+                printf "\n  $red No items to zip! Please add files or folders first.$blue\n\n"
+                read -n1 -r -p "   Press any key to continue..."
+            fi
+        else
+            printf "\n  $red Invalid entry! Use ADD, REM, or ZIPIT followed by a name/number or M.$blue\n\n"
+            read -n1 -r -p "   Press any key to continue..."
+            continue
+        fi
+    done
+}
+
+genrun () {
+    getmajorminor
+    MAXRAM="-Xmx${MAXRAMGIGS}G"
+
+    # Check if modloader is Forge or Neoforge
+    if [ "$MODLOADER" != "FORGE" ] && [ "$MODLOADER" != "NEOFORGE" ]; then
+    printf "\n  $red $MODLOADER - does not generate run.bat / run.sh scripts. This is only for Forge / Neoforge modloaders. $blue\n\n"
+    read -n1 -r -p "Press any key to continue..."
+    return
+    fi
+
+    FORGEFILE=""
+    # Prepares filename for Forge starting JAR if MC version is older direct-launch JAR type
+    if [ "$mcmajor" -le 16 ]; then
+    shopt -s nullglob
+    for f in *"$MINECRAFT-$MODLOADERVERSION"*.jar; do
+        FORGEFILE="$f"
+        break
+    done
+    fi
+    # If newer than MC 1.16 tests if modloader files have been installed
+    if [ "$mcmajor" -gt 16 ]; then
+        if [ "$MODLOADER" = "FORGE" ] && [ -f "libraries/net/minecraftforge/forge/$MINECRAFT-$MODLOADERVERSION/unix_args.txt" ]; then FORGEFILE="Y"; fi
+        if [ "$MODLOADER" = "NEOFORGE" ] && [ "$MINECRAFT" != "1.20.1" ] && [ -f "libraries/net/neoforged/neoforge/$MODLOADERVERSION/unix_args.txt" ]; then FORGEFILE="Y"; fi
+        if [ "$MODLOADER" = "NEOFORGE" ] && [ "$MINECRAFT" = "1.20.1" ] && [ -f "libraries/net/neoforged/forge/$MINECRAFT-$MODLOADERVERSION/unix_args.txt" ]; then FORGEFILE="Y"; fi
+    fi
+
+    if [ -z "$FORGEFILE" ]; then
+        printf "\n  $red $MODLOADER-$MODLOADERVERSION Files are not installed! $blue\n  $yellow Do a LAUNCH to install those files first, before running this command to generate basic run scripts. $blue\n\n"
+        read -n1 -r -p "Press any key to continue..."
+        return
+    fi
+
+    # Generate run.sh and run.bat scripts
+    # For MC versions 1.16 and older put JVM args directly in file
+    {
+        printf "#!/usr/bin/env sh\n"
+        if [ "$MODLOADER" = "FORGE" ] && [ "$mcmajor" -le 16 ]; then printf "java $MAXRAM $ARGS $OTHERARGS -jar $FORGEFILE nogui\n"; fi
+        if [ "$MODLOADER" = "FORGE" ] && [ "$mcmajor" -gt 16 ]; then printf "java @user_jvm_args.txt @libraries/net/minecraftforge/forge/$MINECRAFT-$MODLOADERVERSION/unix_args.txt nogui \"\$@\"\n"; fi
+        if [ "$MODLOADER" = "NEOFORGE" ] && [ "$MINECRAFT" != "1.20.1" ]; then printf "java @user_jvm_args.txt @libraries/net/neoforged/neoforge/$MODLOADERVERSION/unix_args.txt nogui \"\$@\"\n"; fi
+        if [ "$MODLOADER" = "NEOFORGE" ] && [ "$MINECRAFT" = "1.20.1" ]; then printf "java @user_jvm_args.txt @libraries/net/neoforged/forge/$MINECRAFT-$MODLOADERVERSION/unix_args.txt nogui \"\$@\"\n"; fi
+    } > run.sh
+    chmod +x run.sh
+    {
+        printf "@echo off\n"
+        if [ "$MODLOADER" = "FORGE" ] && [ "$mcmajor" -le 16 ]; then printf "java $MAXRAM $ARGS $OTHERARGS -jar $FORGEFILE nogui\n"; fi
+        if [ "$MODLOADER" = "FORGE" ] && [ "$mcmajor" -gt 16 ]; then printf "java @user_jvm_args.txt @libraries/net/minecraftforge/forge/$MINECRAFT-$MODLOADERVERSION/win_args.txt nogui %%*\n"; fi 
+        if [ "$MODLOADER" = "NEOFORGE" ] && [ "$MINECRAFT" != "1.20.1" ]; then printf "java @user_jvm_args.txt @libraries/net/neoforged/neoforge/$MODLOADERVERSION/win_args.txt nogui %%*\n"; fi
+        if [ "$MODLOADER" = "NEOFORGE" ] && [ "$MINECRAFT" = "1.20.1" ]; then printf "java @user_jvm_args.txt @libraries/net/neoforged/forge/$MINECRAFT-$MODLOADERVERSION/win_args.txt nogui %%*\n"; fi
+        printf "PAUSE\n"
+    } > run.bat
+
+    # If ARGS setting unchanged by user, use no default args for Java 17+
+    # Newer Java versions are better at self-optimizing than older versions
+    if [ "$JAVAVERSION" -ge 17 ]; then
+        if [ "$ARGS" = "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M" ]; then
+            USEARGS=""
+        else
+            USEARGS="$ARGS"
+        fi
+    else
+        USEARGS="$ARGS"
+    fi
+
+    # Make final combined args
+    if [ -n "$USEARGS" ]; then
+        USEARGS="$MAXRAM $USEARGS $OTHERARGS"
+    else
+        USEARGS="$MAXRAM $OTHERARGS"
+    fi
+
+    # Dump JVM args to user_jvm_args.txt file
+    if [ "$mcmajor" -gt 16 ]; then echo "$USEARGS" > user_jvm_args.txt; fi
+
+    # Delete user_jvm_args.txt for MC 1.16 or older to avoid confusion
+    if [ "$mcmajor" -le 16 ]; then rm -f user_jvm_args.txt; fi
+
+    printf "\n  $yellow Generated basic run.sh / run.bat script files! $blue\n"
+    if [ "$mcmajor" -gt 16 ]; then printf "  $yellow JVM Startup arguments were put into user_jvm_args.txt including ram entry ($MAXRAM) $blue\n"; fi
+    printf "\n"
+    read -n1 -r -p "Press any key to continue..."
+
+    return
+}
+
+purgefiles() {
+    clear
+    printf "\n\n\n   ${red}PURGE MENU${blue}\n\n"
+    printf "   ${yellow} If you decide to call the ${red} PURGE ${yellow} feature:${blue}\n"
+    printf "   ${yellow} - The cached utility files Universalator keeps will be deleted.${blue}\n"
+    printf "   ${yellow} - All modloader files/folders/installers will be deleted.${blue}\n\n\n"
+    printf "   ${yellow} NO FILES WHICH ARE CUSTOM TO YOUR SERVER FILES WILL BE DELETED.${blue}\n"
+    printf "   ${yellow} All of the files deleted will be re-downloaded and installed when needed.${blue}\n\n\n"
+    
+    while true; do
+        printf "  ${green}ENTER 'PURGE' OR 'M' FOR MAIN MENU - ${blue} "
+        printf "  $green"; read -p " Entry: $blue " ENTRY; printf "$blue"
+        
+        case "${ENTRY^^}" in
+            (PURGE)
+                rm -f ./*.jar >/dev/null 2>&1
+                [ -d "./libraries" ] && rm -rf "./libraries"
+                [ -d "./.fabric" ] && rm -rf "./.fabric"
+                [ -d "./univ-utils/installers" ] && rm -rf "./univ-utils/installers"
+                [ -d "./univ-utils/java" ] && rm -rf "./univ-utils/java"
+                [ -d "./univ-utils/Portforwarded" ] && rm -rf "./univ-utils/Portforwarded"
+                [ -d "./univ-utils/versions" ] && rm -rf "./univ-utils/versions"
+                rm -f ./univ-utils/*.json >/dev/null 2>&1
+                rm -f ./univ-utils/*.xml >/dev/null 2>&1
+                return
+                ;;
+            (M)
+                return
+                ;;
+            (*)
+                continue
+                ;;
+        esac
+    done
 }
 
 # main function to set maximum ram allocation
@@ -1442,8 +1767,8 @@ allcommands () {
     while [[ "$allmenu_entry" != "M" ]]; do
         clear
         printf "$univheader"
-        printf "\n   $green M $blue = MAIN MENU\n   $green S $blue = RE-ENTER ALL SETTINGS\n   $green L $blue = LAUNCH SERVER\n   $green V $blue = SET MODLOADER VERSION\n   $green R $blue = SET RAM MAXIMUM AMOUNT\n   $green J $blue = SET JAVA VERSION\n   $green ARCH $blue = SET SYSTEM ARCH TYPE FOR JAVA\n   $green PORT $blue = SET THE PORT TO USE\n\n   $green Q $blue = QUIT\n"
-        printf "\n   $green SCAN $blue  = SCAN MOD FILES FOR CLIENT ONLY MODS\n   $green UPNP $blue  = UPNP PORT FORWARDING MENU\n   $green PROPS $blue = CHANGE SERVER PROPERTIES FILE\n   $green RESTART $blue  = TOGGLE AUTOMATIC RESTART ON UNPLANNED SHUTDOWN\n   $green LOG  $blue     = VIEW THE LAST LOG FILE MADE\n   $green MODS/SMOD$blue = VIEW ALL JAR FILES IN MODS FOLDER\n   $green MCREATOR $blue = SCAN MOD FILES FOR MCREATOR MADE MODS\n   $green OVERRIDE $blue = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA\n\n"
+        printf "   $green M $blue = MAIN MENU\n   $green S $blue = RE-ENTER ALL SETTINGS\n   $green L $blue = LAUNCH SERVER\n   $green V $blue = SET MODLOADER VERSION\n   $green R $blue = SET RAM MAXIMUM AMOUNT\n   $green J $blue = SET JAVA VERSION\n   $green ARCH $blue = SET SYSTEM ARCH TYPE FOR JAVA\n   $green PORT $blue = SET THE PORT TO USE\n\n   $green Q $blue = QUIT"
+        printf "\n   $green SCAN $blue  = SCAN MOD FILES FOR CLIENT ONLY MODS\n   $green GENRUN $blue = GENERATE BASIC RUN.SH / RUN.BAT SCRIPTS\n   $green UPNP $blue  = UPNP PORT FORWARDING MENU\n   $green PROPS $blue = CHANGE SERVER PROPERTIES FILE\n   $green RESTART $blue  = TOGGLE AUTOMATIC RESTART ON UNPLANNED SHUTDOWN\n   $green LOG  $blue     = VIEW THE LAST LOG FILE MADE\n   $green MODS/SMOD$blue = VIEW ALL JAR FILES IN MODS FOLDER\n   $green MCREATOR $blue = SCAN MOD FILES FOR MCREATOR MADE MODS\n   $green OVERRIDE $blue = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA\n   $green ZIP $blue = MENU FOR CREATING SERVER PACK ZIP FILE\n\n"
         printf "  $green"; read -p " Enter a command: $blue " allmenu_entry; printf "$blue"
 
         case "${allmenu_entry^^}" in
@@ -1458,11 +1783,14 @@ allcommands () {
             (LOG|LOGS) logview;;
             (MODS) listmode="MODS"; modsview;;
             (SMOD) listmode="SMOD"; modsview;;
+            (ZIP) zipitfunction;;
             (MCREATOR) findmcreator;;
             (OVERRIDE) override;;
             (RESTART) restarttoggle;;
             (ARCH) setarch; settingsstamp;;
-            (PORT) setport;; 
+            (PORT) setport;;
+            (PURGE) purgefiles;;
+            (GENRUN) genrun;;
             (Q) let "shouldiquit+=1"; allmenu_entry="M";;
             (M) allmenu_entry="M";;
             (*) printf "\ninvalid option $opt\n\n"; read -n1 -r -p "Press any key to continue...";;
@@ -1493,7 +1821,7 @@ mainmenu () {
 
     [[ ! -f "$portforwardedProg" ]] && printf "\n                                                    $green MENU OPTIONS $blue"
     printf "\n\n                                                      $green L $blue = LAUNCH SERVER\n                                                      $green S $blue = RE-ENTER ALL SETTINGS"
-    printf "\n                                                      $green R $blue    = RAM MAX SETTING\n                                                      $green SCAN $blue = SCAN MOD FILES FOR CLIENT MODS\n                                                      $green A $blue    = (LIST) ALL POSSIBLE MENU OPTIONS\n"
+    printf "\n                                                      $green R $blue    = RAM MAX SETTING\n                                                      $green UPNP $blue = UPNP PORT FORWARDING MENU\n                                                      $green SCAN $blue = SCAN MOD FILES FOR CLIENT MODS\n                                                      $green A $blue    = (LIST) ALL POSSIBLE MENU OPTIONS\n"
 
     # Gets user input for menu entry..
     printf "  $green"; read -p " Enter a command: $blue " mainmenu_entry; printf "$blue"
@@ -1511,11 +1839,14 @@ mainmenu () {
         (LOG|LOGS) logview;;
         (MODS) listmode="MODS"; modsview;;
         (SMOD) listmode="SMOD"; modsview;;
+        (ZIP) zipitfunction;;
         (MCREATOR) findmcreator;;
         (OVERRIDE) override;;
         (RESTART) restarttoggle;;
-        (ARCH) setarch; settingsstamp;; 
-        (PORT) setport;; 
+        (ARCH) setarch; settingsstamp;;
+        (PORT) setport;;
+        (PURGE) purgefiles;;
+        (GENRUN) genrun;;
         (Q) let "shouldiquit+=1";;
         (*) printf "\ninvalid option $opt\n\n"; read -n1 -r -p "Press any key to continue...";;
     esac
