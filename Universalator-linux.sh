@@ -869,7 +869,7 @@ zipitmenu () {
         printf "   Once you are finished editing, enter the ZIPIT command to generate your server pack ZIP.\n"
         printf "   The name after the ZIPIT command will be the filename that gets created - do not include .zip at the end.\n\n\n"
 
-        printf "$green Entry options - $blue $green 'ADD <name>' $blue $green 'REM <number>' $blue $green 'ZIPIT <name>' $blue $green 'M' for main menu$blue\n\n"
+        printf "$green Entry options - $blue $green 'ADD <number>' $blue $green 'REM <number>' $blue $green 'ZIPIT <name>' $blue $green 'M' for main menu$blue\n\n"
         printf "  $green"; read -p " Entry: $blue " choice; printf "$blue"
         choice_caps="${choice^^}"
         # set -x
@@ -996,9 +996,9 @@ genrun () {
 
     # Check if modloader is Forge or Neoforge
     if [ "$MODLOADER" != "FORGE" ] && [ "$MODLOADER" != "NEOFORGE" ]; then
-    printf "\n  $red $MODLOADER - does not generate run.bat / run.sh scripts. This is only for Forge / Neoforge modloaders. $blue\n\n"
-    read -n1 -r -p "Press any key to continue..."
-    return
+        printf "\n  $red $MODLOADER - does not generate run.bat / run.sh scripts. This is only for Forge / Neoforge modloaders. $blue\n\n"
+        read -n1 -r -p "Press any key to continue..."
+        return
     fi
 
     FORGEFILE=""
