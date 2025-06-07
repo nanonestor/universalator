@@ -820,7 +820,7 @@ zipitmenu () {
 
     zipfiles=()
     # Add standard folders and files if they exist
-    for item in config defaultconfigs kubejs mods scripts server.properties settings-universalator.txt; do
+    for item in config defaultconfigs kubejs mods scripts server.properties settings-linux-universalator.txt; do
         if [ -e "$item" ]; then
             zipfiles+=("$item")
         fi
