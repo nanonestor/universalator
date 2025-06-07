@@ -92,12 +92,11 @@ fi
         [[ "$distro_like" == "macos" ]] && printf "   $lty Your OS appears to be a 'Darwin' based distribution - which means 'macOS' / 'OSX'. $norm \n   $lty It is suggested to use the 'homebrew' utility to install missing packages - https://brew.sh/ $norm\n\n   $lty From a terminal window or linux prompt: $norm\n\n       $lty brew install $missing_util_package $norm\n"
 
         if [[ "$distro_like" != "linux" ]]; then
-            printf "\n   $lty If the detected distribution seems incorrect or suggested install method(s) do not work for you: $norm\n    $lty web-search on how to install '$missing_util' with your OS type. $norm \n\n";
+            printf "\n   $lty If the detected distribution seems incorrect or suggested install method(s) do not work for you: $norm\n    $lty web-search on how to install '$missing_util_name' with your OS type. $norm \n\n";
         else
             # Generic message if $distro_like is the fallback / default 'linux' value.
-            printf "   $lty Please install the missing utility program for this script to be able function. $norm\n\n   $lty If you aren't sure how - web-search how to install '$missing_util' with your OS type. $norm\n\n"
+            printf "   $lty Please install the missing utility program for this script to be able function. $norm\n\n   $lty If you aren't sure how - web-search how to install '$missing_util_name' with your OS type. $norm\n\n"
         fi
-        read -n1 -r -p "Press any key to continue...";
         exit 1;
     fi
 
