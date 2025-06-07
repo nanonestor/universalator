@@ -601,6 +601,18 @@ setarch () {
 upnpmenu () {
     clear
     upnpinit
+    
+    # Checks by the PUBLICIP variable if the network is using CG-NAT (Carrier Grade NAT) which prevents UPNP from working.
+    if [[ "${PUBLICIP:0:7}" == "100.64." ]]; then
+        clear
+        printf "\n\n"
+        printf "   ${yellow}YOUR NETWORK APPEARS TO BE USING CG-NAT - UPNP WILL NOT WORK${blue}\n\n"
+        printf "   ${yellow}CG-NAT IS A TYPE OF NETWORK ADDRESS TRANSLATION WHICH PREVENTS UPNP FROM WORKING${blue}\n\n" 
+        printf "   ${yellow}YOU WILL NEED TO SET UP PORT FORWARDING SOME OTHER WAY LIKE USING PLAYIT.GG${blue}\n\n"
+        printf "   ${yellow}IF YOU ARE USING A VPN OR PROXY - PLEASE DISABLE IT AND TRY AGAIN${blue}\n\n"
+        read -n1 -r -p "Press any key to continue..."
+        return
+    fi
 
     # If the UPNP program is not downloaded then source it for the set OSARCH.
     [[ ! -f "univ-utils/Portforwarded/$pfname/Portforwarded.Server" ]] && getportforwarded
