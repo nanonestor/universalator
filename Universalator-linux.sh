@@ -1131,35 +1131,46 @@ setmaxram () {
     # Divides the kb amount to get gb.  The result is an integer.  Bash can't natively do floating point math... yeah.
     let "ramtot = $ramtot / 1048576"; let "ramavail = $ramavail / 1048576"
 
-    ramexit=0
-    while [[ $ramexit == 0 ]]; do
-        ramresult=0
-        clear
-        printf "\n\n"
-        [[ -v ramavail ]] && [[ $ramtot != 0 ]] && [[ $ramavail != 0 ]] && ( printf "    Total Total Memory/RAM     $blue   = $yellow $ramtot Gigabytes (GB) $blue \n    Current Available Memory/RAM $blue = $yellow $ramavail Gigabytes (GB) $blue \n\n     * Current stats for the computer / VM this is running with.\n" )
-        printf "\n\n\n\n\n   $yellow ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) $blue\n\n    BE SURE TO USE A VALUE THAT LEAVES AT LEAST SEVERAL GB AVAILABLE IF ALL USED\n    (Refer to the total and available RAM found above if displayed)\n\n    TYPICAL VALUES FOR MODDED MINECRAFT SERVERS ARE BETWEEN 4 AND 10\n\n    ONLY ENTER A WHOLE NUMBER - $red MUST NOT $blue INCLUDE ANY LETTERS.\n    $green Example - 6 $blue\n\n   $yellow ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) $blue\n\n"
-        printf "  $green"; read -p " Entry : $blue " ramentry; printf "$blue"
+ramexit=0
+while [[ $ramexit == 0 ]]; do
+    ramresult=0
+    clear
+    printf "\n\n"
+    [[ -v ramavail ]] && [[ $ramtot != 0 ]] && [[ $ramavail != 0 ]] && ( printf "    Total Memory/RAM     $blue         = $yellow $ramtot Gigabytes (GB) $blue \n    Current Available Memory/RAM $blue = $yellow $ramavail Gigabytes (GB) $blue \n\n     * Current stats for the computer / VM this is running with.\n" )
+    printf "\n\n\n\n\n   $yellow ENTER MAXIMUM RAM / MEMORY THAT THE SERVER WILL RUN - IN GIGABYTES (GB) $blue\n\n    BE SURE TO USE A VALUE THAT LEAVES AT LEAST SEVERAL GB AVAILABLE IF ALL USED\n    (Refer to the total and available RAM found above if displayed)\n\n    TYPICAL VALUES FOR MODDED MINECRAFT SERVERS ARE BETWEEN 4 AND 10\n\n    $green Example - 6 $blue\n\n"
+    printf "  $green"; read -p " Entry : $blue " ramentry; printf "$blue"
 
-        re='^[0-9]+$'
-        if [[ -v ramtot ]] && [[ -v ramavail ]] && [[ "$ostype" != "mac" ]]; then
-            # If ramavail was detected then compare what was entered and the available and decide if greater than 1gb remains after full allocation.
-            # Also check if the entry was a whole number or not.
-            if [[ $ramentry =~ $re ]]; then declare -i ramentry=$ramentry 2>/dev/null; let "ramleft = $ramavail - $ramentry"; else  ramresult=1; fi
-            # If the result of ram entered and the amount available leaves less than 1gb of memory or goes negative, set a state for case to read.
-            [[ $ramleft -lt 1 ]] && ramresult=2 || ramresult=3
+    re='^[0-9]+$'
+    if [[ -v ramtot ]] && [[ -v ramavail ]] && [[ "$ostype" != "mac" ]]; then
+        if [[ $ramentry =~ $re ]]; then
+            if (( ramentry > 0 && ramentry <= (ramtot - 2) )); then
+                let "ramleft = ramavail - ramentry"
+                [[ $ramleft -lt 1 ]] && ramresult=2 || ramresult=3
+            else
+                ramresult=4
+            fi
         else
-            # If ramavail was not detected then only try to set the entry as an integer variable, and then check if the result is a whole number.
-            declare -i ramentry=$ramentry 2>/dev/null; [[ $ramentry =~ $re ]] && ramresult=3 || ramresult=1
+            ramresult=1
         fi
+    else
+        # For systems where RAM detection isn't available
+        if [[ $ramentry =~ $re ]] && (( ramentry > 0 && ramentry <= 64 )); then
+            ramresult=3
+        else
+            ramresult=1
+        fi
+    fi
 
-        case "$ramresult" in
-            (1) printf "\n   You must enter a whole number!\n"; read -n1 -r -p "     Press any key to try a new entry...";;
-            (2) printf "\n   You cannot enter a value that leaves less than 1gb of ram/memory left available\n!"; read -n1 -r -p "     Press any key to try a new entry...";;
-            (3) MAXRAMGIGS=$ramentry; let "ramexit+=1";;
-            (*) printf "\n   Invalid entry!\n"; read -n1 -r -p "     Press any key to try again ...";;
-        esac
-    done
+    case "$ramresult" in
+        (1) printf "\n   $red You must enter a valid whole number! $blue\n"; read -n1 -r -p "     Press any key to try a new entry...";;
+        (2) printf "\n   $red You cannot enter a value that leaves less than 1GB of ram/memory left available! $blue\n"; read -n1 -r -p "     Press any key to try a new entry...";;
+        (3) MAXRAMGIGS=$ramentry; let "ramexit+=1";;
+        (4) printf "\n   $red The entered value must be between 1 and $((ramtot - 2)) GB! $blue\n"; read -n1 -r -p "     Press any key to try a new entry...";;
+        (*) printf "\n   $red Invalid entry! $blue\n"; read -n1 -r -p "     Press any key to try again ...";;
+    esac
+done
 }
+
 # function to parse the major and minor Minecraft version numbers
 getmajorminor () {
     # Sets the major and minor Minecraft version to integer variables - if it has no minor version then mcminor is set to 0.
@@ -1602,6 +1613,38 @@ logsscan () {
     }
 }
 
+# Function to remove Windows characters in config files
+remove_windows_chars() {
+    printf "\n\n   $yellow REMOVING WINDOWS CARRIAGE RETURN CHARACTERS FROM CONFIG FILES $blue\n\n"
+    
+    # Process config folder and all its subfolders
+    if [ -d "./config" ]; then
+        find ./config -type f -print0 | while IFS= read -r -d '' file; do
+            sed -i 's/\r//g' "$file"
+            printf "   Removed Windows characters from: %s\n" "${file#./}"
+        done
+    fi
+
+    # Process defaultconfigs folder and all its subfolders
+    if [ -d "./defaultconfigs" ]; then
+        find ./defaultconfigs -type f -print0 | while IFS= read -r -d '' file; do
+            sed -i 's/\r//g' "$file"
+            printf "   Removed Windows characters from: %s\n" "${file#./}"
+        done
+    fi
+
+    # Find and process any serverconfigs folders and their contents
+    find . -type d -name "serverconfig" -print0 | while IFS= read -r -d '' dir; do
+        find "$dir" -type f -print0 | while IFS= read -r -d '' file; do
+            sed -i 's/\r//g' "$file"
+            printf "   Removed Windows characters from: %s\n" "${file#./}"
+        done
+    done
+
+    printf "\n\n   $yellow Windows characters removed from all configuration files! $blue\n\n"
+    read -n1 -r -p "Press any key to continue..."
+}
+
 # Function to edit server properties menu
 serverpropsedit() {
     entry1="IDK"
@@ -1802,6 +1845,7 @@ allcommands () {
             (PORT) setport;;
             (PURGE) purgefiles;;
             (GENRUN) genrun;;
+            (CONVERTCONFIG|CONVERTCONFIGS|CONFIGSCONVERT) remove_windows_chars;;
             (Q) let "shouldiquit+=1"; allmenu_entry="M";;
             (M) allmenu_entry="M";;
             (*) printf "\ninvalid option $opt\n\n"; read -n1 -r -p "Press any key to continue...";;
@@ -1858,6 +1902,7 @@ mainmenu () {
         (PORT) setport;;
         (PURGE) purgefiles;;
         (GENRUN) genrun;;
+        (CONVERTCONFIG|CONVERTCONFIGS|CONFIGSCONVERT) remove_windows_chars;;
         (Q) let "shouldiquit+=1";;
         (*) printf "\ninvalid option $opt\n\n"; read -n1 -r -p "Press any key to continue...";;
     esac
