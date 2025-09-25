@@ -33,8 +33,8 @@
 
 
 
-
-
+# Universalator for linux version
+UNIV_VER="2.7"
 
 # Color variables for later use
 blue=$'\e[1;33m\e[44m'; yellow=$'\e[1;34m\e[1;103m'; yellowtext=$'\e[1;33m\e[1;40m'; green=$'\e[1;93m\e[1;42m';cyan=$'\e[1;34m\e[1;106m'; red=$'\e[1;93m\e[1;101m'; orange=$'\e[34;43m'; indigo=$'\e[97;45m'; violet=$'\e[97;95m'; lty=$'\e[1;33m'; norm=$'\e[0m';
@@ -56,7 +56,6 @@ fi
 # Checks if user tried to run the script using sudo / root.
 [[ `whoami` == "root" ]] && { printf "\n\n   $lty Running a Minecraft server as root is dangerous. $norm\n   $lty Please run this script without sudo. $norm\n\n"; exit 0; }
 [[ "$EUID" == "0" ]] && { printf "\n\n   $lty Running a Minecraft server as root is dangerous. $norm\n   $lty Please run this script without sudo. $norm\n\n"; exit 0; }
-
 
 # SYSTEM CHECKUPS
 
@@ -80,7 +79,8 @@ fi
     if [[ ! `command -v jq` ]]; then missing_util_name="jq"; missing_util_package="jq"; missing_lang="JSON file parsing"; fi
     if [[ ! `command -v curl` ]]; then missing_util_name="curl"; missing_util_package="curl"; missing_lang="download"; fi
     if [[ ! `command -v nslookup` ]]; then missing_util_name="nslookup"; missing_util_package="dnsutils"; missing_lang="network checking"; fi
-    if [[ ! `command -v shasum` ]]; then missing_util_name="shasum"; missing_util_package="libdigest-sha-perl"; missing_lang="checksum finding"; fi
+    # If the distro_like is fedora, correct the package name - because linux standards == no standards.
+    if [[ ! `command -v shasum` ]]; then missing_util_name="shasum"; missing_util_package="libdigest-sha-perl"; missing_lang="checksum finding"; [[ "$distro_like" == "fedora" ]] && missing_util_package="perl-Digest-SHA"; fi
     if [[ ! `command -v zip` ]]; then missing_util_name="zip"; missing_util_package="zip"; missing_lang="file zip"; fi
     if [[ ! `command -v unzip` ]]; then missing_util_name="unzip"; missing_util_package="unzip"; missing_lang="file unzip"; fi
 
@@ -119,7 +119,6 @@ fi
             # Just use x64 as a fallback if no other methods of detection were found, like the other methods above result in if searches fail to get a hit.
             OSARCH="x64"
         fi
-
     # END CHECKUPS
 
 # Sets the terminal window size to prevent menu formatting weirdness.
@@ -129,7 +128,6 @@ fi
 [[ `command -v resize` ]] && printf '\e[8;30;98t' 2>/dev/null
 
 # Sets default variables as needed later on for various things.
-javaoverride="N"
 shouldiquit=1
 ARGS="-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646 -XX:+UnlockExperimentalVMOptions -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M"
 OTHERARGS="-XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysActAsServerClassMachine -Dlog4j2.formatMsgNoLookups=true"
@@ -137,6 +135,7 @@ ASKMODSCHECK="Y"
 PORTUDP="24454"
 PROTOCOL="TCP"
 USEPORTFORWARDED="N"
+OVERRIDE="A"
 
 # File version name of the Portforwarded program if it is used.
 pfrelease="3.0.0-alpha"
@@ -192,7 +191,7 @@ $red        LIN${orange}UX EDITION $yellow!          $green           $cyan     
 $red~~~~~~~~~~~$orange~~~~~~~~~~~$yellow~~~~~~~~~~~$green~~~~~~~~~~~$cyan~~~~~~~~~~~$indigo~~~~~~~~~~~$violet~~~~~~~~~~~~~~~~~~~~$blue\n"
 else
     univheader="\n$yellow~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Welcome to the Universalator - A modded Minecraft server installer / launcher     
+    Welcome to the Universalator - A modded Minecraft server installer / launcher     
                                                                                       
          LINUX EDITION !                                                              
 $yellow~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~$blue\n"
@@ -216,13 +215,12 @@ fi
                 [[ "$property" == "online-mode" ]] && serverprops[$i]="online-mode=true"
                 [[ "$property" == "server-port" ]] && PORT="$value"
                 [[ "$property" == "server-ip" ]] && IPLINE=$i
-                [[ "$property" == "server-ip" ]] && IPLINEVALUE="$value"
             done <<<${serverprops[$i]}
         done
 
-        # Gives a warning message if an entry was put after server-ip=.  Ignoring cases where the IPLINE is allow-flight=true is for cases when that's all that exists in the file so far.
-        if [[ "${serverprops[$IPLINE]}" != "server-ip=" ]] && [[ "${serverprops[$IPLINE]}" != "allow-flight=true" ]]; then
-            choice=0
+        # Gives a warning message if an IPLINe was found and an entry was put after server-ip=.
+        if [[ ! -z $IPLINE ]] && [[ "${serverprops[$IPLINE]}" != "server-ip=" ]]; then
+            let choice=0
             while [[ "$choice" == "0" ]]; do
                 clear
                 printf "\n\n\n   $yellow WARNING WARNING WARNING $blue \n\n   IT IS DETECTED THAT THE server.properties FILE HAS AN IP ADDRESS ENTERED AFTER server-ip= \n\n            $yellow ${serverprops[$IPLINE]} $blue\n\n"
@@ -232,8 +230,8 @@ fi
                 printf "  $green"; read -p " Entry : $blue " ipchoice; printf "$blue"
 
                 case "${ipchoice^^}" in
-                    (CORRECT) let "choice+=1"; serverprops[$IPLINE]="server-ip=";;
-                    (IGNORE) let "choice+=1" ;;
+                    (CORRECT) let choice+=1; serverprops[$IPLINE]="server-ip=";;
+                    (IGNORE) let choice+=1 ;;
                     (*) printf "\nInvalid option '$modloadertype' - try again\n\n"; read -n1 -r -p "Press any key to continue...";;
                 esac
             done
@@ -278,29 +276,21 @@ serverprops_stamp () {
 # BEGIN FUNCTIONS SETUP
 
 setport () {
-    portexit="N"
-    while [[ "$portexit" != "Y" ]]; do
+    let loop=0
+    while [[ "$loop" == "0" ]]; do
         clear
         printf "\n\n\n\n\n  $yellow ENTER THE PORT NUMBER TO USE FOR THE LAUNCHED SERVER $blue\n\n   DEFAULT VALUE IS $yellow 25565 $blue\n\n"
         printf "   CURRENTLY SET VALUE IS - $green $PORT $blue\n\n   DO NOT SET THE PORT TO BE USED BELOW 10000 - BELOW THAT NUMBER IS NOT A GOOD IDEA\n   OTHER CRITICAL PROCESSES MAY ALREADY BE USING PORTS BELOW THIS NUMBER\n"
         printf "\n  $yellow ENTER THE PORT NUMBER TO USE FOR THE LAUNCHED SERVER $blue \n\n\n"
-        printf "      $green"; read -p " Entry ( enter a number OR 'default' ): $blue " portentry; printf "$blue"
+        printf "      $green"; read -p " Entry ( enter a number OR 'default' ): $blue " entry; printf "$blue"
         
-        if [[ "${portentry,,}" != "default" ]]; then
-            case $portentry in
-                ''|*[!0-9]*) printf "\n   THE ENTRY $red $portentry $blue DOES NOT LOOK LIKE AN WHOLE NUMBER, TRY AGAIN\n\n"; read -n1 -r -p "   Press any key to continue...";;
-                *) goodport="Y" ;;
-            esac
-
-            if [[ "$goodport" == "Y" ]]; then
-                [[ "$portentry" -gt 10000 ]] && { PORT="$portentry"; portexit="Y"; } || { printf "\n   THE NUMBER ENTERED $red $portentry $blue WAS LESS THEN 10000, TRY AGAIN WITH A NUMBER WITHIN VALID RANGE\n\n"; read -n1 -r -p "   Press any key to continue..."; }
-            fi
-        else
-            PORT="25565"; portexit="Y"
-        fi
-        unset portentry; unset goodport
+        case ${entry^^} in
+            (DEFTULT) PORT="25565"; let loop+=1;;
+            (''|*[!0-9]*) printf "\n   THE ENTRY $red $entry $blue DOES NOT LOOK LIKE AN WHOLE NUMBER, TRY AGAIN\n\n"; read -n1 -r -p "   Press any key to continue...";;
+            (*) [[ "$entry" -gt 10000 ]] && { PORT="$entry"; let loop+=1; } || { printf "\n   THE NUMBER ENTERED $red $entry $blue WAS LESS THEN 10000, TRY AGAIN WITH A NUMBER WITHIN VALID RANGE\n\n"; read -n1 -r -p "   Press any key to continue..."; };;
+        esac
     done
-    unset portexit
+    # Saves the setting to the server.properties file and to Univ settings file.
     serverprops_stamp "server-port" "$PORT"
     settingsstamp
 }
@@ -311,17 +301,17 @@ setportudp () {
         # Get port from config file
         PORTCONFIG=$(grep "port=" "config/voicechat/voicechat-server.properties" | cut -d'=' -f2 | tr -d ' ')
 
-        loop="1"
-        while [[ "$loop" == "1" ]]; do
+        let loop=0
+        while [[ "$loop" == "0" ]]; do
             clear
             printf "\n\n   $yellow A 'Simple Voice Chat' mod config file was found, with a value set to use $green UDP $yellow port $green $PORTCONFIG $blue\n"
             printf "   $yellow FYI - The default 'Simple Voice Chat' mod port number is 24454 $blue\n\n"
             printf "   $yellow Do you want to use this port number $PORTCONFIG for your UDP port setting? $blue\n\n"
             
-            printf "      $green"; read -p " Entry ( enter a number OR 'default' ): $blue " ASK; printf "$blue"
-            if [ "${ASK,,}" = "y" ]; then
+            printf "      $green"; read -p " Entry ( enter a number OR 'default' ): $blue " entry; printf "$blue"
+            if [ "${entry,,}" = "y" ]; then
                 PORT2="$PORTCONFIG"
-                loop="2"
+                let loop+=1
             else
                 printf "\n   $yellow You said N, or at least not Y $blue\n"
                 printf "   $yellow Enter a port number to use for UDP $blue\n"
@@ -332,7 +322,7 @@ setportudp () {
                 
                 if [ "${PORT2,,}" = "default" ]; then
                     PORTUDP="24454"
-                    loop="2"
+                    let loop+=1
                 else
                     # Check if input contains letters
                     if [[ "$PORT2" =~ [a-zA-Z] ]]; then
@@ -340,7 +330,7 @@ setportudp () {
                         read -n1 -r -p "   Press any key to continue..."
                     else
                         PORTUDP="$PORT2"
-                        loop="2"
+                        let loop+=1
                     fi
                 fi
             fi
@@ -366,8 +356,8 @@ setportudp () {
         fi
         PORTUDP="$PORT2"; settingsstamp; unset PORT2
     else
-        loop="1"
-        while [[ "$loop" == "1" ]]; do
+        let loop=0
+        while [[ "$loop" == "0" ]]; do
             clear
             printf "\n\n\n\n\n  $yellow ENTER THE $green UDP $blue PORT NUMBER TO USE FOR THE LAUNCHED SERVER $blue\n\n   DEFAULT VALUE IS $yellow 24454 $blue\n\n"
             printf "   CURRENTLY SET VALUE IS - $green $PORTUDP $blue\n\n   DO NOT SET THE PORT TO BE USED BELOW 10000 - BELOW THAT NUMBER IS NOT A GOOD IDEA\n   OTHER CRITICAL PROCESSES MAY ALREADY BE USING PORTS BELOW THIS NUMBER\n"
@@ -413,8 +403,8 @@ settingsstamp () {
     # corrects any lowercase to all uppercase in 
     if [[ "${MODLOADER^^}" == FORGE ]]; then MODLOADER="FORGE"; elif [[ "${MODLOADER^^}" == "NEOFORGE" ]]; then MODLOADER="NEOFORGE"; elif [[ "${MODLOADER^^}" == "FABRIC" ]]; then MODLOADER="FABRIC"; elif [[ "${MODLOADER^^}" == "QUILT" ]]; then MODLOADER="QUILT"; elif [[ "${MODLOADER^^}" == "VANILLA" ]]; then MODLOADER="VANILLA"; fi
     echo -n >"settings-linux-universalator.txt"
-    printf "# Universalator Linux\OSX edition settings\n# To reset this file - delete and run launcher again. \n#\n#  MINECRAFT is Minecraft version - example: MINECRAFT=1.18.2\n#  MODLOADER is modloader type - FORGE / NEOFORGE / FABRIC / QUILT / VANILLA\n#  MODLOADERVERSION is the version number/name to use for whichever MODLOADER is set\n#  JAVAVERSION - can be edited but it's better to set through script to filter for compatible versions\n#  MAXRAM is ram maximum value in gigabytes, must be a whole number - example: 6\n#  ARGS are Java additional startup args - DO NOT INCLUDE -Xmx THAT IS SET USING MAXRAM\n#  ASKMODSCHECK is whether or not the next settings menu entry done asks to scan for client only mods\n#\n#\n">>"settings-linux-universalator.txt"
-    printf "MINECRAFT=\"$MINECRAFT\"\nMODLOADER=\"$MODLOADER\"\nMODLOADERVERSION=\"$MODLOADERVERSION\"\nJAVAVERSION=\"$JAVAVERSION\"\nMAXRAMGIGS=\"$MAXRAMGIGS\"\nARGS=\"$ARGS\"\nPORT=\"$PORT\"\nPORTUDP=\"$PORTUDP\"\nOSARCH=\"$OSARCH\"\nPROTOCOL=\"$PROTOCOL\"\nUSEPORTFORWARDED=\"$USEPORTFORWARDED\"">>"settings-linux-universalator.txt"
+    printf "# Universalator Linux\OSX edition settings\n# To reset this file - delete and run launcher again. \n#\n#  MINECRAFT is Minecraft version - example: MINECRAFT=1.18.2\n#  MODLOADER is modloader type - FORGE / NEOFORGE / FABRIC / QUILT / VANILLA\n#  MODLOADERVERSION is the version number/name to use for whichever MODLOADER is set\n#  JAVAVERSION - can be edited but it's better to set through script to filter for compatible versions\n#  MAXRAM is ram maximum value in gigabytes, must be a whole number - example: 6\n#  ARGS are Java additional startup args - DO NOT INCLUDE -Xmx THAT IS SET USING MAXRAM\n#  ASKMODSCHECK is whether or not the next settings menu entry done asks to scan for client only mods\n#  OVERRIDE is for entering a custom folder/file to use for the java.\n#           The folder entry must include the /bin/java (linux) or /Contents/Home/bin/java (macOS) file. For example:\n#           /usr/lib/myfolder/bin/java (for linux)\n#           /usr/lib/myfolder/Contents/Home/bin/java (for macOS)\n#\n#\n">>"settings-linux-universalator.txt"
+    printf "MINECRAFT=\"$MINECRAFT\"\nMODLOADER=\"$MODLOADER\"\nMODLOADERVERSION=\"$MODLOADERVERSION\"\nJAVAVERSION=\"$JAVAVERSION\"\nMAXRAMGIGS=\"$MAXRAMGIGS\"\nARGS=\"$ARGS\"\nPORT=\"$PORT\"\nPORTUDP=\"$PORTUDP\"\nOSARCH=\"$OSARCH\"\nPROTOCOL=\"$PROTOCOL\"\nUSEPORTFORWARDED=\"$USEPORTFORWARDED\"\nOVERRIDE=\"$OVERRIDE\"">>"settings-linux-universalator.txt"
 }
 # function for settings variables loading, from text storage files.
 settingscall () {
@@ -436,57 +426,53 @@ settingssetup () {
 }
 # main function to set Minecraft version
 setminecraft () {
-    goodmcver="False"
-    while [[ "$goodmcver" == "False" ]]; do
+    loop=0
+    while [[ "$loop" == "0" ]]; do
         clear
         # Runs function to check / get the mojang version manifest.
         mojangmanifest
         if [[ ! -f "settings-linux-universalator.txt" ]]; then printf "$univheader"; else printf "\n\n"; fi
         printf "\n\n\n\n   $yellow ENTER THE MINECRAFT VERSION $blue \n\n   example: 1.7.10\n   example: 1.16.5\n   example: 1.19.2\n\n   $yellow ENTER THE MINECRAFT VERSION $blue \n\n\n\n"
         printf "  $green"; read -p " Entry : $blue " MINECRAFT; printf "$blue"
-        goodmcver="True"
 
-        # Uses jq to check mojang version manifest against the entered MC version to see if it is an actual release version.
-        # If somehow no manifest file was found / gotten, passes by gracefully accepting whatever was entered.
+        # Uses jq to check mojang version manifest against the entered MC version to see if it is an actual release version - othherwise asks for another entry.
         if [[ -f ./univ-utils/version_manifest_v2.json ]]; then
-            [[ `jq --arg mcr $MINECRAFT '.versions[] | select ( .type == "release" and .id == $mcr )' "./univ-utils/version_manifest_v2.json"` ]] && goodmcver="True" || goodmcver="False"
-
-            if [[ "$goodmcver" == "False" ]]; then printf "\n   Oops the version you entered $MINECRAFT was not detected to exist as a release version.\n   Try again\n\n"; read -n1 -r -p "Press any key to continue..."; fi
+            [[ `jq --arg mcr $MINECRAFT '.versions[] | select ( .type == "release" and .id == $mcr )' "./univ-utils/version_manifest_v2.json"` ]] && return || {
+                printf "\n   Oops the version you entered $MINECRAFT was not detected to exist as a release version.\n   Try again\n\n"; read -n1 -r -p "Press any key to continue...";
+            }
         fi   
     done
 }
 # function to get the Mojang Minecraft versions manifest and check age of any existing manifest file.
 mojangmanifest () {
-    getvermanifest="u"
-    # If no MC version manifest found then set to True to get
-    [[ ! -f ./univ-utils/version_manifest_v2.json ]] && getvermanifest=True
+    getnewmanifest="F"
     # If MC version manifest found, use date, file creation date, and some math to check if it's older than a certain time.  If it is older then set True to get.
     if [[ -f ./univ-utils/version_manifest_v2.json ]]; then
         d2=`date +%s`; d1=`date -r "./univ-utils/version_manifest_v2.json" +%s`; let diff_hours=($d2-$d1)/3600
-        [[ "$diff_hours" -gt 6 ]] && getvermanifest="True"
+        [[ "$diff_hours" -gt 6 ]] && getnewmanifest="T"
     fi
-    
-    if [[ "$getvermanifest" == "True" ]]; then
+    # If no manifest is found or getting new is flagged, download.
+    if [[ ! -f ./univ-utils/version_manifest_v2.json ]] || [[ "$getnewmanifest" == "T" ]]; then
         dnscheck
         curl -sLfo ./univ-utils/version_manifest_v2.json "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
     fi
 }
 # main function to set the Modloader type
 setmodloader () {
-    foundgoodmodloader=0
-    while [[ "$foundgoodmodloader" == "0" ]]; do
+    let loop=0
+    while [[ "$loop" == "0" ]]; do
         clear
         if [[ ! -f "settings-linux-universalator.txt" ]]; then printf "$univheader"; else printf "\n\n\n"; fi
         printf "\n\n\n\n   $yellow ENTER THE MODLOADER TYPE $blue\n\n    Valid entries - $green FORGE $blue \n                    $green NEOFORGE $blue \n                    $green FABRIC $blue \n                    $green QUILT $blue \n                    $green VANILLA $blue \n\n   $yellow ENTER THE MODLOADER TYPE $blue \n\n\n"
-        printf "  $green"; read -p " Entry : $blue " modloadertype; printf "$blue"
+        printf "  $green"; read -p " Entry : $blue " entry; printf "$blue"
         # The entry passed to case is set to all uppercase characters for comparison - this can be a problem for non-english letters but that won't be a problem here.
-        case "${modloadertype^^}" in
-            (FORGE) MODLOADER="FORGE"; let "foundgoodmodloader+=1";;
-            (NEOFORGE) MODLOADER="NEOFORGE"; let "foundgoodmodloader+=1";;
-            (FABRIC) MODLOADER="FABRIC"; let "foundgoodmodloader+=1";;
-            (QUILT) MODLOADER="QUILT"; let "foundgoodmodloader+=1";;
-            (VANILLA) MODLOADER="VANILLA"; let "foundgoodmodloader+=1";;
-            (*) printf "\nInvalid option '$modloadertype' - try again\n\n"; read -n1 -r -p "Press any key to continue...";;
+        case "${entry^^}" in
+            (FORGE) MODLOADER="FORGE"; let loop+=1;;
+            (NEOFORGE) MODLOADER="NEOFORGE"; let loop+=1;;
+            (FABRIC) MODLOADER="FABRIC"; let loop+=1;;
+            (QUILT) MODLOADER="QUILT"; let loop+=1;;
+            (VANILLA) MODLOADER="VANILLA"; let loop+=1;;
+            (*) printf "\nInvalid option '$entry' - try again\n\n"; read -n1 -r -p "Press any key to continue...";;
         esac
     done
 }
@@ -494,30 +480,33 @@ setmodloader () {
 setmodloaderversion () {
     # Starts by getting the newest version to display from the modloader's maven metadata file.
     getnewestversion
-    setgoodmodloader=0
-    while [[ $setgoodmodloader == 0 ]]; do
+    let loop=0
+    while [[ $loop == 0 ]]; do
         clear
         printf "\n\n\n   $yellow $MODLOADER VERSION - $MODLOADER VERSION $blue \n\n"
         ( [[ "$MODLOADER" == "FORGE" ]] || [[ "$MODLOADER" == "NEOFORGE" ]] ) && printf "     THE NEWEST VERSION OF $MODLOADER FOR MINECRAFT VERSION $MINECRAFT \n\n     WAS DETECTED TO BE:\n                      $green $newestmodloader $blue\n\n     -ENTER $green 'Y' $blue TO USE THIS NEWEST VERSION \n\n      $yellow OR $blue \n\n     -ENTER A VERSION NUMBER TO USE INSTEAD\n"
         [[ "$MODLOADER" == "FORGE" ]] && printf "\n       example: 14.23.5.2860\n       example: 47.2.19\n"; [[ "$MODLOADER" == "NEOFORGE" ]] && printf "       example: 20.2.88\n       example: 20.4.75-beta\n"
         ( [[ "$MODLOADER" == "FABRIC" ]] || [[ "$MODLOADER" == "QUILT" ]] ) && printf "\n\n   DO YOU WANT TO USE THE NEWEST PUBLISHED VERSION OF THE $MODLOADER $yellow LOADER $blue FILE?\n    VERSION $yellow $newestmodloader $blue \n\n\n   ENTER $green 'Y' $blue or $red 'N' $blue TO ENTER A CUSTOM VERSION    \n   UNLESS YOU KNOW A SPECIFIC OLDER FABRIC LOADER IS REQUIRED FOR YOUR MODS - ENTER $green 'Y' $blue \n"
         printf "\n\n\n   $yellow $MODLOADER VERSION - $MODLOADER VERSION $blue \n\n"
-        printf "  $green"; read -p "  Entry : $blue " modloaderver; printf "$blue"
+        printf "  $green"; read -p "  Entry : $blue " entry; printf "$blue"
 
-        if [[ "${modloaderver^^}" != "Y" ]]; then
+        if [[ "${entry^^}" != "Y" ]]; then
             # does a grep search for the entered version inside the maven-metadata file if the entry was not Y.  Checks the error status of the grep search to determine what to do next.
-            grep -q "$modloaderver" "./univ-utils/$mavenfile" && { MODLOADERVERSION="$modloaderver"; modloaderver=F; } || { enteredmodloader=$modloaderver; modloaderver=N; }
-            # If found then set modloaderver to F for found, and set MODLOADERVERSION.  If not found set modloaderver to N.
+            grep -q "$entry" "./univ-utils/$mavenfile" && { MODLOADERVERSION="$entry"; entry=T; } || { enteredmodloader=$entry; entry=F; }
+            # If found then set entry to F for found, and set MODLOADERVERSION.  If not found set modloaderver to N.
+        elif [[ "${entry^^}" == "Y" ]]; then
+            # Checks if the auto detect newest version is real, just in case.  If it's still not_found then this will catch it.
+            grep -q "$newestmodloader" "./univ-utils/$mavenfile" && { MODLOADERVERSION="$newestmodloader"; entry=T; } || { enteredmodloader=$entry; entry=F; }
         fi
 
-        case "${modloaderver^^}" in
-            (Y) MODLOADERVERSION="$newestmodloader"; let setgoodmodloader+=1;;
-            (N) printf "\n   The the entry $red $enteredmodloader $blue was not found to be an existing version, try again.\n"; read -n1 -r -p "Press any key to continue...";;
-            (F) let setgoodmodloader+=1;;
-            (*) MODLOADERVERSION="$modloaderver";;
+        # If entry was set to T true above then pass, if not then flash the warning and redo menu.
+        case "${entry^^}" in
+            (T) let loop+=1;;
+            (*) printf "\n   The the entry $red $enteredmodloader $blue was not found to be an existing version, try again.\n"; read -n1 -r -p "Press any key to continue...";;
         esac
     done
 }
+
 # function to fetch the newest version of the set modloader type
 getnewestversion () {
     # Starts by checking/getting the required maven metadata file for whichever modloader is set.
@@ -525,15 +514,21 @@ getnewestversion () {
     getmajorminor
 
     if [[ -f "./univ-utils/$mavenfile" ]]; then
-        newestmodloader="unknown"
+        newestmodloader="not_found"
 
         # If Forge or Neoforge - pipes the output of maven-metadata file to a fgrep which filters based on the Minecraft version, then a while loop reads off the info and a variable sets the MODLOADERVERSION.
-        # Forge's metadata file puts the newest versions first on the list, so at the first while loop 'break' is done to only iterate for the first entry grep found.  Neoforge 1.20.1 metadata file puts the newest version last, so loops through the entire filted list and last recorded is newest.
+        # Forge's metadata file doesn't necessarily list versions sequentially, so instead uses this JSON file that stores the latest version published.
+        if [[ "$MODLOADER" == "FORGE" ]]; then newestmodloader=`jq --arg mcv "$MINECRAFT-latest" --raw-output '.promos[$mcv]' "./univ-utils/promotions_slim.json"`; fi
+        # Neoforge 1.20.1 was a one-off and is done updating - just hardcode the latest version.
+        if [[ "$MODLOADER" == "NEOFORGE" ]] && [[ "$MINECRAFT" == "1.20.1" ]]; then newestmodloader="47.1.106"; fi
         # Process substitution using '< <' to input the ( powershell | fgrep ) to the while loop because if you pipe inside of the while loop it creates a subshell and any variable values set are lost exiting the subshell.
-        if [[ "$MODLOADER" == "FORGE" ]]; then while IFS='-' read -r _ forgever _; do newestmodloader="$forgever"; break; done < <(xmlstarlet sel -t -v "//versioning/versions/version" ./univ-utils/maven-forge-metadata.xml | fgrep "$MINECRAFT"); fi
-        if [[ "$MODLOADER" == "NEOFORGE" ]] && [[ "$MINECRAFT" == "1.20.1" ]]; then while IFS='-' read -r _ neofver; do newestmodloader="$neofver"; done < <(xmlstarlet sel -t -v "//versioning/versions/version" ./univ-utils/maven-neoforge-1.20.1-metadata.xml | fgrep "$MINECRAFT"); fi
         # Neoforge newer than 1.20.1 changes the version conventions from older Neoforge and Forge, so a function is run to get the major and minor MC versions to help filter results.  Neoforge 1.20.2+ still lists the newest version last/bottom of list.
-        if [[ "$MODLOADER" == "NEOFORGE" ]] && [[ "$MINECRAFT" != "1.20.1" ]]; then while IFS= read -r neofver; do newestmodloader="$neofver"; done < <(xmlstarlet sel -t -v "//versioning/versions/version" ./univ-utils/maven-neoforge-metadata.xml | fgrep "$mcmajor.$mcminor."); fi
+        if [[ "$MODLOADER" == "NEOFORGE" ]] && [[ "$MINECRAFT" != "1.20.1" ]]; then
+            let newestneo=0
+            # New method to cycle through the versions for a given Minecraft version, and record the highest numbered one
+            # the output of grep search to the XMLStarlet output dumps into the while loop, which parses the found results, in each loop cycle it compares the current stored neoforge version to the input neo version and records if input is newer.  Also has to account for the -beta at end of actual neo version when recording final string.
+            while IFS='.-' read -r mcmj mcmin neover beta; do [ "$newestneo" -lt "$neover" ] && { newestneo="$neover"; [ -z "$beta" ] && newestmodloader="$mcmj.$mcmin.$neover"; [ ! -z "$beta" ] && newestmodloader="$mcmj.$mcmin.$neover-$beta"; }; done < <(xmlstarlet sel -t -v "//versioning/versions/version" ./univ-utils/maven-neoforge-metadata.xml | fgrep "$mcmajor.$mcminor.");
+        fi
         # Fabric and Quilt both work a different way with the newest version being a release in the metadata file, and it's independent of MC version it will be used with.
         if [[ "$MODLOADER" == "FABRIC" ]]; then newestmodloader=`xmlstarlet sel -t -v "//versioning/release" ./univ-utils/maven-fabric-metadata.xml`; fi
         if [[ "$MODLOADER" == "QUILT" ]]; then newestmodloader=`xmlstarlet sel -t -v "//versioning/release" ./univ-utils/maven-quilt-metadata.xml`; fi
@@ -548,26 +543,22 @@ setjava () {
     while [[ "$setgoodjava" == "0" ]]; do
         clear
         printf "\n\n\n\n\n  $yellow ENTER JAVA VERSION TO LAUNCH THE SERVER WITH $blue\n\n   JAVA IS THE ENGINE THAT MINECRAFT JAVA EDITION RUNS ON\n\n"
-        [[ $mcmajor -lt 16 ]] && printf "   THE ONLY OPTION FOR MINECRAFT $MINECRAFT BASED LAUNCHING IS $green 8 $blue "
-        [[ $mcmajor -eq 16 ]] && [[ $mcminor -le 4 ]] && printf "   THE ONLY OPTION FOR MINECRAFT $MINECRAFT BASED LAUNCHING IS $green 8 $blue "
+        ( [[ $mcmajor -lt 16 ]] || ( [[ $mcmajor -eq 16 ]] && [[ $mcminor -le 4 ]] ) ) && printf "   THE ONLY OPTION FOR MINECRAFT $MINECRAFT BASED LAUNCHING IS $green 8 $blue "
         [[ $mcmajor -eq 16 ]] && [[ $mcminor -eq 5 ]] && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 8 $blue AND $green 11 $blue "
         [[ $mcmajor == 17 ]] && printf "   THE ONLY OPTION FOR MINECRAFT $MINECRAFT BASED LAUNCHING IS $green 16 $blue "
-        [[ $mcmajor -ge 18 ]] && [[ $mcmajor -le 19 ]] && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 17 $blue AND $green 21 $blue "
-        [[ $mcmajor == 20 ]] && [[ $mcminor -le 5 ]] && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 17 $blue AND $green 21 $blue "
-        [[ $mcmajor == 20 ]] && [[ $mcminor -ge 6 ]] && printf "   THE ONLY OPTION FOR MINECRAFT $MINECRAFT BASED LAUNCHING IS $green 21 $blue "
-        [[ $mcmajor -ge 21 ]] && printf "   THE ONLY OPTION FOR MINECRAFT $MINECRAFT BASED LAUNCHING IS $green 21 $blue "
-
+        ([[ $mcmajor -ge 18 ]] && [[ $mcmajor -le 19 ]]) && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 17 $blue, AND $green 21 $blue"
+        ( [[ $mcmajor == 20 ]] && [[ $mcminor -ge 1 ]] && [[ $mcminor -le 5 ]] ) && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 17 $blue, $green 21 $blue, AND $green 25 $blue"
+        (( [[ $mcmajor == 20 ]] && [[ $mcminor -ge 6 ]] ) || [[ $mcmajor -ge 21 ]] ) && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 21 $blue, AND $green 25 $blue"
 
         printf "\n\n\n   * USING THE NEWER VERSION OPTION IF GIVEN A CHOICE $green MAY $blue OR $red MAY NOT $blue WORK DEPENDING ON MODS BEING LOADED\n   * IF A SERVER FAILS TO LAUNCH, YOU SHOULD CHANGE BACK TO THE LOWER DEFAULT VERSION!\n\n\n  $yellow ENTER JAVA VERSION TO LAUNCH THE SERVER WITH $blue \n\n"
-        printf "  $green"; read -p " Entry : $blue " tempjava; printf "$blue"
+        printf "  $green"; read -p " Entry : $blue " entry; printf "$blue"
 
-        case "$tempjava" in
-            (8) [[ $mcmajor -le 16 ]] && JAVAVERSION=$tempjava && let "setgoodjava+=1";;
-            (11) ( [[ $mcmajor -eq 16 ]] && [[ $mcminor -eq 5 ]] ) && JAVAVERSION=$tempjava && let "setgoodjava+=1";;
-            (16) [[ $mcmajor -eq 17 ]] && JAVAVERSION=$tempjava && let "setgoodjava+=1";;
-            (17)  ( [[ $mcmajor == 18 ]] || [[ $mcmajor == 19 ]] || ( [[ $mcmajor == 20 ]] && [[ $mcminor -le 4 ]] ) ) && JAVAVERSION=$tempjava && let "setgoodjava+=1";;
-            (21)  [[ $mcmajor -ge 18 ]] && JAVAVERSION=$tempjava && let "setgoodjava+=1";;
-
+        case "$entry" in
+            (8) [[ $mcmajor -le 16 ]] && JAVAVERSION=$entry && let "setgoodjava+=1";;
+            (11) ( [[ $mcmajor -eq 16 ]] && [[ $mcminor -eq 5 ]] ) && JAVAVERSION=$entry && let "setgoodjava+=1";;
+            (16) [[ $mcmajor -eq 17 ]] && JAVAVERSION=$entry && let "setgoodjava+=1";;
+            (17)  (([[ $mcmajor -ge 18 ]] && [[ $mcmajor -le 19 ]]) || ([[ $mcmajor == 20 ]] && [[ $mcminor -le 5 ]])) && JAVAVERSION=$entry && let "setgoodjava+=1";;
+            (21|25)  (( [[ $mcmajor == 20 ]] && [[ $mcminor -ge 1 ]] ) || [[ $mcmajor -ge 21 ]] ) && JAVAVERSION=$entry && let "setgoodjava+=1";;
             (*) printf "\nInvalid entry - enter a valid version option\n"; read -n1 -r -p "Press any key to continue...";;
         esac
     done
@@ -575,8 +566,8 @@ setjava () {
 
 # Main function to set system arch version for determining which java installation to get/use
 setarch () {
-    setgoodarch="N"
-    while [[ "$setgoodarch" != "Y" ]]; do
+    let loop=0
+    while [[ "$loop" == "0" ]]; do
         clear
         printf "\n\n\n  $yellow CHOOSE THE SYSTEM ARCHIECTURE TO USE FOR JAVA $blue\n\n   CURRENT ARCH SETTING - $yellow $OSARCH $blue\n\n   SELECT WHICH COMPUTER SYSTEM ARCHITECTURE TO USE FOR JAVA INSTALLATION\n"
         printf "\n   (The Universalator script does already attempt to auto-detect the correct type to use)\n\n   $red ONLY $blue CHANGE THE SELECTION IF YOU ARE CERTAIN\n\n"
@@ -585,17 +576,128 @@ setarch () {
         printf "  $green"; read -p " Entry (number): $blue " archentry; printf "$blue"
 
         case "$archentry" in
-            (1) OSARCH="x64"; setgoodarch="Y";;
-            (2) OSARCH="aarch64"; setgoodarch="Y";;
-            (3) OSARCH="ppc64"; setgoodarch="Y";;
-            (4) OSARCH="ppc64le"; setgoodarch="Y";;
-            (5) OSARCH="arm"; setgoodarch="Y";;
-            (6) OSARCH="riscv64"; setgoodarch="Y";;
-            (m) setgoodarch="Y";;
+            (1) OSARCH="x64"; let loop+=1;;
+            (2) OSARCH="aarch64"; let loop+=1;;
+            (3) OSARCH="ppc64"; let loop+=1;;
+            (4) OSARCH="ppc64le"; let loop+=1;;
+            (5) OSARCH="arm"; let loop+=1;;
+            (6) OSARCH="riscv64"; let loop+=1;;
+            (m) let loop+=1;;
             (*) printf "\n  $red Invalid entry $blue - enter a valid numbered selection\n"; read -n1 -r -p "   Press any key to continue...";;
         esac
     done
-    unset setgoodarch
+}
+
+java_override_menu () {
+    # First searches through possible java install locations and saves information on found locations in 3 arrays to store - folder location, IMPLEMENTOR, FULL_VERSION
+    search_paths=( "/usr/lib/jvm" "/usr/local/openjdk*" "/usr/local/java" "/opt/java" "/Library/Java/JavaVirtualMachines" "/System/Library/Java/JavaVirtualMachines" "/usr/local/Cellar/openjdk@${JAVAVERSION}" "$HOME/.sdkman/candidates/java" "./univ-utils/java" )
+    unset java_folders; unset implenentors; unset full_versions; unset good_folder_file
+    
+    # The path to the java file is different for linux vs mac
+    ( [[ "$ostype" == "linux" ]] || [[ "$ostype" == "alpine-linux" ]] ) && javaname="/bin/java"
+    [[ "$ostype" == "mac" ]] && javaname="/Contents/Home/bin/java"
+
+    for path in "${search_paths[@]}"; do
+
+        # If the frep search on the path for this loop finds a result then do a for loop with the results
+        [[ `ls -d $path/* 2>/dev/null | fgrep -e "jdk" -e "jre"` ]] && {
+            for folder_name in `ls -d $path/* 2>/dev/null | fgrep -e "jdk" -e "jre"`; do
+                
+                # First checks to see if the actual java file to execute exists in the found folder. If it does not skip this FOR loop.
+                [[ -f "$folder_name$javaname" ]] && good_folder_file+=("$folder_name/bin/java") || continue;
+
+                # Saves the folder name including path
+                java_folders+=("$folder_name")
+
+               # If the release file is present then try to get some values to display and save
+                [[ -f "$folder_name/release" ]] && {
+                    # Saves the IMPLEMENTOR
+                    temp=""
+                    temp="`fgrep "IMPLEMENTOR=" "$folder_name/release" | cut -d '=' -f 2 | cut -d '"' -f 2`"
+                    [[ "$temp" != "" ]] && { implenentors+=("$temp"); } || { implenentors+=("<unknown>"); }
+                    # Saves the FULL_VERSION
+                    temp=""
+                    temp="`fgrep "FULL_VERSION=" "$folder_name/release"  | cut -d '=' -f 2 | cut -d '"' -f 2`"
+                    [[ "$temp" == "" ]] && temp="`fgrep "JAVA_VERSION=" "$folder_name/release"  | cut -d '=' -f 2 | cut -d '"' -f 2`"
+                    [[ "$temp" != "" ]] && { full_versions+=("$temp"); } || { full_versions+=("<unknown>"); }
+
+                # If there was no release file then save this, so that the array still indexes the same as the other arrays.
+                } || { implenentors+=("<unknown>"); full_versions+=("<unknown>"); }
+            done
+        }
+    done
+
+    # Gets the number of array entries
+   idk=${#java_folders[@]}
+
+    # Finds the longest entry in each array and saves a column variable so that they can be printed in columns.
+    column_width1=0
+    for ((i=0; i<idk; i++)); do
+        length=${#implenentors[$i]}
+        if ((length > column_width1)); then
+            column_width1=$length
+        fi
+    done
+        column_width2=0
+    for ((i=0; i<idk; i++)); do
+        length=${#full_versions[$i]}
+        if ((length > column_width2)); then
+            column_width2=$length
+        fi
+    done
+
+    # Java overrides menu
+    while true; do
+        clear
+        printf "\n %s JAVA OVERRIDE - JAVA OVERRIDE %s\n\n" "$yellow" "$blue"
+        printf "   Auto-detection has found the following Java folders with files installed.\n\n"
+
+
+        # Displays all of the found good java folders with any found information of maker/implementor and version.
+        for ((i=0; i<idk; i++)); do
+            if ((i <= 9)); then
+                printf "   $green[%d]$blue  %-${column_width1}s -  %-${column_width2}s - %s\n" "$i" "${implenentors[$i]}" "${full_versions[$i]}" "${java_folders[$i]}"
+            else
+                printf "   $green[%d]$blue  %-${column_width1}s - %-${column_width2}s - %s\n" "$i" "${implenentors[$i]}" "${full_versions[$i]}" "${java_folders[$i]}"
+            fi
+        done
+
+        printf "\n   $green[C]$blue Enter Custom Folder\n\n   $green[A]$blue Automatic mode (Universalator default)\n\n"
+
+        printf "   -----------------------------------\n   Options:\n"
+        printf "   - ${yellow} Number ${blue} Use the numbered entry as the Java to use when launching\n   - ${yellow} C ${blue}      Enter a custom java folder path,\n   - ${yellow} A ${blue}      Automatic mode (default) - Universalator sources it's own copy of Java for the version selected.\n\n"
+        printf "  $green"; read -p " ENTRY (or 'M' for main menu): $blue " entry; printf "$blue"
+
+        [[ "${entry^^}" == "M" ]] && return;
+        [[ "${entry^^}" == "A" ]] && { OVERRIDE="A"; settingsstamp; printf "\n   $yellow Mode set to Automatic!  Universalator will get it's own copies of Java to use. $blue\n\n"; read -n1 -r -p "Press any key to continue..."; return; }
+        [[ "${entry^^}" == "C" ]] && {
+            clear
+            printf "\n\n   Enter a custom folder - it can be an absolute or relative path\n\n   Absolute - /usr/local/myfolder\n   Relative - ./myfolder_in_univ_folder/java_folder_name\n\n"
+            printf "  $green"; read -p " ENTRY: $blue " entry; printf "$blue"
+            [[ -f "$entry$javaname" ]] && { OVERRIDE="$entry$javaname"; printf "\n   $yellow The entered folder was found, with files installed! $blue\n\n"; read -n1 -r -p "Press any key to continue..."; return; } || { 
+                printf "\n   $red The entered folder name does not exist or it does not have a good installation, try again! $blue\n\n"; read -n1 -r -p "Press any key to continue..."; continue;
+            }
+        }
+        # At this point, valid non number entries have been handled
+
+        # Validate numeric input
+        if ! [[ "$entry" =~ ^[0-9]+$ ]]; then
+            printf "\n   $red Invalid entry - must enter a valid option or M for main menu! $blue\n\n"; read -p "Press enter to continue..."; continue;
+        fi
+        
+        # Check if number is within range
+        let number=${#java_folders[@]}; let number-=1;
+        [[ "$entry" -gt "$number" ]] && {
+            printf "\n   $red Invalid entry - number is greater than available options! $blue\n\n"; read -p "Press enter to continue..."
+            continue;
+        } || {
+            printf "\n   $yellow Using option [$entry] for Java as Override to the default automatic! $blue\n\n"; 
+            printf "   $yellow %-${column_width1}s -  %-${column_width2}s - %s $blue\n\n" "${implenentors[$entry]}" "${full_versions[$entry]}" "${java_folders[$entry]}"; read -p "Press enter to continue..."
+            OVERRIDE="${java_folders[$entry]}$javaname"; settingsstamp;
+            return;
+        }
+    done
+    return
 }
 
 upnpmenu () {
@@ -614,13 +716,10 @@ upnpmenu () {
         return
     fi
 
-    # If the UPNP program is not downloaded then source it for the set OSARCH.
-    [[ ! -f "univ-utils/Portforwarded/$pfname/Portforwarded.Server" ]] && getportforwarded
-
-        
-        upnpq="N"
-
-        while [[ "${upnpq^^}" != "DOWNLOAD" ]]; do
+    # If the UPNP program is not downloaded then try to get it, if it still isn't found after the function then return to main menu.
+    [[ ! -f "$portforwardedProg" ]] && { getportforwarded; [[ ! -f "$portforwardedProg" ]] && return; }
+        let loop=0
+        while [[ "$loop" == "0" ]]; do
             clear
             printf "\n$yellow~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
             printf "      UPNP PORT FORWARDING MENU                                                     \n"
@@ -643,7 +742,7 @@ upnpmenu () {
             printf "\n   $green M - Main Menu $blue\n"
             printf "\n   Enter your choice:\n\n"
             printf "  $green"; read -p " Entry: $blue " upnpq; printf "$blue"
-            
+            # Keep entry variable as upnpq so that going into some of the functions you use it's state as a check and the name is descriptive.
             case "${upnpq^^}" in
                 (CHECK) upnpvalidate;;
                 (TOGGLE) toggle_protocol;;
@@ -659,7 +758,6 @@ upnpmenu () {
 upnpinit () {
         # Denies the upnp section if OSARCH is not x64 or aarch64.
     ( [[ "$OSARCH" == "x64" ]] || [[ "$OSARCH" == "aarch64" ]] ) || { printf "\n\n  $red UPNP PORT FORWARDING IS ONLY SUPPORTED ON X64 OR AARCH64 (arm64) ARCHITECTURE $blue\n\n"; read -n1 -r -p "   Press any key to continue..."; return; }
-
     [[ "$ostype" == "linux" ]] && upnpOS="linux" || upnpOS="osx"
     [[ "$OSARCH" == "x64" ]] && upnpArch="x64" || upnpArch="arm64"
     pfname="Portforwarder.Server-$pfrelease-$ostype-$upnpArch"
@@ -684,14 +782,15 @@ toggle_protocol () {
 }
 
 upnpactivate () {
+
     while true; do
         clear
         printf "\n\n\n       $yellow ENABLE UPNP PORT FORWARDING? $blue\n\n\n"
         printf "         Enter your choice:\n\n"
         printf "         $green 'Y' or 'N' $blue\n\n"
-        printf "  $green"; read -p " Entry: $blue " upnpact; printf "$blue"
+        printf "  $green"; read -p " Entry: $blue " entry; printf "$blue"
         
-        case "${upnpact^^}" in
+        case "${entry^^}" in
             (Y) upnpvalidate; [[ "$CHECKPASS" == "Y" ]] && { USEPORTFORWARDED="Y"; printf "\n     $green Portforwarded UPNP port forwarding ENABLED!$blue\n\n"; } || { USEPORTFORWARDED="N"; }; settingsstamp; read -n1 -r -p "   Press any key to continue..."; return;;
             (N) return;;
             (*) printf "\n  $red Invalid entry $blue - only valid entries are Y or N\n"; read -n1 -r -p "   Press any key to continue...";;
@@ -750,8 +849,9 @@ upnpvalidate () {
 }
 
 getportforwarded () {
-        upnpq="N"
-        while [[ "${upnpq^^}" != "DOWNLOAD" ]]; do
+        let loop=0; unset entry;
+
+        while [[ "$loop" == "0" ]]; do
             clear
             printf "\n$yellow~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
             printf "      UPNP PORT FORWARDING MENU                                                     \n"
@@ -766,22 +866,20 @@ getportforwarded () {
             printf "      - UPnP is a connection method with which lets your computer ask your network router to open ports.\n"
             printf "      - Not all routers have UPnP - and if yours does it needs to be enabled in settings  - it often is by default.\n\n"
             printf "\n   ENTER YOUR SELECTION\n      $green 'DOWNLOAD' - Download UPnP Module (Program will check if UPnP use possible) $blue\n      $green 'M' - Main Menu $blue\n\n"
-            printf "  $green"; read -p " Entry (number): $blue " upnpq; printf "$blue"
+            printf "  $green"; read -p " Entry (number): $blue " entry; printf "$blue"
 
-            case "${upnpq^^}" in
-                (DOWNLOAD) clear;;
+            case "${entry^^}" in
+                # If DOWNLOAD, try to download and verfy, if it's found after then return out.
+                (DOWNLOAD) downloadupnpprogram; [[ -f "$portforwardedProg" ]] && return;;
                 (M) return;;
                 (*) printf "\n  $red Invalid entry $blue - only valid entries are DOWNLOAD or M\n"; read -n1 -r -p "   Press any key to continue...";;
             esac
         done
-
-        downloadupnpprogram
 }
 
 downloadupnpprogram () {
         # If we get here then the user entered DOWNLOAD.
         [[ ! -d "./univ-utils/Portforwarded" ]] && mkdir -p "./univ-utils/Portforwarded"
- 
                 # Downloads the UPNP program.
                 curl -sLfo "./univ-utils/Portforwarded/Portforwarded.Server.tar.gz" "https://github.com/itssimple/Portforwarded.Server/releases/download/$pfrelease/$pfname.tar.gz";
                 # Unzips the tar.gz file if it exists.
@@ -801,8 +899,8 @@ downloadupnpprogram () {
 }
 
 zipitfunction () {
-    choice="N"
-    while [[ "${choice^^}" != "Y" ]]; do
+    let loop=0
+    while [[ "$loop" == "0" ]]; do
         clear
         printf "\n\n   $yellow ZIP SERVER PACK - ZIP SERVER PACK $blue\n\n"
         printf "     Continue on to create a server pack ZIP file?\n\n"
@@ -812,14 +910,12 @@ zipitfunction () {
         printf "          $red - Do not include folders or files that aren't necessary / customized by you. $blue\n\n\n"
         printf "   $yellow ZIP SERVER PACK - ZIP SERVER PACK $blue\n\n\n\n\n"
         printf "         $green ENTER 'Y' TO CONTINUE OR 'M' FOR MAIN MENU: $blue"
-        printf "  $green"; read -p " Entry: $blue " choice; printf "$blue"
+        printf "  $green"; read -p " Entry: $blue " entry; printf "$blue"
 
-        case "${choice^^}" in
+        case "${entry^^}" in
             (M) return ;;
             (Y) zipitmenu; printf "\nzipitmenu finished\n"; return;;
-            (*) printf "\nInvalid option - please enter 'Y' or 'M'\n"; 
-            read -n1 -r -p "Press any key to continue..." ;;
- 
+            (*) printf "\nInvalid option - please enter 'Y' or 'M'\n"; read -n1 -r -p "Press any key to continue..." ;;
         esac
     done
 }
@@ -976,16 +1072,18 @@ zipitmenu () {
                 # Adds the readme file to the zip file.
                 [[ -f "./univ-utils/readme-server.txt" ]] && { mv "univ-utils/readme-server.txt" "readme-server.txt"; zip -u "$zip_name" "readme-server.txt"; mv "readme-server.txt" "univ-utils/readme-server.txt"; }
 
+                # Sets a Universalator version for the bat version of the script to source.
+                univ_ver="2.50"
                 # Downloads a copy of the Windows version of the Universalator script from a github release tar file, extracts it, and adds it to the zip file.
-                [[ ! -f "./univ-utils/Universalator-2.9.bat" ]] && {
-                    curl -sLfo "./univ-utils/Universalator-windows.tar.gz" "https://github.com/nanonestor/universalator/archive/refs/tags/v2.49.tar.gz"
+                [[ ! -f "./univ-utils/Universalator-${univ_ver}.bat" ]] && {
+                    curl -sLfo "./univ-utils/Universalator-windows.tar.gz" "https://github.com/nanonestor/universalator/archive/refs/tags/v${univ_ver}.tar.gz"
                     if [[ -f "./univ-utils/Universalator-windows.tar.gz" ]]; then
                         tar -xf "./univ-utils/Universalator-windows.tar.gz" -C "./univ-utils"
                         rm -f "./univ-utils/Universalator-windows.tar.gz"
-                        mv "./univ-utils/universalator-2.49/Universalator-2.49.bat" "./univ-utils/Universalator-2.49.bat"
+                        mv "./univ-utils/universalator-${univ_ver}/Universalator-${univ_ver}.bat" "./univ-utils/Universalator-${univ_ver}.bat"
                     fi
                 }
-                [[ -f "./univ-utils/Universalator-2.49.bat" ]] && { mv "./univ-utils/Universalator-2.49.bat" "Universalator-2.49.bat"; zip -u "$zip_name" "Universalator-2.49.bat"; mv "Universalator-2.49.bat" "./univ-utils/Universalator-2.49.bat"; }
+                [[ -f "./univ-utils/Universalator-${univ_ver}.bat" ]] && { mv "./univ-utils/Universalator-${univ_ver}.bat" "Universalator-2.${univ_ver}.bat"; zip -u "$zip_name" "Universalator-${univ_ver}.bat"; mv "Universalator-${univ_ver}.bat" "./univ-utils/Universalator-${univ_ver}.bat"; }
                 
                 printf "\n  $green Created server pack ZIP file: $zip_name !$blue\n\n"
                 read -n1 -r -p "   Press any key to continue..."
@@ -1097,9 +1195,9 @@ purgefiles() {
     
     while true; do
         printf "  ${green}ENTER 'PURGE' OR 'M' FOR MAIN MENU - ${blue} "
-        printf "  $green"; read -p " Entry: $blue " ENTRY; printf "$blue"
+        printf "  $green"; read -p " Entry: $blue " entry; printf "$blue"
         
-        case "${ENTRY^^}" in
+        case "${entry^^}" in
             (PURGE)
                 rm -f ./*.jar >/dev/null 2>&1
                 [ -d "./libraries" ] && rm -rf "./libraries"
@@ -1110,14 +1208,9 @@ purgefiles() {
                 [ -d "./univ-utils/versions" ] && rm -rf "./univ-utils/versions"
                 rm -f ./univ-utils/*.json >/dev/null 2>&1
                 rm -f ./univ-utils/*.xml >/dev/null 2>&1
-                return
-                ;;
-            (M)
-                return
-                ;;
-            (*)
-                continue
-                ;;
+                return;;
+            (M) return;;
+            (*) continue;;
         esac
     done
 }
@@ -1131,8 +1224,7 @@ setmaxram () {
     # Divides the kb amount to get gb.  The result is an integer.  Bash can't natively do floating point math... yeah.
     let "ramtot = $ramtot / 1048576"; let "ramavail = $ramavail / 1048576"
 
-ramexit=0
-while [[ $ramexit == 0 ]]; do
+while true; do
     ramresult=0
     clear
     printf "\n\n"
@@ -1164,7 +1256,7 @@ while [[ $ramexit == 0 ]]; do
     case "$ramresult" in
         (1) printf "\n   $red You must enter a valid whole number! $blue\n"; read -n1 -r -p "     Press any key to try a new entry...";;
         (2) printf "\n   $red You cannot enter a value that leaves less than 1GB of ram/memory left available! $blue\n"; read -n1 -r -p "     Press any key to try a new entry...";;
-        (3) MAXRAMGIGS=$ramentry; let "ramexit+=1";;
+        (3) MAXRAMGIGS=$ramentry; return;;
         (4) printf "\n   $red The entered value must be between 1 and $((ramtot - 2)) GB! $blue\n"; read -n1 -r -p "     Press any key to try a new entry...";;
         (*) printf "\n   $red Invalid entry! $blue\n"; read -n1 -r -p "     Press any key to try again ...";;
     esac
@@ -1174,7 +1266,6 @@ done
 # function to parse the major and minor Minecraft version numbers
 getmajorminor () {
     # Sets the major and minor Minecraft version to integer variables - if it has no minor version then mcminor is set to 0.
-
     while IFS='.' read -r _ maj min; do
         mcmajor=$maj
         mcminor=$min
@@ -1238,7 +1329,7 @@ checkmavenfile () {
     # If maven file exists then check the file age using date and file date, if the file is old then use curl to get it again to refresh the file.
     if [[ -f "./univ-utils/$mavenfile" ]]; then
         d2=`date +%s`; d1=`date -r "./univ-utils/$mavenfile" +%s`; let diff_hours=($d2-$d1)/3600
-        [[ "$diff_hours" -gt 1 ]] && getmavenfile=y
+        [[ "$diff_hours" -gt 6 ]] && getmavenfile=y
     fi
 
     if [[ "$getmavenfile" == "y" ]]; then dnscheck; pingthing "$MODLOADER"; [[ "$pingresponse" == "g" ]] && (
@@ -1249,39 +1340,48 @@ checkmavenfile () {
         [[ "$MODLOADER" == "QUILT" ]] && curl -sLfo ./univ-utils/$mavenfile 'https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml';
         );
     fi
+    # Specially for Forge
+    [[ "$MODLOADER" == "FORGE" ]] && (
+        if [[ -f "./univ-utils/promotions_slim.json" ]]; then
+            d2=`date +%s`; d1=`date -r "./univ-utils/promotions_slim.json" +%s`; let diff_hours=($d2-$d1)/3600
+            [[ "$diff_hours" -gt 6 ]] && rm -f ./univ-utils/*.json >/dev/null 2>&1
+        fi
+        if [[ ! -f "./univ-utils/promotions_slim.json" ]]; then
+            curl -sLfo ./univ-utils/promotions_slim.json 'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json';
+        fi
+    )
+
 }
 
 askscanclients () {
     # If there is no mods folder
     if [[ ! -d "mods" ]]; then
         clear; printf "\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n     No folder named 'mods' was found in the directory that the Universalator program was run from!\n\n     Either you have forgotten to copy a 'mods' folder to this folder location,\n       or you did not copy and run this program to the server folder with the server files.\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n\n"
-        read -n1 -r -p "Press any key to continue..."; scan_yn="N"
+        read -n1 -r -p "Press any key to continue..."; return;
     fi
     # If there is a mods folder but it is empty
     if [[ -d "mods" ]] && [[ -z "$(ls -A ./mods)" ]]; then
         clear; printf "\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n     A folder named 'mods' was found but it is empty!\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n\n"
-        read -n1 -r -p "Press any key to continue..."; scan_yn="N"
+        read -n1 -r -p "Press any key to continue..."; return;
     fi
 
-    while [[ "$scan_yn" != "Y" ]] && [[ "$scan_yn" != "N" ]]; do
+    while true; do
         clear
         printf "\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n      --MANY CLIENT MODS ARE NOT CODED TO SELF DISABLE ON SERVERS AND MAY CRASH THEM\n\n      --THE UNIVERSALATOR SCRIPT CAN SCAN THE MODS FOLDER AND SEE IF ANY ARE PRESENT\n\n        For an explanation of how the script scans files - visit the official wiki at:\n"
         printf "        https://github.com/nanonestor/universalator/wiki\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n\n     $green WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? $blue\n\n     $green FOUND CLIENT MODS CAN BE AUTOMATICALLY MOVED TO A DIFFERENT FOLDER FOR STORAGE. $blue"
         printf "\n\n\n            $yellow Please enter 'Y' or 'N' $blue\n\n"
-        printf "  $green"; read -p " Enter a command: $blue " scan_yn; printf "$blue"
+        printf "  $green"; read -p " Enter a command: $blue " entry; printf "$blue"
 
-        case "${scan_yn^^}" in
-            (Y) scan_yn="Y"; scanclients;;
-            (N) scan_yn="N";;
+        case "${entry^^}" in
+            (Y) scanclients; return;;
+            (N) return;;
             (*) printf "\ninvalid option $opt\n\n"; read -n1 -r -p "Press any key to continue...";;
         esac
     done
-    unset scan_yn
 }
 
 scanclients () {
     clear
-
     # sets clients_txt do decide if to check for clientonlymods.txt
     if [[ "$MODLOADER" == "FORGE" || "$MODLOADER" == "NEOFORGE" ]]; then
         # if exists clientonlymods.txt then check how old it is, if older than 12 hrs then refresh
@@ -1326,7 +1426,7 @@ scanclients () {
             let idx+=1
             printf "   $idx/$idtot - ${modsarray[ith]}\n"
 
-            while IFS=":, $(echo t | tr t \\t)"  read -r prop value _ _; do
+            while IFS=\'":, $(echo t | tr t \\t)"  read -r prop value _ _; do
                 echo $prop | fgrep -q "modid" && modslist[ith]=`echo "$value" | tr -d '"'` && break
             done < <(unzip -p "mods/${modsarray[ith]}" mcmod.info 2>/dev/null)
         done
@@ -1396,17 +1496,16 @@ scanclients () {
         printf "     - IF YOU THINK THE CURRENT MASTER LIST IS INNACURATE OR HAVE FOUND A MOD TO ADD -\n        PLEASE CONTACT THE LAUNCHER AUTHOR OR\n        FILE AN ISSUE AT https://github.com/nanonestor/universalator/issues !\n\n   ------------------------------------------------------\n\n      $yellow ENTER YOUR RESPONSE - 'Y' OR 'N' $blue\n\n\n"
 
         # It would be really annoying to make a while loop that reprints all of the array data so instead just reprint the prompt until Y or N entered
-        while [[ "$movemods" != "Y" ]] && [[ "$movemods" != "N" ]]; do
+        let loop=0
+        while [[ "$loop" == "0" ]]; do
             printf "  $green"; read -p " Enter a command: $blue " movemods; printf "$blue"
             case "${movemods^^}" in
-                (Y) movemods="Y";;
-                (N) movemods="N" ;;
+                (Y|N) let loop+=1;;
                 (*) printf "\n   Invalid entry, try again. $opt\n\n";;
             esac
-
         done
 
-        if [[ "$movemods" == "Y" ]]; then
+        if [[ "${movemods^^}" == "Y" ]]; then
             # If the folder CLIENTMODS does not exist then create it
             [[ ! -d "./CLIENTMODS" ]] && mkdir -p "./CLIENTMODS"
             # for each array element in clientmodids move the corresponding file
@@ -1443,24 +1542,6 @@ findmcreator () {
         done
         printf "\n --------------------------------------------- \n\n   The above mod files were made using MCreator.\n\n  $red They are known to often have severe code problems because of the way they get made. $blue\n\n   A text tile has been generated in this directory, named 'mcreator-mods.txt', listing\n     the mod file names for future reference.\n\n\n"
         read -n1 -r -p "  Press any key to continue..."
-    fi
-}
-
-override () {
-    clear
-    if [[ "$javaoverride" == "N" ]]; then
-        javaoverride="Y"
-        # Uses java -version to get the distribution name and version.  2>&1 redirects the output of java -version from the default stderr to the stdout stream.
-        while IFS='' read -r what; do javaname+=( "$what" ); done< <(java -version 2>&1)
-        CUSTOMJAVA="${javaname[1]}"; unset javaname
-        printf "\n\n\n   $green JAVA OVERRIDE FOR THE CURRENT PROGRAM SESSION ENABLED $blue\n   $yellow Using the following Java set to the $ostype PATH system variable: $blue\n\n     $CUSTOMJAVA\n"
-        printf "\n   $yellow GOOD LUCK WITH THAT !! $blue\n\n   $green JAVA OVERRIDE FOR THE CURRENT PROGRAM SESSION ENABLED $blue\n\n\n\n\n"
-        read -n1 -r -p "   Press any key to continue..."
-    elif [[ "$javaoverride" == "Y" ]]; then
-        javaoverride="N"
-        printf "\n\n\n   $green JAVA OVERRIDE DISABLED $blue\n\n     The Java override is now disabled and the server launch Java will be the version\n\n       automatically obtained by the Universalator."
-        printf "\n\n   $green JAVA OVERRIDE DISBLED $blue\n\n\n\n\n"
-        read -n1 -r -p "   Press any key to continue..."
     fi
 }
 
@@ -1659,7 +1740,7 @@ serverpropsedit() {
         # Read and store properties and values
         while IFS='=' read -r prop val; do
             case "$prop" in 
-                difficulty|enable-command-block|enforce-whitelist|function-permission-level|level-name|level-seed|level-type|max-players|max-tick-time|max-world-size|motd|region-file-compression|server-port|simulation-distance|spawn-protection|view-distance|white-list)
+                (difficulty|enable-command-block|enforce-whitelist|function-permission-level|level-name|level-seed|level-type|max-players|max-tick-time|max-world-size|motd|region-file-compression|server-port|simulation-distance|spawn-protection|view-distance|white-list)
                     ((idk++))
                     PROP[$idk]="$prop"
                     VAL[$idk]="$val"
@@ -1725,18 +1806,18 @@ serverpropsedit() {
 
         # Handle special properties
         [[ "$input_handled" == "N" ]] && case "${PROP[$entry1]}" in
-            "difficulty")
+            (difficulty)
                 case "${VAL[$entry1]}" in
-                    "peaceful") entry2="easy" ;;
-                    "easy") entry2="normal" ;;
-                    "normal") entry2="hard" ;;
-                    "hard") entry2="peaceful" ;;
+                    (peaceful) entry2="easy" ;;
+                    (easy) entry2="normal" ;;
+                    (normal) entry2="hard" ;;
+                    (hard) entry2="peaceful" ;;
                 esac
                 serverprops_stamp "${PROP[$entry1]}" "$entry2"
                 input_handled="Y"
                 ;;
 
-            "function-permission-level")
+            (function-permission-level)
                 printf "%s %s Enter new value for '%s': %s" "$blue" "$green" "${PROP[$entry1]}" "$blue"
                 read entry2
                 
@@ -1752,7 +1833,7 @@ serverpropsedit() {
                 serverprops_stamp "${PROP[$entry1]}" "$entry2"
                 input_handled="Y"
                 ;;
-            "max-players"| "simulation-distance"| "view-distance")
+            (max-players|simulation-distance|view-distance)
                 printf "%s %s Enter new value for '%s': %s" "$blue" "$green" "${PROP[$entry1]}" "$blue"
                 read entry2
                 # Validate numeric input and range
@@ -1765,7 +1846,7 @@ serverpropsedit() {
                     input_handled="Y"
                 fi
                 ;;
-            "region-file-compression")
+            (region-file-compression)
                 if [[ "${VAL[$entry1]}" == "deflate" ]]; then
                     entry2="lz4"
                     printf "\n\n\n   %s LZ4 compression method set - this will take up more hard drive space for the world folder, %s\n" "$yellow" "$blue"
@@ -1777,7 +1858,7 @@ serverpropsedit() {
                 serverprops_stamp "${PROP[$entry1]}" "$entry2"
                 input_handled="Y"
                 ;;
-            "server-port")
+            (server-port)
                 printf "%s %s Enter new value for '%s': %s" "$blue" "$green" "${PROP[$entry1]}" "$blue"
                 read entry2
                 # Validate numeric input and range
@@ -1799,7 +1880,7 @@ serverpropsedit() {
                     input_handled="Y"
                 }
                 ;;
-            *)
+            (*)
                 printf "%s %s Enter new value for '%s': %s" "$blue" "$green" "${PROP[$entry1]}" "$blue"
                 read entry2
                 serverprops_stamp "${PROP[$entry1]}" "$entry2"
@@ -1822,7 +1903,7 @@ allcommands () {
         clear
         printf "$univheader"
         printf "\n   $green M $blue = MAIN MENU\n   $green S $blue = RE-ENTER ALL SETTINGS\n   $green L $blue = LAUNCH SERVER\n   $green V $blue = SET MODLOADER VERSION\n   $green R $blue = SET RAM MAXIMUM AMOUNT\n   $green J $blue = SET JAVA VERSION\n   $green ARCH $blue = SET SYSTEM ARCH TYPE FOR JAVA\n   $green PORT $blue = SET THE PORT TO USE\n\n   $green Q $blue = QUIT"
-        printf "\n   $green SCAN $blue  = SCAN MOD FILES FOR CLIENT ONLY MODS\n   $green GENRUN $blue = GENERATE BASIC RUN.SH / RUN.BAT SCRIPTS\n   $green UPNP $blue  = UPNP PORT FORWARDING MENU\n   $green PROPS $blue = CHANGE SERVER PROPERTIES FILE\n   $green RESTART $blue  = TOGGLE AUTOMATIC RESTART ON UNPLANNED SHUTDOWN\n   $green LOG  $blue     = VIEW THE LAST LOG FILE MADE\n   $green MODS/SMOD$blue = VIEW ALL JAR FILES IN MODS FOLDER\n   $green MCREATOR $blue = SCAN MOD FILES FOR MCREATOR MADE MODS\n   $green OVERRIDE $blue = USE CURRENTLY SET SYSTEM JAVA PATH INSTEAD OF UNIVERSALATOR JAVA\n   $green ZIP $blue = MENU FOR CREATING SERVER PACK ZIP FILE\n\n"
+        printf "\n   $green SCAN $blue  = SCAN MOD FILES FOR CLIENT ONLY MODS\n   $green GENRUN $blue = GENERATE BASIC RUN.SH / RUN.BAT SCRIPTS\n   $green UPNP $blue  = UPNP PORT FORWARDING MENU\n   $green PROPS $blue = CHANGE SERVER PROPERTIES FILE\n   $green RESTART $blue  = TOGGLE AUTOMATIC RESTART ON UNPLANNED SHUTDOWN\n   $green LOG  $blue     = VIEW THE LAST LOG FILE MADE\n   $green MODS/SMOD$blue = VIEW ALL JAR FILES IN MODS FOLDER\n   $green MCREATOR $blue = SCAN MOD FILES FOR MCREATOR MADE MODS\n   $green OVERRIDE $blue = MENU TO SET CUSTOM JAVA FOLDER TO BE USED\n   $green ZIP $blue = MENU FOR CREATING SERVER PACK ZIP FILE\n\n"
         printf "  $green"; read -p " Enter a command: $blue " allmenu_entry; printf "$blue"
 
         case "${allmenu_entry^^}" in
@@ -1839,7 +1920,7 @@ allcommands () {
             (SMOD) listmode="SMOD"; modsview;;
             (ZIP) zipitfunction;;
             (MCREATOR) findmcreator;;
-            (OVERRIDE) override;;
+            (OVERRIDE) java_override_menu;;
             (RESTART) restarttoggle;;
             (ARCH) setarch; settingsstamp;;
             (PORT) setport;;
@@ -1865,9 +1946,9 @@ mainmenu () {
     [[ "$MODLOADER" == "NEOFORGE" ]] && printf "   $yellow $MODLOADER VERSION $blue  $MODLOADERVERSION \n"
     [[ "$MODLOADER" == "FABRIC" ]] && printf "   $yellow $MODLOADER VERSION $blue    $MODLOADERVERSION \n"
     [[ "$MODLOADER" == "QUILT" ]] && printf "   $yellow $MODLOADER VERSION $blue     $MODLOADERVERSION \n"
-    [[ "$javaoverride" == "N" ]] && printf "   $yellow JAVA VERSION $blue      $JAVAVERSION "
-    [[ "$javaoverride" == "N" ]] && printf "\n   $yellow ARCH TYPE $blue         $OSARCH "
-    [[ "$javaoverride" == "Y" ]] && printf "\n   $yellow JAVA VERSION $blue   $green * CUSTOM OVERRIDE - OS JAVA PATH * $blue \n                       $CUSTOMJAVA "
+    [[ "$OVERRIDE" == "A" ]] && printf "   $yellow JAVA VERSION $blue      $JAVAVERSION "
+    [[ "$OVERRIDE" == "A" ]] && printf "\n   $yellow ARCH TYPE $blue         $OSARCH "
+    [[ "$OVERRIDE" != "A" ]] && printf "\n   $yellow JAVA VERSION $blue   $green * OVERRIDE USING CUSTOM JAVA PATH * $blue \n                      $OVERRIDE "
     printf "\n\n   $yellow MAX RAM / MEMORY $blue  $MAXRAMGIGS\n\n"
     { [[ ! -v PROTOCOL ]] || [[ "$PROTOCOL" == "TCP" ]] || [[ "$PROTOCOL" == "BOTH" ]]; } && printf "   $yellow CURRENT TCP PORT SET $blue $PORT\n"
     [[ -f "$portforwardedProg" ]] && { [[ "$PROTOCOL" == "UDP" ]] || [[ "$PROTOCOL" == "BOTH" ]]; } && printf "   $yellow CURRENT UDP PORT SET $blue $PORTUDP"
@@ -1896,7 +1977,7 @@ mainmenu () {
         (SMOD) listmode="SMOD"; modsview;;
         (ZIP) zipitfunction;;
         (MCREATOR) findmcreator;;
-        (OVERRIDE) override;;
+        (OVERRIDE) java_override_menu;;
         (RESTART) restarttoggle;;
         (ARCH) setarch; settingsstamp;;
         (PORT) setport;;
@@ -1923,8 +2004,8 @@ mainmenu () {
     portforwardedProg="univ-utils/Portforwarded/$pfname/Portforwarded.Server"
 
 launchsequence () {
-    [[ "$javaoverride" == "N" ]] && javacheck
-    [[ "$javaoverride" == "Y" ]] && JAVAFILE="java"
+    [[ "$OVERRIDE" == "A" ]] && javacheck
+    [[ "$OVERRIDE" != "A" ]] && JAVAFILE="$OVERRIDE"
     modloadercheck
     eulacheck
     launchmenu
@@ -1938,7 +2019,7 @@ javacheck () {
     # The first exception is getting Java 8 for MacOS with aarch64 architecture 
     if [[ "$JAVAVERSION" == "8" ]] && [[ "$ostype" == "mac" ]] && [[ "$OSARCH" == "aarch64" ]]; then
         javafolder=`find ./univ-utils/java -name "*corretto-8*"`
-
+    # This is all for cases using corretto-8
         # If the javafolder variable is not empty then check if a found 'java' file exists to use, and we're done with java setup.
         if [[ -n "$javafolder" ]]; then
             [[ -f "$javafolder/Contents/Home/jre/bin/java" ]] && { JAVAFILE="$javafolder/Contents/Home/jre/bin/java"; getjava="N"; } || { rm -f -r "$javafolder"; getjava="Y"; printf "\n   No Java $JAVAVERSION found, downloading!...\n"; }
@@ -1980,7 +2061,7 @@ javacheck () {
         fi
     # All inside of ELSE is the standard Adoptium Java installation.
     else
-        [[ "$JAVAVERSION" == "8" ]] && FINDFOLDER="jdk8u"; [[ "$JAVAVERSION" == "11" ]] && FINDFOLDER="jdk-11"; [[ "$JAVAVERSION" == "16" ]] && FINDFOLDER="jdk-16"; [[ "$JAVAVERSION" == "17" ]] && FINDFOLDER="jdk-17"; [[ "$JAVAVERSION" == "21" ]] && FINDFOLDER="jdk-21";
+        [[ "$JAVAVERSION" == "8" ]] && { FINDFOLDER="jdk8u"; } || { FINDFOLDER="jdk-$JAVAVERSION"; }
         # Does a find search of directories for the string that the set java version would have
         javafolder=`find ./univ-utils/java -name "*$FINDFOLDER*"`
         # If the javafolder variable is not empty then consider check to see if it's a valid version for this arch type
@@ -2001,9 +2082,9 @@ javacheck () {
         [[ ! -d "$javafolder" ]] && { getjava="Y"; printf "\n   No Java $JAVAVERSION found, downloading!...\n"; }
 
         if [[ $getjava == "N" ]]; then
-            # Sets a var that will be true or false to whether the java folder is older than 2 months
+            # Sets a var that will be true or false to whether the java folder is older than 9 months
             d2=`date +%s`; d1=`date -r "$javafolder" +%s`; let diff_days=($d2-$d1)/86400
-            [[ "$diff_days" -gt 45 ]] && isjavaold="True" || isjavaold="False"
+            [[ "$diff_days" -gt 270 ]] && isjavaold="True" || isjavaold="False"
 
             # If the folder is not old then only set JAVAFILE to this folder
             if [[ "$isjavaold" == "False" ]]; then
@@ -2305,50 +2386,46 @@ installquilt () {
 }
 
 eulacheck () {
-    [[ ! -f "eula.txt" ]] && seteula="Y"
-    [[ -f "eula.txt" ]] && [[ ! `fgrep "eula=true" "eula.txt"` ]] && seteula="Y"
-
-    if [[ "$seteula" == "Y" ]]; then
-        eulaentry="N"
-        while [[ "${eulaentry,,}" != "agree" ]]; do
+    # If the eula.txt doesn't exist or if it does not have a true entry prompt user.
+    if [[ ! -f "eula.txt" ]] || ( [[ -f "eula.txt" ]] && [[ ! `fgrep "eula=true" "eula.txt"` ]] ); then
+        while true; do
             clear
             printf "\n\n\n   Mojang's EULA has not yet been accepted. In order to run a Minecraft server, you must accept Mojang's EULA.\n   Mojang's EULA is available to read at https://account.mojang.com/documents/minecraft_eula\n"
             printf "\n     $yellow If you agree to Mojang's EULA then type 'AGREE' $blue\n\n     $yellow ENTER YOUR RESPONSE $blue\n"
-            printf "\n  $green"; read -p " Entry: $blue " eulaentry; printf "$blue"
-            [[ "${eulaentry,,}" != "agree" ]] && { printf "\n   $red Invalid entry - try again $blue\n\n"; read -n1 -r -p "   Press any key to continue..."; }
+            printf "\n  $green"; read -p " Entry: $blue " entry; printf "$blue"
+        
+            case ${entry^^} in
+                (AGREE) printf "eula=true">eula.txt; return;;
+                (*) printf "\n   $red Invalid entry - try again $blue\n\n"; read -n1 -r -p "   Press any key to continue...";;
+            esac
         done
-
-        printf "eula=true">eula.txt
     fi
 }
 
 launchmenu () {
-    LAUNCHLOOP="U"
-    while [[ "$LAUNCHLOOP" != "M" ]] && [[ "$LAUNCHLOOP" != "Q" ]]; do
+
+    while true; do
         clear
         printf "$univheader"
         printf "\n   $yellow READY TO LAUNCH $MODLOADER SERVER! $blue\n\n        CURRENT SERVER SETTINGS:\n        MINECRAFT - $MINECRAFT\n"
         [[ "${MODLOADER^^}" != "VANILLA" ]] && printf "        $MODLOADER - $MODLOADERVERSION\n"
         [[ "${MODLOADER^^}" == "VANILLA" ]] && printf "        $MODLOADER\n"
-        [[ "$javaoverride" == "N" ]] && printf "        JAVA - $JAVAVERSION / $JAVANUM\n"
-        [[ "$javaoverride" == "Y" ]] && printf "        JAVA - CUSTOM OVERRIDE - $CUSTOMJAVA\n"
+        [[ "$OVERRIDE" == "A" ]] && printf "        JAVA - $JAVAVERSION / $JAVANUM\n"
+        [[ "$OVERRIDE" != "A" ]] && printf "        JAVA - CUSTOM OVERRIDE - $JAVAFILE\n"
         printf " \n ============================================\n   $yellow CURRENT NETWORK SETTINGS:$blue\n\n    PUBLIC IPv4 AND PORT      - $green $PUBLICIP:$PORT $blue\n    LAN IPv4 AND PORT         - $green $LOCALIP:$PORT $blue\n    TO CONNECT ON SAME PC USE - $green localhost $blue < This text\n"
         printf "\n ============================================ \n\n   $yellow READY TO LAUNCH FORGE SERVER! $blue\n\n            $yellow ENTER 'M' FOR MAIN MENU $blue\n            $yellow ENTER L FOR LAUNCH $blue\n\n"
-        printf "  $green"; read -p " Enter a command: $blue " launchmenu; printf "$blue"
+        printf "  $green"; read -p " Enter a command: $blue " entry; printf "$blue"
         
-        case "${launchmenu^^}" in
-            (L) launch;;
+        case "${entry^^}" in
+            # Launches, then after coming back clears the screen with blue color.
+            (L) launch; printf "${blue}"; clear;;
             # If M then the launchloop exits and main menu resumes
-            (M) LAUNCHLOOP="M";;
-            # If Q then launchloop exits 
-            (Q) let "shouldiquit+=1"; LAUNCHLOOP="Q";;
-            # If any other string is entered then launch
+            (M) return;;
+            # If Q then launchloop exits - clears the screen of color first.
+            (Q) printf "$norm"; clear; exit 0;;
             (*) printf "\n   $red Invalid entry - try again $blue\n\n"; read -n1 -r -p "   Press any key to continue...";;
         esac
-        printf "${blue}"
-        clear
     done
-
 }
 
 launch () {
@@ -2434,8 +2511,8 @@ launchcli () {
     printf "   JAVA $JAVAVERSION / $JAVANUM\n"
     printf "   MAX RAM $MAXRAMGIGS GB\n\n"
     
-    [[ "$javaoverride" == "N" ]] && javacheck
-    [[ "$javaoverride" == "Y" ]] && JAVAFILE="java"
+    [[ "$OVERRIDE" == "A" ]] && javacheck
+    [[ "$OVERRIDE" != "A" ]] && JAVAFILE="$OVERRIDE"
     modloadercheck
     eulacheck
     launch
@@ -2452,12 +2529,13 @@ launchcli () {
     white="\e[0;30;47m"
 
     case "${1^^}" in
+        (--VERSION|-VERSION|VERSION)
+            printf "\nUniversalator linux version: $UNIV_VER\n\n"; exit 0;;
         (--HELP|-HELP|HELP)
             printf "\n   [~ DIRECT SERVER LAUNCH ~] - At least 5 parameters are required:\n
               ~$ ${white}bash Universalator-linux.sh <MODLOADER> <MINECRAFT> <MODLOADER_VERSION> <JAVA VERSION> <MAX RAM (gb)>${norm}
       example:~$ ${white}bash Universalator-linux.sh NEOFORGE 1.21.1 21.1.174 21 6${norm}\n
       (optional parameters) (must be after above 5 parameters):
-              - OVERRIDE (Overrides Universalator Java use with whatever your current 'java' path is)
               - RESTART (Will restart the server if it shuts down unexpectedly, up to 10 times)
               - ARGS (After ARGS parameter pass a string of Java arguments to use in the launch command)
               - UPNP (Will attempt to use UPNP activation of port forwarding for the server port(s) being used))
@@ -2472,6 +2550,7 @@ launchcli () {
 
         * If a settings file does not exist then it will be created using entered values.
         * If a settings file already exists then the entered settings will be stamped onto the existing settings file.
+        * To enter a custom java folder to use, run a server once to produce a settings-linux-universalator.txt file,\n          then edit the settings file OVERRIDE setting.
               
    [~ SETTINGS FILE LAUNCH ~] - Requires a settings file to exist, which can be created by running
                                   the script in normal menu mode or DIRECT SERVER LAUNCH mode.
@@ -2612,12 +2691,6 @@ launchcli () {
                 [[ "$idk" -gt "5" ]] && { 
                     # If more than 5 parameters were passed then check for optional parameters.
                     case "${param[$idk]^^}" in
-                        (--OVERRIDE|-OVERRIDE|OVERRIDE) 
-                            javaoverride="Y";
-                            while IFS='' read -r what; do javaname+=( "$what" ); done< <(java -version 2>&1);
-                            CUSTOMJAVA="${javaname[1]}"; unset javaname;
-                            printf "\n OVERRIDE-$CUSTOMJAVA\n\n"
-                        ;;
                         (--ARGS|-ARGS|ARGS) 
                             ARGS="${param[$idk+1]}";
                             printf "\n ARGS-$ARGS\n\n"
