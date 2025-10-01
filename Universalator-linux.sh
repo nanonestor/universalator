@@ -34,7 +34,7 @@
 
 
 # Universalator for linux version
-UNIV_VER="2.7"
+UNIV_VER="2.8"
 
 # Color variables for later use
 blue=$'\e[1;33m\e[44m'; yellow=$'\e[1;34m\e[1;103m'; yellowtext=$'\e[1;33m\e[1;40m'; green=$'\e[1;93m\e[1;42m';cyan=$'\e[1;34m\e[1;106m'; red=$'\e[1;93m\e[1;101m'; orange=$'\e[34;43m'; indigo=$'\e[97;45m'; violet=$'\e[97;95m'; lty=$'\e[1;33m'; norm=$'\e[0m';
@@ -646,6 +646,9 @@ java_override_menu () {
         fi
     done
 
+    # Sets another variable to a name of the current java set to path
+    [[ `command -v java` ]] && pathjava=`java -version 2>&1 | head -n 1` || pathjava="N"
+
     # Java overrides menu
     while true; do
         clear
@@ -662,14 +665,19 @@ java_override_menu () {
             fi
         done
 
-        printf "\n   $green[C]$blue Enter Custom Folder\n\n   $green[A]$blue Automatic mode (Universalator default)\n\n"
+        [[ "$pathjava" != "N" ]] && printf "\n   $green[P]$blue Use the Java currently set in the system PATH - $yellow $pathjava $blue\n"
+        printf "   $green[C]$blue Enter Custom Folder\n\n   $green[A]$blue Automatic mode (Universalator default)\n\n"
 
-        printf "   -----------------------------------\n   Options:\n"
-        printf "   - ${yellow} Number ${blue} Use the numbered entry as the Java to use when launching\n   - ${yellow} C ${blue}      Enter a custom java folder path,\n   - ${yellow} A ${blue}      Automatic mode (default) - Universalator sources it's own copy of Java for the version selected.\n\n"
+        printf "   -----------------------------------\n   Enter one of the options listed above.\n   Automatic mode means Universalator sources it's own copy of Java for the version selected.\n\n"
         printf "  $green"; read -p " ENTRY (or 'M' for main menu): $blue " entry; printf "$blue"
 
         [[ "${entry^^}" == "M" ]] && return;
         [[ "${entry^^}" == "A" ]] && { OVERRIDE="A"; settingsstamp; printf "\n   $yellow Mode set to Automatic!  Universalator will get it's own copies of Java to use. $blue\n\n"; read -n1 -r -p "Press any key to continue..."; return; }
+        [[ "${entry^^}" == "P" ]] && {
+            [[ "$pathjava" != "N" ]] && { OVERRIDE="java"; printf "\n   $yellow Using the Java currently set in the system PATH - $yellow $pathjava $blue\n\n"; settingsstamp; read -n1 -r -p "Press any key to continue..."; return; } || {
+                printf "\n   $red No Java was detected to be set in the system PATH, try again! $blue\n\n"; read -n1 -r -p "Press any key to continue..."; continue;
+            }
+        }
         [[ "${entry^^}" == "C" ]] && {
             clear
             printf "\n\n   Enter a custom folder - it can be an absolute or relative path\n\n   Absolute - /usr/local/myfolder\n   Relative - ./myfolder_in_univ_folder/java_folder_name\n\n"
@@ -1364,11 +1372,15 @@ askscanclients () {
         clear; printf "\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n     A folder named 'mods' was found but it is empty!\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n\n"
         read -n1 -r -p "Press any key to continue..."; return;
     fi
+    # Checks if the toml2json tool is installed for better toml parsing during the mods scanning
+    [[ `command -v toml2json` ]] && foundtoml2json="Y" || foundtoml2json="N"
 
     while true; do
         clear
-        printf "\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n      --MANY CLIENT MODS ARE NOT CODED TO SELF DISABLE ON SERVERS AND MAY CRASH THEM\n\n      --THE UNIVERSALATOR SCRIPT CAN SCAN THE MODS FOLDER AND SEE IF ANY ARE PRESENT\n\n        For an explanation of how the script scans files - visit the official wiki at:\n"
-        printf "        https://github.com/nanonestor/universalator/wiki\n\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n\n     $green WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? $blue\n\n     $green FOUND CLIENT MODS CAN BE AUTOMATICALLY MOVED TO A DIFFERENT FOLDER FOR STORAGE. $blue"
+        printf "\n\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n      -- MANY CLIENT MODS ARE NOT CODED TO SELF DISABLE ON SERVERS AND MAY CRASH THEM\n\n      -- THE UNIVERSALATOR SCRIPT CAN SCAN THE MODS FOLDER AND SEE IF ANY ARE PRESENT\n\n"
+        [[ "$foundtoml2json" == "N" ]] && printf "        ** You don't appear to have the 'toml2json' linux package installed. $blue\n\n           It's not required, but if you are having trouble when running the scan,\n           you can install this tool to get better results.\n           https://github.com/woodruffw/toml2json $blue\n"
+        [[ "$foundtoml2json" == "Y" ]] && printf "      -- You have the toml2json tool installed!  SCAN will run using better file parsing! $blue\n"
+        printf "\n   $yellow CLIENT MOD SCANNING - CLIENT MOD SCANNING $blue\n\n\n     $green WOULD YOU LIKE TO SCAN THE MODS FOLDER FOR MODS THAT ARE NEEDED ONLY ON CLIENTS? $blue\n\n     $green FOUND CLIENT MODS CAN BE AUTOMATICALLY MOVED TO A DIFFERENT FOLDER FOR STORAGE. $blue"
         printf "\n\n\n            $yellow Please enter 'Y' or 'N' $blue\n\n"
         printf "  $green"; read -p " Enter a command: $blue " entry; printf "$blue"
 
@@ -1405,16 +1417,32 @@ scanclients () {
 
     # scanning forge new style with mods.toml files
     if [[ "$MODLOADER" == "FORGE" || "$MODLOADER" == "NEOFORGE" ]] && [[ "$mcmajor" -gt "12" ]] && [[ -f "./univ-utils/clientonlymods.txt" ]]; then
+        # Sets a name for the toml file to look for - searching for it through pattern matching with unzip results in getting both files if both are present.
+        tomlname="mods.toml"
+        [[ "$MODLOADER" == "NEOFORGE" ]] && [[ "$MINECRAFT" != "1.20.1" ]] && tomlname="neoforge.mods.toml"
+
         idx=0
         idtot=${#modsarray[@]}
+        [[ "$foundtoml2json" == "N" ]] && printf "\n   'toml2json' tool / package not installed.\n   Scanning mod files for modIds using the brute-force method!\n\n"
+        [[ "$foundtoml2json" == "Y" ]] && printf "\n   Scanning mod files for modIds using toml2json tool method!\n\n"
         for ith in "${!modsarray[@]}"; do
             let idx+=1
-            printf "   $idx/$idtot - ${modsarray[ith]}\n"
 
-            while IFS="= $(echo t | tr t \\t)"  read -r prop value _ _; do
-                [[ "$found" == "Y" ]] && [[ "${prop^^}" == "MODID" ]] && modslist[ith]=`echo "$value" | tr -d '"'` && break
-                echo $prop | fgrep -q "[[mods]]" && found="Y"
-            done < <(unzip -p "mods/${modsarray[ith]}" *mods.toml 2>/dev/null)
+            # If the toml2json tool is not installed then do a brute-force grep style search for the modId in the mods.toml file
+            [[ "$foundtoml2json" == "N" ]] && {
+                printf "   $idx/$idtot - ${modsarray[ith]}\n"
+                while IFS="= $(echo t | tr t \\t)"  read -r prop value _ _; do
+                    [[ "$found" == "Y" ]] && [[ "${prop^^}" == "MODID" ]] && modslist[ith]=`echo "$value" | tr -d '"'` && break
+                    echo $prop | fgrep -q "[[mods]]" && found="Y"
+                done < <(unzip -p "mods/${modsarray[ith]}" META-INF/$tomlname 2>/dev/null)
+            }
+
+            [[ "$foundtoml2json" == "Y" ]] && {
+                printf "   $idx/$idtot - ${modsarray[ith]}\n"
+                # Saves the modId - which comes from sending the mods.toml file through STDOUT to toml2json to get converted to JSON, sent to jq to parse for the modId, and then using head -n 1 to only save the first returned value.
+                # This is to avoid issues with mods that have multiple modIds in the file (like Embeddium has).
+                modslist[ith]=`unzip -p "mods/${modsarray[ith]}" META-INF/$tomlname 2>/dev/null | toml2json | jq -r '.mods[].modId' 2>/dev/null | head -n 1`
+            }
         done
     fi
 
@@ -1435,13 +1463,14 @@ scanclients () {
     # FORGE new & old syles - generates client mods list, loops through each number in the array(s) and does clientonlymods file comparison, records modId and filename if found!
     if [[ "$MODLOADER" == "FORGE" || "$MODLOADER" == "NEOFORGE" ]] && [[ -f "./univ-utils/clientonlymods.txt" ]]; then
         for ith in "${!modslist[@]}"; do 
+            # fgrep -x only matches exact lines, so no partial matches will be found.
             if [[ `fgrep -x "${modslist[ith]}" "./univ-utils/clientonlymods.txt"` ]]; then
-                clientmodids+=(`fgrep -x "${modslist[ith]}" "./univ-utils/clientonlymods.txt"`)
-                clientmodfiles+=(${modsarray[ith]}); 
+                clientmodids+=("${modslist[ith]}")
+                clientmodfiles+=("${modsarray[ith]}")
             fi
         done
     fi
-
+    read -n1 -r -p "  Press any key to continue..."
     # Scanning fabric and quilt mods - they can both be in one section with a test to see if quilt.mod.json is present or not.
     if [[ "$MODLOADER" == "FABRIC" || "$MODLOADER" == "QUILT" ]]; then
         idx=0; idtot=${#modsarray[@]}
@@ -1948,7 +1977,12 @@ mainmenu () {
     [[ "$MODLOADER" == "QUILT" ]] && printf "   $yellow $MODLOADER VERSION $blue     $MODLOADERVERSION \n"
     [[ "$OVERRIDE" == "A" ]] && printf "   $yellow JAVA VERSION $blue      $JAVAVERSION "
     [[ "$OVERRIDE" == "A" ]] && printf "\n   $yellow ARCH TYPE $blue         $OSARCH "
-    [[ "$OVERRIDE" != "A" ]] && printf "\n   $yellow JAVA VERSION $blue   $green * OVERRIDE USING CUSTOM JAVA PATH * $blue \n                      $OVERRIDE "
+    [[ "$OVERRIDE" != "A" ]] && [[ "$OVERRIDE" != "java" ]] && printf "\n   $yellow JAVA VERSION $blue   $green * OVERRIDE USING CUSTOM JAVA PATH * $blue \n                      $OVERRIDE "
+    [[ "$OVERRIDE" != "A" ]] && [[ "$OVERRIDE" == "java" ]] && {
+        pathjava=`java -version 2>&1 | head -n 1`
+        [[ -z "$pathjava" ]] && pathjava="java (in PATH)"
+        printf "\n   $yellow JAVA VERSION $blue   $green * OVERRIDE USING CUSTOM JAVA PATH * $blue \n                      $pathjava "
+    }
     printf "\n\n   $yellow MAX RAM / MEMORY $blue  $MAXRAMGIGS\n\n"
     { [[ ! -v PROTOCOL ]] || [[ "$PROTOCOL" == "TCP" ]] || [[ "$PROTOCOL" == "BOTH" ]]; } && printf "   $yellow CURRENT TCP PORT SET $blue $PORT\n"
     [[ -f "$portforwardedProg" ]] && { [[ "$PROTOCOL" == "UDP" ]] || [[ "$PROTOCOL" == "BOTH" ]]; } && printf "   $yellow CURRENT UDP PORT SET $blue $PORTUDP"
