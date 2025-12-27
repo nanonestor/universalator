@@ -769,6 +769,8 @@ upnpinit () {
     [[ "$ostype" == "linux" ]] && upnpOS="linux" || upnpOS="osx"
     [[ "$OSARCH" == "x64" ]] && upnpArch="x64" || upnpArch="arm64"
     pfname="Portforwarder.Server-$pfrelease-$ostype-$upnpArch"
+    # If the name wound up with $ostype as 'mac', change it to be 'osx' for the portforwarded program naming convention.
+    [[ "$ostype" == "mac" ]] && pfname="Portforwarder.Server-$pfrelease-osx-$upnpArch"
     portforwardedProg="univ-utils/Portforwarded/$pfname/Portforwarded.Server"
     dotnetversion=$(dotnet --version 2>/dev/null)
 }
