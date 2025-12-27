@@ -897,9 +897,9 @@ downloadupnpprogram () {
                 # Else if the file exists do a shasum check to verify the file integrity.
                 while IFS=' ' read -r sum _ _; do filechecksum=$sum; done < <(shasum -a256 $portforwardedProg 2>/dev/null) 2>/dev/null
                 [[ "$ostype" == "linux" ]] && [[ "$OSARCH" == "x64" ]] && pfchecksum="324913a5bedf0dfb40b2f424042a0b0c146a974ff3d044bead1bd7076049d902"
-                [[ "$ostype" == "linux" ]] && [[ "$OSARCH" == "aarch64" ]] && pfchecksum="324913a5bedf0dfb40b2f424042a0b0c146a974ff3d044bead1bd7076049d902"
-                [[ "$ostype" == "mac" ]] && [[ "$OSARCH" == "x64" ]] && pfchecksum="324913a5bedf0dfb40b2f424042a0b0c146a974ff3d044bead1bd7076049d902"
-                [[ "$ostype" == "mac" ]] && [[ "$OSARCH" == "aarch64" ]] && pfchecksum="324913a5bedf0dfb40b2f424042a0b0c146a974ff3d044bead1bd7076049d902"
+                [[ "$ostype" == "linux" ]] && [[ "$OSARCH" == "aarch64" ]] && pfchecksum="974eaf8bd82a9034c98691d94195edcee06c8985e2ffa3e16044468f5637d045"
+                [[ "$ostype" == "mac" ]] && [[ "$OSARCH" == "x64" ]] && pfchecksum="e381ea7e572cc4e069c54cf016dbfe769775fd1cde39352431a018922e5b017f"
+                [[ "$ostype" == "mac" ]] && [[ "$OSARCH" == "aarch64" ]] && pfchecksum="8a168898094ad208377af246cbf0473a45eff9b409f5a866588a503c39685edd"
 
                 if [[ "$filechecksum" != "$pfchecksum" ]]; then
                     clear; printf "\n\n   $red Oops - it looks like the Portforwarded.Server program for UPNP failed to download correctly.$blue\n\n"; read -n1 -r -p "Press any key to continue..."; rm -f "./$portforwardedProg"; return;
