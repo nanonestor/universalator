@@ -1624,7 +1624,8 @@ modsview () {
             done
         fi
         # Create list of mod files
-        find mods -name "*.jar" -type f -printf "%f\n" > modslist.txt
+        #find mods -name "*.jar" -type f -printf "%f\n" > modslist.txt
+        find mods -maxdepth 1 -type f -name "*.jar" -exec basename {} \; > modslist.txt
 
         printf "\n   $yellow * A text file named 'modslist.txt' was also created in the server folder with these file names! $blue \n\n"
         read -n1 -r -p "Press any key to continue..."
