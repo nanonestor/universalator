@@ -78,7 +78,8 @@ fi
     if [[ ! `command -v xmlstarlet` ]]; then missing_util_name="xmlstarlet"; missing_util_package="xmlstarlet"; missing_lang="XML file parsing"; fi
     if [[ ! `command -v jq` ]]; then missing_util_name="jq"; missing_util_package="jq"; missing_lang="JSON file parsing"; fi
     if [[ ! `command -v curl` ]]; then missing_util_name="curl"; missing_util_package="curl"; missing_lang="download"; fi
-    if [[ ! `command -v nslookup` ]]; then missing_util_name="nslookup"; missing_util_package="dnsutils"; missing_lang="network checking"; fi
+    # If the distro_like is macOS, correct the package name - because macOS flavored Unix standards == no standards.
+    if [[ ! `command -v nslookup` ]]; then missing_util_name="nslookup"; missing_util_package="dnsutils"; missing_lang="network checking"; [[ "$distro_like" == "macos" ]] && missing_util_package="bind"; fi
     # If the distro_like is fedora, correct the package name - because linux standards == no standards.
     if [[ ! `command -v shasum` ]]; then missing_util_name="shasum"; missing_util_package="libdigest-sha-perl"; missing_lang="checksum finding"; [[ "$distro_like" == "fedora" ]] && missing_util_package="perl-Digest-SHA"; fi
     if [[ ! `command -v zip` ]]; then missing_util_name="zip"; missing_util_package="zip"; missing_lang="file zip"; fi
