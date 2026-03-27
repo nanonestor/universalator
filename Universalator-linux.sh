@@ -516,7 +516,6 @@ getnewestversion () {
 
     if [[ -f "./univ-utils/$mavenfile" ]]; then
         newestmodloader="not_found"
-
         # If Forge or Neoforge - pipes the output of maven-metadata file to a fgrep which filters based on the Minecraft version, then a while loop reads off the info and a variable sets the MODLOADERVERSION.
         # Forge's metadata file doesn't necessarily list versions sequentially, so instead uses this JSON file that stores the latest version published.
         if [[ "$MODLOADER" == "FORGE" ]]; then newestmodloader=`jq --arg mcv "$MINECRAFT-latest" --raw-output '.promos[$mcv]' "./univ-utils/promotions_slim.json"`; fi
@@ -528,7 +527,9 @@ getnewestversion () {
             let newestneo=0
             # New method to cycle through the versions for a given Minecraft version, and record the highest numbered one
             # the output of grep search to the XMLStarlet output dumps into the while loop, which parses the found results, in each loop cycle it compares the current stored neoforge version to the input neo version and records if input is newer.  Also has to account for the -beta at end of actual neo version when recording final string.
-            while IFS='.-' read -r mcmj mcmin neover beta; do [ "$newestneo" -lt "$neover" ] && { newestneo="$neover"; [ -z "$beta" ] && newestmodloader="$mcmj.$mcmin.$neover"; [ ! -z "$beta" ] && newestmodloader="$mcmj.$mcmin.$neover-$beta"; }; done < <(xmlstarlet sel -t -v "//versioning/versions/version" ./univ-utils/maven-neoforge-metadata.xml | fgrep "$mcmajor.$mcminor.");
+            [[ "$mcmajor" -le "25" ]] && while IFS='.-' read -r mcmj mcmin neover beta; do [ "$newestneo" -lt "$neover" ] && { newestneo="$neover"; [ -z "$beta" ] && newestmodloader="$mcmj.$mcmin.$neover"; [ ! -z "$beta" ] && newestmodloader="$mcmj.$mcmin.$neover-$beta"; }; done < <(xmlstarlet sel -t -v "//versioning/versions/version" ./univ-utils/maven-neoforge-metadata.xml | fgrep "$mcmajor.$mcminor.");
+            # The new method needed below needs to account for Neoforge versions 26.1+ which include a hotfix number after the major and minor version numbers, neoforge version is the fourth entry instead of the third, and the version string can also include a -beta at the end.  Also for 26.1+ the newest version is listed last in the metadata file so it can just be set to the last version found for the given MC version.
+            [[ "$mcmajor" -ge "26" ]] && while IFS='.-' read -r mcmj mcmin hotfix neover beta; do [ "$mcmj" == "$mcmajor" ] && [ "$mcmin" == "$mcminor" ] && { [ -z "$beta" ] && newestmodloader="$mcmj.$mcmin.$hotfix.$neover"; [ ! -z "$beta" ] && newestmodloader="$mcmj.$mcmin.$hotfix.$neover-$beta"; }; done < <(xmlstarlet sel -t -v "//versioning/versions/version" ./univ-utils/maven-neoforge-metadata.xml | fgrep "$mcmajor.$mcminor.");
         fi
         # Fabric and Quilt both work a different way with the newest version being a release in the metadata file, and it's independent of MC version it will be used with.
         if [[ "$MODLOADER" == "FABRIC" ]]; then newestmodloader=`xmlstarlet sel -t -v "//versioning/release" ./univ-utils/maven-fabric-metadata.xml`; fi
@@ -549,8 +550,9 @@ setjava () {
         [[ $mcmajor == 17 ]] && printf "   THE ONLY OPTION FOR MINECRAFT $MINECRAFT BASED LAUNCHING IS $green 16 $blue "
         ([[ $mcmajor -ge 18 ]] && [[ $mcmajor -le 19 ]]) && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 17 $blue, AND $green 21 $blue"
         ( [[ $mcmajor == 20 ]] && [[ $mcminor -ge 1 ]] && [[ $mcminor -le 5 ]] ) && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 17 $blue, $green 21 $blue, AND $green 25 $blue"
-        (( [[ $mcmajor == 20 ]] && [[ $mcminor -ge 6 ]] ) || [[ $mcmajor -ge 21 ]] ) && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 21 $blue, AND $green 25 $blue"
-
+        ( [[ $mcmajor == 20 ]] && [[ $mcminor -ge 6 ]] ) || [[ $mcmajor == 21 ]] && printf "   THE OPTIONS FOR MINECRAFT $MINECRAFT BASED LAUNCHING ARE $green 21 $blue, AND $green 25 $blue"
+        [[ $mcmajor -gt 21 ]] && printf "   THE ONLY OPTION FOR MINECRAFT $MINECRAFT BASED LAUNCHING IS $green 25 $blue "
+        
         printf "\n\n\n   * USING THE NEWER VERSION OPTION IF GIVEN A CHOICE $green MAY $blue OR $red MAY NOT $blue WORK DEPENDING ON MODS BEING LOADED\n   * IF A SERVER FAILS TO LAUNCH, YOU SHOULD CHANGE BACK TO THE LOWER DEFAULT VERSION!\n\n\n  $yellow ENTER JAVA VERSION TO LAUNCH THE SERVER WITH $blue \n\n"
         printf "  $green"; read -p " Entry : $blue " entry; printf "$blue"
 
@@ -559,7 +561,8 @@ setjava () {
             (11) ( [[ $mcmajor -eq 16 ]] && [[ $mcminor -eq 5 ]] ) && JAVAVERSION=$entry && let "setgoodjava+=1";;
             (16) [[ $mcmajor -eq 17 ]] && JAVAVERSION=$entry && let "setgoodjava+=1";;
             (17)  (([[ $mcmajor -ge 18 ]] && [[ $mcmajor -le 19 ]]) || ([[ $mcmajor == 20 ]] && [[ $mcminor -le 5 ]])) && JAVAVERSION=$entry && let "setgoodjava+=1";;
-            (21|25)  (( [[ $mcmajor == 20 ]] && [[ $mcminor -ge 1 ]] ) || [[ $mcmajor -ge 21 ]] ) && JAVAVERSION=$entry && let "setgoodjava+=1";;
+            (21)  [[ $mcmajor -ge 18 ]] && [[ $mcmajor -le 21 ]] &&  JAVAVERSION=$entry && let "setgoodjava+=1";;
+            (25)  [[ $mcmajor -ge 20 ]]  && JAVAVERSION=$entry && let "setgoodjava+=1";;
             (*) printf "\nInvalid entry - enter a valid version option\n"; read -n1 -r -p "Press any key to continue...";;
         esac
     done
@@ -1277,12 +1280,22 @@ done
 # function to parse the major and minor Minecraft version numbers
 getmajorminor () {
     # Sets the major and minor Minecraft version to integer variables - if it has no minor version then mcminor is set to 0.
-    while IFS='.' read -r _ maj min; do
-        mcmajor=$maj
-        mcminor=$min
+    # As of 2026 - versions will be numbered according to a year prefix - i.e. 26.1
+    while IFS='.' read -r AA BB CC DD; do
+        if [[ "$AA" == "1" ]]; then
+            mcmajor=$BB
+            if [[ -z "$CC" ]]; then mcminor=0; else mcminor=$CC; fi
+            if [[ -z "$DD" ]]; then mchotfix=0; else mchotfix=$DD; fi
+        else
+            mcmajor=$AA
+            if [[ -z "$BB" ]]; then mcminor=0; else mcminor=$BB; fi
+            if [[ -z "$CC" ]]; then mchotfix=0; else mchotfix=$CC; fi
+        fi
     done <<<$MINECRAFT
-    [[ [${mcminor}] == [] ]] && mcminor=0
+    [[ -z "$mcminor" ]] && mcminor=0
+    [[ -z "$mchotfix" ]] && mchotfix=0
 }
+
 # function to check the DNS currently used resolving the IP addresses of whichever modloader's URL is, also always check Mojang's URLs
 dnscheck () {
     # sets a variable for the mavenurl depending on the MODLOADER type.
@@ -2678,23 +2691,23 @@ launchcli () {
                         exit 0
                     fi
                 }
-                [[ "$idk" == 3 ]] && { 
+                [[ "$idk" == 3 ]] && {
                     # The third number should be the MODLOADERVERSION number.  For vanilla have the entry be the same as MINECRAFT.
-                        [[ "$MODLOADER" != "VANILLA" ]] && {
-                            getmajorminor
-                            checkmavenfile
+                    [[ "$MODLOADER" != "VANILLA" ]] && {
+                        getmajorminor
+                        checkmavenfile
 
-                            grep -q "${param[$idk]}" "./univ-utils/$mavenfile" && MODLOADERVERSION="${param[$idk]}" || {
-                                printf "\n   Oops the version you entered ${param[$idk]} was not detected to exist as a $MODLOADER version.\n\n"; exit 0; 
-                            }
+                        grep -q "${param[$idk]}" "./univ-utils/$mavenfile" && MODLOADERVERSION="${param[$idk]}" || {
+                            printf "\n   Oops the version you entered ${param[$idk]} was not detected to exist as a $MODLOADER version.\n\n"; exit 0;
                         }
-                        [[ "$MODLOADER" == "VANILLA" ]] && [[ "${param[$idk]}" != "$MINECRAFT" ]] && { 
-                            printf "\n   Oops - for VANILLA the MODLOADERVERSION must be the same as the MINECRAFT version!\n\n"; exit 0; 
-                        }
+                    }
+                    [[ "$MODLOADER" == "VANILLA" ]] && [[ "${param[$idk]}" != "$MINECRAFT" ]] && {
+                        printf "\n   Oops - for VANILLA the MODLOADERVERSION must be the same as the MINECRAFT version!\n\n"; exit 0;
+                    }
                 }
-                [[ "$idk" == 4 ]] && { 
+                [[ "$idk" == 4 ]] && {
                     # If the fourth parameter is a version number then set it to JAVA VERSION
-                    if [[ "${param[$idk]}" =~ ^[0-9]+(\.[0-9]+)*$ ]] && { [[ "${param[$idk]}" == 8 ]] || [[ "${param[$idk]}" == 11 ]] || [[ "${param[$idk]}" == 16 ]] || [[ "${param[$idk]}" == 17 ]] || [[ "${param[$idk]}" == 21 ]]; }; then
+                    if [[ "${param[$idk]}" =~ ^[0-9]+(\.[0-9]+)*$ ]] && { [[ "${param[$idk]}" == 8 ]] || [[ "${param[$idk]}" == 11 ]] || [[ "${param[$idk]}" == 16 ]] || [[ "${param[$idk]}" == 17 ]] || [[ "${param[$idk]}" == 21 ]] || [[ "${param[$idk]}" == 25 ]]; }; then
                         getmajorminor
                         { [[ "$mcmajor" -lt "16" ]] || { [[ "$mcmajor" -eq "16" ]] && [[ "$mcminor" -lt "5" ]]; } } && [[ "${param[$idk]}" != "8" ]] && {
                             printf "\nmcmajor-$mcmajor\nmcminor-$mcminor\n"
@@ -2709,12 +2722,14 @@ launchcli () {
                         { [[ "$mcmajor" == "18" ]] || [[ "$mcmajor" == "19" ]] || { [[ "$mcmajor" == "20" ]] && [[ "$mcminor" -le "4" ]]; }; } && { [[ "${param[$idk]}" != "17" ]] && [[ "${param[$idk]}" != "21" ]]; } && {
                             printf "\n   Oops - the version you entered ${param[$idk]} is not supported for Minecraft $MINECRAFT.\n   For Minecraft versions 1.18 and higher, only Java 17 and 21 are supported.\n\n"; exit 0;
                         } 
-                        { [[ "$mcmajor" == "21" ]] || { [[ "$mcmajor" == "20" ]] && [[ "$mcminor" -ge "5" ]]; }; }  && [[ "${param[$idk]}" != "21" ]] && {
+                        { [[ "$mcmajor" == "21" ]] || { [[ "$mcmajor" == "20" ]] && [[ "$mcminor" -ge "5" ]]; }; } && { [[ "${param[$idk]}" != "21" ]] && [[ "${param[$idk]}" != "25" ]]; } && {
                             printf "\n   Oops - the version you entered ${param[$idk]} is not supported for Minecraft $MINECRAFT.\n   For Minecraft versions 1.20.5 and higher, only Java 21 is supported.\n\n"; exit 0;
-
+                        }
+                        { [[ "$mcmajor" -gt "21" ]] && [[ "${param[$idk]}" != "25" ]] &&
+                                printf "\n   Oops - the version you entered ${param[$idk]} is not supported for Minecraft $MINECRAFT.\n   For Minecraft versions 26 and higher, only Java 25 is supported.\n\n"; exit 0;
                         } || { JAVAVERSION="${param[$idk]}"; }
                     else
-                        printf "   The number entered as fourth parameter for JAVA version is not a correct number!\n   The only valid JAVA versions are 8, 11, 16, 17, 21.\n\n"; exit 0
+                        printf "   The number entered as fourth parameter for JAVA version is not a correct number!\n   The only valid JAVA versions are 8, 11, 16, 17, 21, 25.\n\n"; exit 0
                     fi
                 }
                 [[ "$idk" == 5 ]] && { 
